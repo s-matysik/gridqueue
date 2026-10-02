@@ -133,4 +133,11 @@ porównanie wyjścia z wzorcem odczytanym z dokumentu.
 
 ## Licencja
 
-Do ustalenia przez zespół (pole wymagające decyzji — patrz `CODE_METADATA.md`).
+Apache-2.0 — patrz `LICENSE.txt`. Jest to wybór **roboczy**, podyktowany tym, że czasopismo
+docelowe wymaga pliku licencji w repozytorium, a tekst Apache-2.0 nie wymaga wpisywania danych
+właściciela praw w samym pliku. Zmiana na inną licencję z listy dopuszczonych (MIT, BSD, GPL)
+jest jednym commitem, dopóki repozytorium nie ma zewnętrznych współautorów.
+
+Licencje danych wejściowych są osobne i niezmienne: gazeter z OpenStreetMap na licencji ODbL 1.0;
+publikacje ustawowe operatorów na ich własnych warunkach korzystania, redystrybuowane wyłącznie
+tam, gdzie jest to dozwolone.
