@@ -27,8 +27,15 @@ jobs:
       - name: Zgodnosc deklarowanej wersji
         shell: python
         run: |
-          import tomllib, pathlib, gridqueue
-          pj = tomllib.loads(pathlib.Path("pyproject.toml").read_text(encoding="utf-8"))
-          assert pj["project"]["version"] == gridqueue.__version__, (
-              pj["project"]["version"], gridqueue.__version__)
+          # tomllib jest w bibliotece standardowej od Pythona 3.11, a macierz obejmuje 3.10,
+          # wiec wersje z pyproject.toml czytamy wyrazeniem regularnym zamiast parserem TOML.
+          import pathlib
+          import re
+
+          import gridqueue
+
+          tekst = pathlib.Path("pyproject.toml").read_text(encoding="utf-8")
+          m = re.search(r'(?m)^\s*version\s*=\s*"([^"]+)"', tekst)
+          assert m, "nie znaleziono pola version w pyproject.toml"
+          assert m.group(1) == gridqueue.__version__, (m.group(1), gridqueue.__version__)
           print("wersja zgodna:", gridqueue.__version__)
