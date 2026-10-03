@@ -13,7 +13,7 @@ Zmierzone na panelu 19 220 wierszy, schemat w wersji 1.0:
 | reguła | co sprawdza | TAURON | ENERGA | Stoen | PSE | National Grid | Boryszew | panel | udział |
 |---|---|---:|---:|---:|---:|---:|---:|---:|---:|
 | R1 | monotoniczność dat postępowania | 45 | 163 | 0 | 3 | 0 | 0 | 211 | 1,098 % |
-| R2 | dwuletnia ważność warunków przyłączenia | 583 | 174 | 7 | 12 | 0 | 0 | 776 | 4,038 % |
+| R2 | dwuletnia ważność warunków przyłączenia | 583 | 174 | 7 | 12 | 0 | 0 | 776 | 4,037 % |
 | R3 | dopuszczalność stanu procesu wobec dat | 1 | 138 | 0 | 0 | 0 | 1 | 140 | 0,728 % |
 | R4 | spójność jednostek mocy | 0 | 13 | 0 | 0 | 0 | 0 | 13 | 0,068 % |
 | R5 | zakresy wartości | 0 | 13 | 0 | 0 | 0 | 0 | 13 | 0,068 % |
@@ -64,3 +64,6 @@ q = run_quality(df)
 q.as_dict()["naruszen_lacznie"]
 q.as_frame()          # jeden wiersz na regułę
 ```
+
+Udziały na tej stronie liczone są z surowych liczników (naruszenia / wiersze panelu), nie
+z zaokrąglonych wartości pola `udzial`, żeby nie rozchodziły się na ostatniej cyfrze z figurami.
