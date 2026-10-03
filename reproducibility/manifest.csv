@@ -1,0 +1,13 @@
+plik,publikujacy,jurysdykcja,adapter,bajtow,sha256,url,pobrano
+tauron_informacja_przylaczenia_odmowy.pdf,TAURON Dystrybucja S.A.,PL,pl_tauron,61058229,ce11455a2575454588fef46f711700b476ead67f4cd0b9a829b96e6698bc83b8,https://dostepnemoce.tauron-dystrybucja.pl/,2026-09-30
+energa_wnioski_odmowy_20260831.pdf,ENERGA-OPERATOR S.A.,PL,pl_energa,1419597,4d66bfc4df8a9da1489b179395aff49f889bc6fd10c5551e3eacd3031ca8b44b,https://cdn-netpr.pl/file/mediakit/3063617/fa/2026_08_31_pusop_wnioski_i_odmowy_eop.pdf,2026-09-30
+energa_moc_dostepna_odbiorcza_20260831.pdf,ENERGA-OPERATOR S.A.,PL,pl_energa,2414777,43abdeed101270cb7c66bb919f17fe7e6ab8a22632e3186fd611bd24cf903324,https://cdn-netpr.pl/file/mediakit/3063619/5c/informacja_o_wartosci_lacznej_dostepnej_odbiorczej_mocy_przylaczeniowej_31_08_2026.pdf,2026-09-30
+energa_moc_dostepna_wytworcza_20260831.pdf,ENERGA-OPERATOR S.A.,PL,pl_energa,2436908,801ee2fc0a788dbac6b0453794a4dc5c2d13f0c6934a8bc47b6ddb0c3e051622,https://cdn-netpr.pl/file/mediakit/3063621/4a/informacja_o_wartosci_lacznej_dostepnej_wytworczej_mocy_przylaczeniowej_31_08_2026.pdf,2026-09-30
+stoen_podmioty_ubiegajace_20260630.pdf,Stoen Operator Sp. z o.o.,PL,pl_stoen,1408257,620471b408838a13715c431d1d5d448ec3b75cef90e26b54bcb9a6b316244ce8,https://www.stoen.pl/,2026-09-30
+stoen_wnioski_20260630.pdf,Stoen Operator Sp. z o.o.,PL,pl_stoen,274869,909d6db2499566c19679b641840d3ee843d08f6e89a4d38f73704823e6980fe6,https://www.stoen.pl/,2026-09-30
+stoen_odmowy_20260630.pdf,Stoen Operator Sp. z o.o.,PL,pl_stoen,251757,b65b007ddbf3a1e5591e1d5a1f1c48cf8ffd398702c81bc3746ad08277d3fec7,https://www.stoen.pl/,2026-09-30
+pse_art7_8l_20260831.xlsx,PSE S.A.,PL,pl_pse,168415,e8fcbee1bef514476438ad905d732dc59d35b79032628af972848f3328e5f49d,https://www.pse.pl/documents/20182/51490/Informacje_publikowane_zgodnie_z_Art_7_ust_8l_ustawy_PE_stan_na_31_08_2026.xlsx,2026-09-30
+pse_lista_rozdzielni_brak_mozliwosci_20260204.xlsx,PSE S.A.,PL,pl_pse,16074,5fb56e497860b7584734386122910e5d10deae750b21d4b0557dc70a970e1348,https://www.pse.pl/documents/20182/51490/20260204_Lista_rozdzielni-brak_mozliwosci_przylaczenia.xlsx,2026-09-30
+elana_informacje.pdf,Boryszew Green Energy&Gas Sp. z o.o.,PL,pl_boryszew,352611,19baec2f3616b27092c371db999ad6f1125e0be6c0b52d6344347f3712336541,https://www.elana-energetyka.pl/,2026-09-30
+uk_connection_queue.csv,National Grid Electricity Distribution,GB,uk_nationalgrid,94762,a169b1c40dc09063ceafce0acaa51983bcee6244e8aa62fd2868791684e45117,"https://connecteddata.nationalgrid.co.uk/ (zbiór CKAN connection-queue, 45 zasobów CSV)",2026-09-29
+gazeter_wspolrzedne.json,"OpenStreetMap (gazeter, ODbL 1.0)",—,—,3227817,7c6ac4f1eccf619d1fe135030e58e12e6d39715962ca726268c7f2827fb505a3,https://overpass-api.de/api/interpreter,2026-09-30

@@ -8,7 +8,9 @@ zbiorem wierszy o zmierzonej dokładności, albo nie.
 """
 
 from .schema import (  # noqa: F401
-    SCHEMA, FIELDS, CORE_FIELDS, OPTIONAL_FIELDS, GROUPS,
+    SCHEMA, SCHEMA_VERSION, FIELDS, CORE_FIELDS, OPTIONAL_FIELDS, GROUPS,
+    CORE_ALTERNATIVES, CORE_BY_ENTITY, ENTITY_COLUMN, DEFAULT_ENTITY,
+    META_COLUMNS, ANNOTATION_PREFIX, core_complete_mask,
     canonical_date, canonical_power_kw, validate_instance, validate_frame,
     empty_frame, schema_table,
 )
@@ -21,9 +23,11 @@ from .geoloc import LocationResolver, Resolution, resolver_from_osm_json  # noqa
 from .quality import RULES, run_quality, QualityReport  # noqa: F401
 from .registry import REGISTRY, get_adapter, detect_publisher, declarations  # noqa: F401
 
-__version__ = "0.3.1"
+__version__ = "1.0.0"
 __all__ = [
-    "SCHEMA", "FIELDS", "CORE_FIELDS", "OPTIONAL_FIELDS", "GROUPS",
+    "SCHEMA", "SCHEMA_VERSION", "FIELDS", "CORE_FIELDS", "OPTIONAL_FIELDS", "GROUPS",
+    "CORE_ALTERNATIVES", "CORE_BY_ENTITY", "ENTITY_COLUMN", "DEFAULT_ENTITY",
+    "META_COLUMNS", "ANNOTATION_PREFIX", "core_complete_mask",
     "canonical_date", "canonical_power_kw", "validate_instance", "validate_frame",
     "empty_frame", "schema_table", "ColumnGeometry", "detect_ruled_columns",
     "detect_banded_columns", "extract_ruled_page", "assign_words_to_columns",

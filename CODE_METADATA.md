@@ -8,26 +8,26 @@ listed again in the final section.
 
 | Nr | Item | Value |
 |----|------|-------|
-| C1 | Current code version | `0.3.1` (declared identically in `pyproject.toml` and in `gridqueue.__version__`; the 0.3.0 distribution carried a stale `__version__` of 0.1.0, corrected in 0.3.1) |
-| C2 | Permanent link to code / repository used for this code version | ⟦DECYZJA ZESPOŁU⟧ — repository host and URL not yet chosen |
-| C3 | Permanent link to Reproducible Capsule | ⟦DECYZJA ZESPOŁU⟧ — archive DOI (e.g. Zenodo deposit of the source distribution) |
-| C4 | Legal Code License | ⟦DECYZJA ZESPOŁU⟧ — code licence not yet chosen. Input data licences are fixed and separate: OpenStreetMap gazetteer under ODbL; operators' statutory publications under their own terms of use, redistributed only where permitted |
+| C1 | Current code version | `1.0.0` (declared identically in `pyproject.toml` and in `gridqueue.__version__`; CI asserts the two agree on every push) |
+| C2 | Permanent link to code / repository used for this code version | https://github.com/s-matysik/gridqueue (tag `v1.0.0`) |
+| C3 | Permanent link to Reproducible Capsule | ⟦DECYZJA ZESPOŁU⟧ — archive DOI. The repository is ready for a Zenodo deposit of tag `v1.0.0`; enabling the integration requires the team's account |
+| C4 | Legal Code License | Apache-2.0, `LICENSE.txt` at the distribution root. Input data licences are fixed and separate: OpenStreetMap gazetteer under ODbL 1.0; operators' statutory publications under the terms each publisher applies to its own site |
 | C5 | Code versioning system used | git |
 | C6 | Software code languages, tools and services used | Python, `requires-python >= 3.10`; build backend `setuptools.build_meta` (`setuptools>=68`); test runner `pytest` |
 | C7 | Compilation requirements, operating environments and dependencies | No compilation (pure Python). Runtime: `pandas>=2.0`, `pdfplumber>=0.11`, `openpyxl>=3.1`, `requests>=2.31`, `pyarrow>=14`. Test extra: `pytest>=8.0`. Build: `setuptools>=68`. The location resolver needs no third-party string-matching library; matching is implemented in `geoloc.py` |
-| C8 | If available, link to developer documentation / manual | `README.md` at the root of the distribution (installation, quick example, CLI, schema, extraction method, quality rules) ⟦DECYZJA ZESPOŁU⟧ — no documentation site exists; decide whether one is published before submission |
-| C9 | Support email for questions | ⟦DECYZJA ZESPOŁU⟧ |
+| C8 | If available, link to developer documentation / manual | https://s-matysik.github.io/gridqueue/ — eight generated pages (schema with legal basis per field, adapters, extraction method, quality rules, measured validation, CLI, limitations). `README.md` at the distribution root duplicates the quick path |
+| C9 | Support email for questions | ⟦DECYZJA ZESPOŁU⟧ — corresponding author's institutional address |
 
 ## Required Metadata — Software
 
 | Nr | Item | Value |
 |----|------|-------|
-| S1 | Current software version | `0.3.1`, matching C1 |
-| S2 | Permanent link to executables of this version | Source distribution only — `gridqueue-0.3.1.tar.gz`, pure Python, no binaries, no compiled extensions. Confirmed against the built archive |
-| S3 | Legal Software License | ⟦DECYZJA ZESPOŁU⟧ — same licence as C4 |
-| S4 | Computing platforms / Operating Systems | Linux, macOS, Windows (pure Python, no platform-specific code). ⟦PAKIET: the packaging band reported a passing suite on one platform only; the platform/Python-version test matrix was not measured⟧ |
+| S1 | Current software version | `1.0.0`, matching C1 |
+| S2 | Permanent link to executables of this version | Source distribution only — `gridqueue-1.0.0.tar.gz`, pure Python, no binaries, no compiled extensions |
+| S3 | Legal Software License | Apache-2.0 — same licence as C4 |
+| S4 | Computing platforms / Operating Systems | Linux, macOS, Windows × Python 3.10, 3.11, 3.12, 3.13 — a twelve-cell matrix exercised by GitHub Actions (`.github/workflows/ci.yml`) on every push and pull request. The measured figures reported in the paper were produced on macOS/arm64 with Python 3.11.15 |
 | S5 | Installation requirements & dependencies | As C7. No GPU, no network access required at run time once the source documents and the gazetteer are local |
-| S6 | If available, link to user manual | `README.md`. There is no separate example script; the end-to-end path is the CLI sequence `gridqueue parse … --out …parquet --report …json` → `gridqueue validate … --out walidacja.json` → `gridqueue export … --out panel.parquet --only-schema`, given in full in the README |
+| S6 | If available, link to user manual | `README.md`, plus `examples/research_use_case.py` — a runnable research workflow (administrative processing time by resource class and publisher) that uses the public API only and contains no publisher-specific branch |
 | S7 | Support email for questions | ⟦DECYZJA ZESPOŁU⟧ — same address as C9 |
 
 ## Software characterisation (for the "Software description" section)
@@ -62,8 +62,15 @@ not.
    extension field, leaving `moc_dostepna` empty rather than fabricating a unit. `wspolrzedne` is
    populated by derivation from the place name, not by disclosure: no publisher reports coordinates.
    Extensions across publishers are complementary, not conflicting.
-   **Open decision:** the core requires `moc_pobierana`, which purely generating applications do
-   not carry — 5,390 of 19,220 rows (28.044%), the whole of rule R7. The core should require
+   **Resolved in 1.0.** The core no longer requires `moc_pobierana` unconditionally. It requires the
+   row's OWN entity core: for a WNIOSEK row four unconditional fields plus **at least one** of
+   (`moc_pobierana`, `moc_wprowadzana`); for a WEZEL row `id_wezla` plus at least one of
+   (`moc_dostepna`, `ograniczenie_flaga`). Rule R7 therefore fell from 5,390 violations (28.044%)
+   to 771 (4.011%), and rows with a complete core rose from 13,830 to 18,449 of 19,220. What remains
+   is a genuine disclosure gap, not a schema artefact: 570 applications with no power figure at all,
+   202 with no location text, 2 nodes with neither available capacity nor a constraint flag.
+   Superseded text follows for the record: the core required `moc_pobierana`, which purely generating applications do
+   not carry — 5,390 of 19,220 rows (28.044%) in 0.3.x, the whole of rule R7 at that time. The core should require
    either capacity, consumed or injected.
 2. Every location resolution carries an explicit confidence level on a six-point scale (`EXACT`,
    `UNIQUE_TOKEN`, `TOKEN_SUBSET`, `REVERSED`, `SKRZYZOWANIE`, `NONE` with a reason), plus a second,
@@ -106,21 +113,10 @@ blocker is server-side client filtering — the site returns a rejection page to
 control the operator put in place deliberately, so it was not attempted. Electricity North West:
 rows behind the same access control as UK Power Networks; metadata only.
 
-**Size.** Read from the built source distribution `gridqueue-0.3.1.tar.gz`: 7 core modules under
-`src/gridqueue`, 2,016 lines — `geoloc.py` 672, `schema.py` 406, `layout.py` 353, `quality.py` 339,
-`cli.py` 148, `registry.py` 64, `__init__.py` 34 — and 9 adapter modules, 1,777 lines
-(`pl_pse.py` 303, `pl_energa.py` 282, `_ptpiree.py` 278, `pl_boryszew.py` 232, `pl_stoen.py` 194,
-`uk_nationalgrid.py` 166, `base.py` 156, `pl_tauron.py` 161, `adapters/__init__.py` 5); 3,793 lines
-in total under `src`. `_ptpiree.py` is shared by the PSE and ENERGA adapters because both publishers
-fill the same agreed industry template, one as a spreadsheet and one as a print document. Tests:
-7 files, 965 lines (`test_geoloc_wspolrzedne.py` 280, `test_pse_energa.py` 147,
-`test_adapters.py` 144, `test_schema.py` 124, `test_geoloc.py` 95, `test_quality.py` 89,
-`test_layout.py` 86). `python -m pytest -q`: **120 passed, 2 skipped (122 collected), 0 failed,
-0 errors** — the two skips are the PSE and ENERGA integration tests, which require the source
-documents and are skipped when those are absent from the working tree.
+**Size.** Read from the built source distribution `gridqueue-1.0.0.tar.gz`: 7 core modules under `src/gridqueue`, 2,125 lines — `geoloc.py` 672, `schema.py` 480, `quality.py` 370, `layout.py` 353, `cli.py` 148, `registry.py` 64, `__init__.py` 38 — and 9 adapter modules, 1,777 lines (`pl_pse.py` 303, `pl_energa.py` 282, `_ptpiree.py` 278, `pl_boryszew.py` 232, `pl_stoen.py` 194, `uk_nationalgrid.py` 166, `pl_tauron.py` 161, `base.py` 156, `__init__.py` 5); 3,902 lines in total under `src`. `_ptpiree.py` is shared by the PSE and ENERGA adapters because both publishers fill the same agreed industry template, one as a spreadsheet and one as a print document. Tests: 7 files, 1,040 lines (`test_geoloc_wspolrzedne.py` 280, `test_schema.py` 164, `test_pse_energa.py` 147, `test_adapters.py` 144, `test_quality.py` 124, `test_geoloc.py` 95, `test_layout.py` 86). Runnable workflows shipped alongside the package: `examples/research_use_case.py` 168 lines, and `reproducibility/` 382 lines (`run_figures.py` 248, `run_validation.py` 134). `python -m pytest -q`: **125 passed, 2 skipped (127 collected), 0 failed, 0 errors** — the two skips are the PSE and ENERGA integration tests, which require the source documents and are skipped when those are absent from the working tree. The twelve-cell OS × Python matrix in CI runs the same suite.
 
 **Functionalities.** Document ingest with per-row provenance; layout-based extraction; unit
-normalisation (kW→MW); resource-class and process-status vocabulary mapping; composite-date
+normalisation to the canonical kW (MW→kW, with the source unit retained in an extension column); resource-class and process-status vocabulary mapping; composite-date
 decomposition; gazetteer-based location resolution with six-level confidence, a second independent
 placement-accuracy level, and missing-with-reason; quality-rule evaluation with a violations report (eight rules); Parquet/CSV
 export plus a summary panel; adapter registry for adding a publisher without touching the core;
@@ -138,7 +134,7 @@ a command-line entry point (`gridqueue schema | adapters | parse | validate | ex
 4. **C8 = S6 / documentation site.** The distribution ships `README.md`; decide whether a
    separate documentation service is published and linked.
 5. **C9 = S7 / support email.**
-6. **S4 / platform test matrix.** The 122-test suite reports 120 passed and 2 conditionally skipped (integration tests requiring the source documents); the Python-version
+6. **S4 / platform test matrix.** The 127-test suite reports 125 passed and 2 conditionally skipped (integration tests requiring the source documents); the Python-version
    and operating-system matrix behind that run was not measured and must be either measured or
    stated narrowly before submission.
 7. **Whether source documents ship with the package.** Decide per publisher against their terms of

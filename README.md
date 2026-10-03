@@ -25,11 +25,22 @@ sprowadza się do pobrania CSV. Polska jest przypadkiem, w którym nie jest.
 
 ## Instalacja
 
+Jedno polecenie, bez kompilacji i bez usług zewnętrznych:
+
 ```bash
+pip install git+https://github.com/s-matysik/gridqueue@v1.0.0
+```
+
+Do pracy nad kodem, z ekstrasem testowym:
+
+```bash
+git clone https://github.com/s-matysik/gridqueue && cd gridqueue
 pip install -e ".[test]"
 ```
 
-Zależności: `pandas`, `pdfplumber`, `openpyxl`, `requests`, `pyarrow`.
+Zależności: `pandas`, `pdfplumber`, `openpyxl`, `requests`, `pyarrow`. Jednostka kanoniczna mocy
+to **kW** bez wyjątku; źródła podające megawaty są przeliczane przy wydobyciu, a jednostka źródłowa
+zostaje odnotowana w rozszerzeniu.
 
 ## Szybki przykład
 
@@ -89,6 +100,32 @@ z `pdfminer.six`. `camelot` w trybie lattice odtwarza granice kolumn z rastra i 
 Ghostscriptu, `tabula` wymaga JVM — w obu granica kolumny jest wynikiem detekcji na obrazie,
 a nie liczbą z pliku.
 
+## Przykład badawczy
+
+Adaptery są specyficzne dla źródła, ale **analiza badawcza już nie**. `examples/research_use_case.py`
+liczy czas od złożenia wniosku do wydania warunków przyłączenia, w podziale na klasę zasobu
+i publikującego — bez ani jednej gałęzi zależnej od publikującego, wyłącznie na polach wspólnego
+schematu:
+
+```bash
+gridqueue parse <dokumenty...> --out panel.parquet
+python examples/research_use_case.py panel.parquet
+```
+
+Wynik na panelu sześciu publikujących (mediana, dni): przyłączenia **odbiorcze** 40 u TAURONA
+i 57 u ENERGI, **fotowoltaika** 105 i 127, **magazyny energii** 119 i 146, **wiatr** 156 i 158.
+Przyłączenia odbiorcze rozpatrywane są dwa do czterech razy szybciej niż wytwórcze, a różnica
+między publikującymi utrzymuje się w obrębie klasy. Jest to wynik opisowy: rejestr opisuje
+postępowania administracyjne, więc nie wolno z niego wnosić o przyczynach różnic ani o jakości
+pracy publikującego — portfel wniosków, struktura sieci i praktyka ujawniania różnią się między
+operatorami.
+
+## Odtwarzalność
+
+`reproducibility/` zawiera manifest dokumentów źródłowych (adres, data pobrania, SHA-256), wersje
+bibliotek oraz skrypty odtwarzające liczby pochodne i figury. Dokumenty nie są redystrybuowane,
+bo są wymieniane co kwartał — manifest pozwala sprawdzić, czy pracujemy na tej samej edycji.
+
 ## Reguły kontroli jakości
 
 Osiem reguł; każda zwraca liczbę naruszeń, nie wyjątek — bo naruszenie jest własnością
@@ -97,14 +134,22 @@ warunków przyłączenia (art. 7 ust. 8i), dopuszczalność stanu procesu wobec 
 spójność jednostek mocy, zakresy wartości, duplikaty identyfikatorów, kompletność rdzenia,
 słownik kontrolowany.
 
+Od wersji 1.0 reguła kompletności rdzenia ocenia **rdzeń właściwy dla encji wiersza**, a rdzeń
+mocy jest **alternatywą**, nie konkretnym polem: wniosek wytwórczy deklaruje moc wprowadzaną,
+odbiorczy pobieraną, a pkt 2 obowiązku bywa realizowany mocą dostępną albo liczbą wolnych miejsc
+przyłączeniowych. W wersji 0.3.x rdzeń wymagał bezwarunkowo mocy pobieranej i stosował wymagania
+encji wniosku także do wierszy węzłowych, co zamieniało własność schematu w pozorne naruszenie
+ujawnienia — naruszeń tej reguły było 5 390 (28,044 %) wobec **771 (4,011 %)** teraz.
+
 ## Testy
 
 ```bash
-python -m pytest -q      # 120 passed, 2 skipped (122 zebrane)
+python -m pytest -q      # 125 passed, 2 skipped (127 zebranych)
 ```
 
 Dwa pominięcia są warunkowe: to testy integracyjne adapterów PSE i ENERGI, wymagające
-dokumentów źródłowych, pomijane gdy dokumentów nie ma w drzewie roboczym.
+dokumentów źródłowych, pomijane gdy dokumentów nie ma w drzewie roboczym. Zestaw działa na
+Pythonie 3.10–3.13 pod Linuksem, macOS i Windows — sprawdza to CI przy każdym zgłoszeniu zmiany.
 
 Pisanie testów i pomiar wzrokowy wychwytują **różne klasy defektów** i oba są w pakiecie obecne.
 Pięć defektów odwzorowania przeszło przez cały zestaw testów, bo żaden nie rzucał wyjątku —
@@ -130,6 +175,11 @@ porównanie wyjścia z wzorcem odczytanym z dokumentu.
 * Portale UK Power Networks i Electricity North West zwracają 403 na poziomie wierszy.
   Korzystamy wyłącznie z ich publicznych metadanych i tak to opisujemy. Kontroli dostępu
   nie obchodzimy; klient przedstawia się uczciwie w nagłówku `User-Agent`.
+
+## Cytowanie
+
+`CITATION.cff` w korzeniu repozytorium. Wpis autorski jest zbiorczy i wymaga uzupełnienia listą
+autorów osobowych przed zgłoszeniem artykułu.
 
 ## Licencja
 

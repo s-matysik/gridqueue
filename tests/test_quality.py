@@ -87,3 +87,38 @@ def test_reguly_nie_rzucaja_na_pustej_ramce():
     rep = run_quality(pd.DataFrame()).as_dict()
     assert rep["n_wierszy"] == 0
     assert all(r["naruszenia"] >= 0 for r in rep["reguly"])
+
+
+def test_r7_nie_karze_wniosku_wytworczego_za_brak_mocy_pobieranej():
+    """R7 mierzy braki ujawnienia, nie własność schematu.
+
+    Przed wersją 1.0 rdzeń wymagał `moc_pobierana` bezwarunkowo, więc każdy
+    wniosek czysto wytwórczy był liczony jako naruszenie. Tu pinujemy nowy
+    kontrakt: naruszeniem jest brak JAKIEJKOLWIEK mocy.
+    """
+    import pandas as pd
+
+    wspolny = {"id_wniosku": "X", "lokalizacja_tekst": "Szczecin",
+               "klasa_zasobu": "FW", "status_procesu": "WARUNKI_WYDANE"}
+    df = pd.DataFrame([
+        {**wspolny, "moc_wprowadzana": 3000.0, "moc_pobierana": None},
+        {**wspolny, "moc_wprowadzana": None, "moc_pobierana": None},
+    ])
+    r7 = [x for x in run_quality(df).as_dict()["reguly"] if x["kod"] == "R7"][0]
+    assert r7["naruszenia"] == 1
+    klucz = "WNIOSEK/co najmniej jedno z: moc_pobierana, moc_wprowadzana"
+    assert r7["szczegoly"]["per_pole"][klucz] == 1
+
+
+def test_r7_ocenia_wezel_wymaganiami_wezla():
+    import pandas as pd
+
+    from gridqueue.schema import ENTITY_COLUMN
+
+    df = pd.DataFrame([
+        {ENTITY_COLUMN: "WEZEL", "id_wezla": "SE-1", "moc_dostepna": 0.0},
+        {ENTITY_COLUMN: "WEZEL", "id_wezla": "SE-2"},
+    ])
+    r7 = [x for x in run_quality(df).as_dict()["reguly"] if x["kod"] == "R7"][0]
+    assert r7["naruszenia"] == 1
+    assert r7["szczegoly"]["wierszy_encji"] == {"WEZEL": 2}

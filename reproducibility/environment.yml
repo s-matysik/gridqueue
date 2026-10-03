@@ -1,0 +1,14 @@
+name: gridqueue
+channels: [conda-forge]
+dependencies:
+  - python=3.11
+  - pandas>=2.0
+  - pyarrow>=14
+  - openpyxl>=3.1
+  - requests>=2.31
+  - matplotlib>=3.7
+  - pytest>=8.0
+  - pip
+  - pip:
+      - pdfplumber>=0.11
+      - gridqueue==1.0.0

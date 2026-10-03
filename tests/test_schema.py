@@ -4,20 +4,59 @@ import pandas as pd
 import pytest
 
 from gridqueue.schema import (
-    CORE_FIELDS, FIELDS, GROUPS, OPTIONAL_FIELDS, SCHEMA,
-    canonical_date, canonical_power_kw, empty_frame, schema_table,
-    validate_frame, validate_instance,
+    CORE_ALTERNATIVES, CORE_BY_ENTITY, CORE_FIELDS, ENTITY_COLUMN, FIELDS, GROUPS,
+    OPTIONAL_FIELDS, SCHEMA, SCHEMA_VERSION, canonical_date, canonical_power_kw,
+    core_complete_mask, empty_frame, schema_table, validate_frame, validate_instance,
 )
 
 
-def test_schema_ma_21_pol_i_5_polowy_rdzen():
+def test_schema_ma_21_pol_i_4_polowy_rdzen_bezwarunkowy():
     assert len(SCHEMA) == 21
     assert len(FIELDS) == len(set(FIELDS)) == 21
     assert set(CORE_FIELDS) == {
-        "id_wniosku", "lokalizacja_tekst", "klasa_zasobu", "moc_pobierana",
-        "status_procesu",
+        "id_wniosku", "lokalizacja_tekst", "klasa_zasobu", "status_procesu",
     }
-    assert len(OPTIONAL_FIELDS) == 16
+    assert len(OPTIONAL_FIELDS) == 17
+    assert SCHEMA_VERSION == "1.0"
+
+
+def test_rdzen_mocy_jest_alternatywa_nie_konkretnym_polem():
+    # Pole mocy nie może być wymagane bezwarunkowo: wniosek czysto wytwórczy
+    # deklaruje moc wprowadzaną, odbiorczy pobieraną.
+    assert "moc_pobierana" not in CORE_FIELDS
+    assert "moc_wprowadzana" not in CORE_FIELDS
+    assert CORE_ALTERNATIVES == (("moc_pobierana", "moc_wprowadzana"),)
+    wspolny = {"id_wniosku": "X1", "lokalizacja_tekst": "Pozna\u0144", "klasa_zasobu": "PV",
+               "status_procesu": "WNIOSEK_ZLOZONY"}
+    df = pd.DataFrame([
+        {**wspolny, "moc_wprowadzana": 1200.0, "moc_pobierana": None},   # wytwórczy
+        {**wspolny, "moc_wprowadzana": None, "moc_pobierana": 90.0},     # odbiorczy
+        {**wspolny, "moc_wprowadzana": 500.0, "moc_pobierana": 500.0},   # dwukierunkowy
+        {**wspolny, "moc_wprowadzana": None, "moc_pobierana": None},     # bez mocy
+    ])
+    assert core_complete_mask(df).tolist() == [True, True, True, False]
+
+
+def test_rdzen_jest_osobny_dla_kazdej_encji_obowiazku():
+    # Wiersza encji WEZEL nie wolno oceniać wymaganiami encji WNIOSEK: pkt 2
+    # przepisu ma inny przedmiot niż pkt 1/3/4.
+    assert set(CORE_BY_ENTITY) == {"WNIOSEK", "WEZEL"}
+    df = pd.DataFrame([
+        {ENTITY_COLUMN: "WEZEL", "id_wezla": "SE-1", "moc_dostepna": 0.0},
+        {ENTITY_COLUMN: "WEZEL", "id_wezla": "SE-2", "ograniczenie_flaga": True},
+        {ENTITY_COLUMN: "WEZEL", "id_wezla": "SE-3"},
+        {ENTITY_COLUMN: "WNIOSEK", "id_wniosku": "X1", "lokalizacja_tekst": "Gda\u0144sk",
+         "klasa_zasobu": "BESS", "status_procesu": "WARUNKI_WYDANE", "moc_pobierana": 10.0},
+    ])
+    assert core_complete_mask(df).tolist() == [True, True, False, True]
+
+
+def test_brak_anotacji_encji_znaczy_wniosek():
+    df = pd.DataFrame([{"id_wniosku": "X1", "lokalizacja_tekst": "\u0141\u00f3d\u017a",
+                        "klasa_zasobu": "ODB", "status_procesu": "PRZYLACZONY",
+                        "moc_pobierana": 40.0}])
+    assert ENTITY_COLUMN not in df.columns
+    assert core_complete_mask(df).tolist() == [True]
 
 
 def test_kazde_pole_ma_podstawe_prawna_i_grupe():
@@ -71,8 +110,9 @@ def test_validate_instance_wykrywa_brak_rdzenia():
     row = {"id_wniosku": "X1", "lokalizacja_tekst": "Warszawa, Grochowska"}
     problems = validate_instance(row)
     assert any("klasa_zasobu" in p for p in problems)
-    assert any("moc_pobierana" in p for p in problems)
     assert any("status_procesu" in p for p in problems)
+    # moc nie jest polem rdzenia bezwarunkowo, więc jej brak nie jest tu zgłaszany
+    assert not any("moc_pobierana" in p for p in problems)
 
 
 def test_validate_instance_przepuszcza_poprawny_wiersz():
@@ -121,4 +161,4 @@ def test_empty_frame_i_schema_table():
     assert list(ef.columns)[:21] == list(FIELDS)
     st = schema_table()
     assert len(st) == 21
-    assert st["rdzen"].sum() == 5
+    assert st["rdzen"].sum() == 4

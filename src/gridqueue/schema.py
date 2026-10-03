@@ -229,9 +229,11 @@ SCHEMA: tuple[Field, ...] = (
     # ---------------- MOC ----------------
     Field("moc_wprowadzana", "number", "moc", False, "kW", "pkt 1/3",
           "Moc przyłączeniowa wprowadzana do sieci (generacja/eksport).", _num_nonneg),
-    Field("moc_pobierana", "number", "moc", True, "kW", "pkt 1/3/4",
+    Field("moc_pobierana", "number", "moc", False, "kW", "pkt 1/3/4",
           "Moc przyłączeniowa pobierana z sieci (odbiór/import); dla wniosków "
-          "odbiorczych jest to główna wielkość wniosku.", _num_nonneg),
+          "odbiorczych jest to główna wielkość wniosku.  Nie jest polem rdzenia "
+          "bezwarunkowo: rdzeń wymaga CO NAJMNIEJ JEDNEGO z pary "
+          "(moc_pobierana, moc_wprowadzana) -- patrz CORE_ALTERNATIVES.", _num_nonneg),
     Field("moc_dostepna", "number", "moc", False, "kW", "pkt 2",
           "Łączna dostępna moc przyłączeniowa w węźle.", _num_nonneg),
     Field("moc_zarezerwowana", "number", "moc", False, "kW", "pkt 2",
@@ -261,9 +263,85 @@ SCHEMA: tuple[Field, ...] = (
           "ustawa wymaga aktualizacji co najmniej raz na kwartał.", _is_iso_date),
 )
 
+SCHEMA_VERSION: str = "1.0"
+
 FIELDS: tuple[str, ...] = tuple(f.name for f in SCHEMA)
 CORE_FIELDS: tuple[str, ...] = tuple(f.name for f in SCHEMA if f.core)
 OPTIONAL_FIELDS: tuple[str, ...] = tuple(f.name for f in SCHEMA if not f.core)
+
+# Rdzeń warunkowy, osobny dla każdej encji obowiązku.
+#
+# Schemat ma dwie encje, bo przepis ma dwa punkty o różnym przedmiocie, i rdzeń
+# jednej z nich nie jest wymaganiem wobec drugiej.  Ocenianie wiersza encji
+# WEZEL wymaganiami encji WNIOSEK mierzyłoby niezgodność encji, nie braki
+# ujawnienia.
+#
+# W obu encjach część wymagań jest ALTERNATYWĄ, nie konkretnym polem.  Wniosek
+# przyłączeniowy zawsze deklaruje moc, lecz nie zawsze tę samą: wytwórczy
+# wprowadzaną, odbiorczy pobieraną, dwukierunkowy (np. magazyn) obie.  Analogicznie
+# pkt 2 bywa realizowany mocą dostępną albo liczbą wolnych miejsc przyłączeniowych
+# (wtedy flagą ograniczenia) -- obie postaci spotkaliśmy u różnych publikujących.
+ENTITY_COLUMN: str = "_encja"
+DEFAULT_ENTITY: str = "WNIOSEK"
+
+CORE_BY_ENTITY: dict[str, dict[str, tuple]] = {
+    "WNIOSEK": {
+        "wymagane": CORE_FIELDS,
+        "alternatywy": (("moc_pobierana", "moc_wprowadzana"),),
+    },
+    "WEZEL": {
+        "wymagane": ("id_wezla",),
+        "alternatywy": (("moc_dostepna", "ograniczenie_flaga"),),
+    },
+}
+
+# zachowane dla zgodności wstecznej z 0.3.x; odnosi się do encji WNIOSEK
+CORE_ALTERNATIVES: tuple[tuple[str, ...], ...] = tuple(
+    CORE_BY_ENTITY["WNIOSEK"]["alternatywy"])
+
+
+def _mask_dla_encji(df, sub_idx, spec):
+    import pandas as _pd
+
+    m = _pd.Series(True, index=sub_idx)
+    for c in spec["wymagane"]:
+        if c not in df.columns:
+            return _pd.Series(False, index=sub_idx)
+        m &= df.loc[sub_idx, c].map(lambda v: not _is_null(v))
+    for grupa in spec["alternatywy"]:
+        obecne = [c for c in grupa if c in df.columns]
+        if not obecne:
+            return _pd.Series(False, index=sub_idx)
+        alt = _pd.Series(False, index=sub_idx)
+        for c in obecne:
+            alt |= df.loc[sub_idx, c].map(lambda v: not _is_null(v))
+        m &= alt
+    return m
+
+
+def core_complete_mask(df):
+    """Maska wierszy z kompletnym rdzeniem WŁAŚCIWEJ DLA SIEBIE ENCJI.
+
+    Encja czytana jest z kolumny anotacyjnej ``_encja``; wiersze bez tej anotacji
+    traktowane są jako ``WNIOSEK`` (tak wiersze emitują adaptery, które encji nie
+    rozróżniają, bo ich publikujący realizuje wyłącznie pkt 1/3/4).  Brak kolumny
+    wymaganej traktowany jest jak kolumna pusta -- rdzeń jest wymaganiem wobec
+    WIERSZA, nie wobec kształtu ramki.
+    """
+    import pandas as _pd
+
+    if ENTITY_COLUMN in df.columns:
+        enc = df[ENTITY_COLUMN].map(
+            lambda v: DEFAULT_ENTITY if _is_null(v) else str(v).upper())
+    else:
+        enc = _pd.Series(DEFAULT_ENTITY, index=df.index)
+
+    mask = _pd.Series(False, index=df.index)
+    for nazwa, spec in CORE_BY_ENTITY.items():
+        sub = enc.index[enc == nazwa]
+        if len(sub):
+            mask.loc[sub] = _mask_dla_encji(df, sub, spec).values
+    return mask
 BY_NAME: dict[str, Field] = {f.name: f for f in SCHEMA}
 GROUPS: dict[str, tuple[str, ...]] = {
     g: tuple(f.name for f in SCHEMA if f.group == g)
@@ -365,12 +443,8 @@ def validate_frame(df, *, strict_vocab: bool = True) -> dict[str, Any]:
                 bad += 1
         if bad:
             report["naruszenia_typu"][c] = bad
-    core_present = [c for c in CORE_FIELDS if c in df.columns]
-    if core_present:
-        mask = pd.Series(True, index=df.index)
-        for c in core_present:
-            mask &= df[c].map(lambda v: not _is_null(v))
-        report["wiersze_z_kompletnym_rdzeniem"] = int(mask.sum())
+    report["wiersze_z_kompletnym_rdzeniem"] = int(core_complete_mask(df).sum())
+    report["schema_version"] = SCHEMA_VERSION
     if strict_vocab:
         for c, vocab in (("klasa_zasobu", KLASY_ZASOBU), ("status_procesu", STATUSY)):
             if c in df.columns:

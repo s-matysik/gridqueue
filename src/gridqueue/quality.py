@@ -15,7 +15,11 @@ Reguły:
                                    fizycznym przyłączeń >1 kV (wykrywa pomyłkę MW/kW)
   R5  zakresy_wartosci          -- moce nieujemne, daty w oknie 1990-2100
   R6  duplikaty_identyfikatorow -- ten sam id_wniosku w wielu wierszach
-  R7  kompletnosc_rdzenia       -- 5 pól rdzenia niepustych
+  R7  kompletnosc_rdzenia       -- rdzeń WŁAŚCIWEJ DLA WIERSZA ENCJI: dla WNIOSKU
+                                   4 pola niepuste oraz co najmniej jedno z pary
+                                   (moc_pobierana, moc_wprowadzana); dla WEZLA
+                                   id_wezla oraz co najmniej jedno z pary
+                                   (moc_dostepna, ograniczenie_flaga)
   R8  slownik_kontrolowany      -- klasa_zasobu i status_procesu ze słownika
 """
 
@@ -23,9 +27,12 @@ from __future__ import annotations
 
 import datetime as _dt
 from dataclasses import dataclass, field
+
+import pandas as pd
 from typing import Any, Callable, Optional
 
-from .schema import CORE_FIELDS, KLASY_ZASOBU, STATUSY, _is_null
+from .schema import (CORE_ALTERNATIVES, CORE_BY_ENTITY, CORE_FIELDS, DEFAULT_ENTITY,
+                     ENTITY_COLUMN, KLASY_ZASOBU, STATUSY, core_complete_mask, _is_null)
 
 __all__ = ["Rule", "RULES", "run_quality", "QualityReport"]
 
@@ -269,21 +276,45 @@ def r6_duplikaty_identyfikatorow(df) -> tuple[int, dict]:
 
 
 def r7_kompletnosc_rdzenia(df) -> tuple[int, dict]:
-    per = {}
-    mask = [False] * len(df)
-    for c in CORE_FIELDS:
-        if c not in df.columns:
-            per[c] = len(df)
-            mask = [True] * len(df)
+    """Rdzeń schematu: wszystkie CORE_FIELDS niepuste oraz z każdej grupy
+    CORE_ALTERNATIVES co najmniej jedno pole niepuste.
+
+    Grupa alternatywna istnieje, bo wniosek przyłączeniowy zawsze deklaruje moc,
+    lecz nie zawsze tę samą: wytwórczy wprowadzaną, odbiorczy pobieraną,
+    dwukierunkowy obie.  Wymaganie jednej konkretnej zamieniałoby własność
+    schematu w pozorne naruszenie ujawnienia.
+    """
+    if ENTITY_COLUMN in df.columns:
+        enc = df[ENTITY_COLUMN].map(
+            lambda v: DEFAULT_ENTITY if _is_null(v) else str(v).upper())
+    else:
+        enc = pd.Series(DEFAULT_ENTITY, index=df.index)
+
+    per: dict[str, int] = {}
+    n_enc: dict[str, int] = {}
+    for nazwa, spec in CORE_BY_ENTITY.items():
+        sub = df.loc[enc == nazwa]
+        if not len(sub):
             continue
-        cnt = 0
-        for j, v in enumerate(df[c]):
-            if _is_null(v):
-                cnt += 1
-                mask[j] = True
-        if cnt:
-            per[c] = cnt
-    return sum(mask), {"per_pole": per}
+        n_enc[nazwa] = int(len(sub))
+        for c in spec["wymagane"]:
+            if c not in sub.columns:
+                per[f"{nazwa}/{c}"] = int(len(sub))
+                continue
+            cnt = int(sum(1 for v in sub[c] if _is_null(v)))
+            if cnt:
+                per[f"{nazwa}/{c}"] = cnt
+        for grupa in spec["alternatywy"]:
+            obecne = [c for c in grupa if c in sub.columns]
+            etykieta = f"{nazwa}/co najmniej jedno z: " + ", ".join(grupa)
+            if not obecne:
+                per[etykieta] = int(len(sub))
+                continue
+            cnt = int(sum(1 for _, row in sub[obecne].iterrows()
+                          if all(_is_null(row[c]) for c in obecne)))
+            if cnt:
+                per[etykieta] = cnt
+    return int((~core_complete_mask(df)).sum()), {"per_pole": per, "wierszy_encji": n_enc}
 
 
 def r8_slownik_kontrolowany(df) -> tuple[int, dict]:
