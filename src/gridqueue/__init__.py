@@ -21,9 +21,13 @@ from .layout import (  # noqa: F401
 )
 from .geoloc import LocationResolver, Resolution, resolver_from_osm_json  # noqa: F401
 from .quality import RULES, run_quality, QualityReport  # noqa: F401
+from .longitudinal import (  # noqa: F401
+    DEFAULT_KEY_FIELDS, STATUS_ORDER, TERMINAL_NEGATIVE,
+    surrogate_key, EditionDelta, compare_editions,
+)
 from .registry import REGISTRY, get_adapter, detect_publisher, declarations  # noqa: F401
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 __all__ = [
     "SCHEMA", "SCHEMA_VERSION", "FIELDS", "CORE_FIELDS", "OPTIONAL_FIELDS", "GROUPS",
     "CORE_ALTERNATIVES", "CORE_BY_ENTITY", "ENTITY_COLUMN", "DEFAULT_ENTITY",
@@ -34,5 +38,7 @@ __all__ = [
     "merge_continuation_rows", "audit_column_shift", "ShiftAudit",
     "LocationResolver", "Resolution", "resolver_from_osm_json",
     "RULES", "run_quality", "QualityReport",
+    "DEFAULT_KEY_FIELDS", "STATUS_ORDER", "TERMINAL_NEGATIVE",
+    "surrogate_key", "EditionDelta", "compare_editions",
     "REGISTRY", "get_adapter", "detect_publisher", "declarations", "__version__",
 ]

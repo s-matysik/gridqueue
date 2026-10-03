@@ -28,7 +28,7 @@ sprowadza się do pobrania CSV. Polska jest przypadkiem, w którym nie jest.
 Jedno polecenie, bez kompilacji i bez usług zewnętrznych:
 
 ```bash
-pip install git+https://github.com/s-matysik/gridqueue@v1.0.0
+pip install git+https://github.com/s-matysik/gridqueue@v1.1.0
 ```
 
 Do pracy nad kodem, z ekstrasem testowym:
@@ -120,6 +120,33 @@ postępowania administracyjne, więc nie wolno z niego wnosić o przyczynach ró
 pracy publikującego — portfel wniosków, struktura sieci i praktyka ujawniania różnią się między
 operatorami.
 
+## Analiza wzdłużna
+
+Rejestr **nie publikuje trwałego identyfikatora wniosku**, więc śledzenie sprawy między
+edycjami wymaga klucza treściowego. `compare_editions` buduje go i zwraca przepływy oraz
+macierz przejść statusu:
+
+```python
+from gridqueue import compare_editions, get_adapter
+
+a = get_adapter("pl_pse").parse("edycja_2026_07_31.xlsx").frame
+b = get_adapter("pl_pse").parse("edycja_2026_08_31.xlsx").frame
+d = compare_editions(a, b, "2026-07-31", "2026-08-31")
+d.as_dict()["udzial_przejsc_w_przod"]   # 0.9828
+d.as_dict()["migawka_monotoniczna"]     # False
+```
+
+Dwa wyniki na parze edycji PSE, lipiec–sierpień 2026. **98,28 % przejść statusu biegnie
+zgodnie z porządkiem postępowania** — jest to niezależny test dopasowania klucza, bo klucz
+dopasowujący losowo nie wytworzyłby tego porządku. I drugi: **rejestr nie jest monotoniczną
+migawką** — 13 wierszy pojawia się już w stanie zamkniętym, a 33 wiersze o statusie czynnym
+znikają. Różnicy między edycjami nie wolno więc czytać jako samej zmiany stanu kolejki,
+i narzędzie zgłasza to flagą, zamiast pozwolić użytkownikowi tego nie zauważyć.
+
+```bash
+python examples/longitudinal_use_case.py edycja_A.xlsx edycja_B.xlsx 2026-07-31 2026-08-31
+```
+
 ## Odtwarzalność
 
 `reproducibility/` zawiera manifest dokumentów źródłowych (adres, data pobrania, SHA-256), wersje
@@ -144,7 +171,7 @@ ujawnienia — naruszeń tej reguły było 5 390 (28,044 %) wobec **771 (4,011 %
 ## Testy
 
 ```bash
-python -m pytest -q      # 125 passed, 2 skipped (127 zebranych)
+python -m pytest -q      # 142 passed, 2 skipped (144 zebranych)
 ```
 
 Dwa pominięcia są warunkowe: to testy integracyjne adapterów PSE i ENERGI, wymagające

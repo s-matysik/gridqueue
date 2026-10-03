@@ -8,9 +8,9 @@ listed again in the final section.
 
 | Nr | Item | Value |
 |----|------|-------|
-| C1 | Current code version | `1.0.0` (declared identically in `pyproject.toml` and in `gridqueue.__version__`; CI asserts the two agree on every push) |
-| C2 | Permanent link to code / repository used for this code version | https://github.com/s-matysik/gridqueue (tag `v1.0.0`) |
-| C3 | Permanent link to Reproducible Capsule | ⟦DECYZJA ZESPOŁU⟧ — archive DOI. The repository is ready for a Zenodo deposit of tag `v1.0.0`; enabling the integration requires the team's account |
+| C1 | Current code version | `1.1.0` (declared identically in `pyproject.toml` and in `gridqueue.__version__`; CI asserts the two agree on every push) |
+| C2 | Permanent link to code / repository used for this code version | https://github.com/s-matysik/gridqueue (tag `v1.1.0`) |
+| C3 | Permanent link to Reproducible Capsule | ⟦DECYZJA ZESPOŁU⟧ — archive DOI. The repository is ready for a Zenodo deposit of tag `v1.1.0`; enabling the integration requires the team's account |
 | C4 | Legal Code License | Apache-2.0, `LICENSE.txt` at the distribution root. Input data licences are fixed and separate: OpenStreetMap gazetteer under ODbL 1.0; operators' statutory publications under the terms each publisher applies to its own site |
 | C5 | Code versioning system used | git |
 | C6 | Software code languages, tools and services used | Python, `requires-python >= 3.10`; build backend `setuptools.build_meta` (`setuptools>=68`); test runner `pytest` |
@@ -22,12 +22,12 @@ listed again in the final section.
 
 | Nr | Item | Value |
 |----|------|-------|
-| S1 | Current software version | `1.0.0`, matching C1 |
-| S2 | Permanent link to executables of this version | Source distribution only — `gridqueue-1.0.0.tar.gz`, pure Python, no binaries, no compiled extensions |
+| S1 | Current software version | `1.1.0`, matching C1 |
+| S2 | Permanent link to executables of this version | Source distribution only — `gridqueue-1.1.0.tar.gz`, pure Python, no binaries, no compiled extensions |
 | S3 | Legal Software License | Apache-2.0 — same licence as C4 |
 | S4 | Computing platforms / Operating Systems | Linux, macOS, Windows × Python 3.10, 3.11, 3.12, 3.13 — a twelve-cell matrix exercised by GitHub Actions (`.github/workflows/ci.yml`) on every push and pull request. The measured figures reported in the paper were produced on macOS/arm64 with Python 3.11.15 |
 | S5 | Installation requirements & dependencies | As C7. No GPU, no network access required at run time once the source documents and the gazetteer are local |
-| S6 | If available, link to user manual | `README.md`, plus `examples/research_use_case.py` — a runnable research workflow (administrative processing time by resource class and publisher) that uses the public API only and contains no publisher-specific branch |
+| S6 | If available, link to user manual | `README.md`, plus `examples/research_use_case.py` and `examples/longitudinal_use_case.py` — two runnable research workflows (administrative processing time by resource class and publisher) that uses the public API only and contains no publisher-specific branch |
 | S7 | Support email for questions | ⟦DECYZJA ZESPOŁU⟧ — same address as C9 |
 
 ## Software characterisation (for the "Software description" section)
@@ -113,7 +113,7 @@ blocker is server-side client filtering — the site returns a rejection page to
 control the operator put in place deliberately, so it was not attempted. Electricity North West:
 rows behind the same access control as UK Power Networks; metadata only.
 
-**Size.** Read from the built source distribution `gridqueue-1.0.0.tar.gz`: 7 core modules under `src/gridqueue`, 2,125 lines — `geoloc.py` 672, `schema.py` 480, `quality.py` 370, `layout.py` 353, `cli.py` 148, `registry.py` 64, `__init__.py` 38 — and 9 adapter modules, 1,777 lines (`pl_pse.py` 303, `pl_energa.py` 282, `_ptpiree.py` 278, `pl_boryszew.py` 232, `pl_stoen.py` 194, `uk_nationalgrid.py` 166, `pl_tauron.py` 161, `base.py` 156, `__init__.py` 5); 3,902 lines in total under `src`. `_ptpiree.py` is shared by the PSE and ENERGA adapters because both publishers fill the same agreed industry template, one as a spreadsheet and one as a print document. Tests: 7 files, 1,040 lines (`test_geoloc_wspolrzedne.py` 280, `test_schema.py` 164, `test_pse_energa.py` 147, `test_adapters.py` 144, `test_quality.py` 124, `test_geoloc.py` 95, `test_layout.py` 86). Runnable workflows shipped alongside the package: `examples/research_use_case.py` 168 lines, and `reproducibility/` 382 lines (`run_figures.py` 248, `run_validation.py` 134). `python -m pytest -q`: **125 passed, 2 skipped (127 collected), 0 failed, 0 errors** — the two skips are the PSE and ENERGA integration tests, which require the source documents and are skipped when those are absent from the working tree. The twelve-cell OS × Python matrix in CI runs the same suite.
+**Size.** Read from the built source distribution `gridqueue-1.1.0.tar.gz`: 7 core modules under `src/gridqueue`, 2,125 lines — `geoloc.py` 672, `schema.py` 480, `quality.py` 370, `layout.py` 353, `cli.py` 148, `registry.py` 64, `__init__.py` 38 — and 9 adapter modules, 1,777 lines (`pl_pse.py` 303, `pl_energa.py` 282, `_ptpiree.py` 278, `pl_boryszew.py` 232, `pl_stoen.py` 194, `uk_nationalgrid.py` 166, `pl_tauron.py` 161, `base.py` 156, `__init__.py` 5); 3,902 lines in total under `src`. `_ptpiree.py` is shared by the PSE and ENERGA adapters because both publishers fill the same agreed industry template, one as a spreadsheet and one as a print document. Tests: 7 files, 1,040 lines (`test_geoloc_wspolrzedne.py` 280, `test_schema.py` 164, `test_pse_energa.py` 147, `test_adapters.py` 144, `test_quality.py` 124, `test_geoloc.py` 95, `test_layout.py` 86). Runnable workflows shipped alongside the package: `examples/research_use_case.py` 168 lines, and `reproducibility/` 382 lines (`run_figures.py` 248, `run_validation.py` 134). `python -m pytest -q`: **142 passed, 2 skipped (144 collected), 0 failed, 0 errors** — the two skips are the PSE and ENERGA integration tests, which require the source documents and are skipped when those are absent from the working tree. The twelve-cell OS × Python matrix in CI runs the same suite.
 
 **Functionalities.** Document ingest with per-row provenance; layout-based extraction; unit
 normalisation to the canonical kW (MW→kW, with the source unit retained in an extension column); resource-class and process-status vocabulary mapping; composite-date

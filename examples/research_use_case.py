@@ -113,22 +113,14 @@ def rysunek(tab: pd.DataFrame, plik: Path) -> None:
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    # Barwa przypisana NAZWIE publikującego, nie pozycji w posortowanej liście:
-    # inaczej dodanie publikującego przemalowałoby pozostałych i figura rozszłaby się
-    # z pozostałymi figurami projektu.
-    BARWY = {"TAURON Dystrybucja S.A.": "#1b5e8c", "ENERGA-OPERATOR S.A.": "#2e8b78",
-             "Stoen Operator Sp. z o.o.": "#c77a1e", "PSE S.A.": "#7a4b9c",
-             "National Grid Electricity Distribution": "#6b7280",
-             "Boryszew Green Energy&Gas Sp. z o.o.": "#a33b4e"}
-    ZAPAS = ["#8c6d31", "#5b6e7f", "#874f6f", "#3f6f4f"]
     publ = sorted(tab["publikujacy"].unique())
-    barwa = {p: BARWY.get(p, ZAPAS[i % len(ZAPAS)]) for i, p in enumerate(publ)}
+    barwy = ["#1b5e8c", "#2e8b78", "#c77a1e", "#7a4b9c", "#a33b4e", "#6b7280"]
     fig, ax = plt.subplots(figsize=(6.6, 0.30 * len(tab) + 1.7))
     for i, (_, r) in enumerate(tab.iterrows()):
-        c = barwa[r["publikujacy"]]
+        k = publ.index(r["publikujacy"]) % len(barwy)
         ax.plot([r["kwartyl_1"], r["kwartyl_3"]], [i, i], lw=3.2, alpha=0.35,
-                color=c, solid_capstyle="butt")
-        ax.plot([r["mediana"]], [i], "o", ms=5, color=c)
+                color=barwy[k], solid_capstyle="butt")
+        ax.plot([r["mediana"]], [i], "o", ms=5, color=barwy[k])
         ax.text(r["kwartyl_3"] + 8, i, f"{r['mediana']:.0f} d  (n={int(r['n'])})",
                 va="center", fontsize=7)
     ax.set_yticks(list(range(len(tab))))

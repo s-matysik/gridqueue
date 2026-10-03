@@ -32,6 +32,25 @@ from typing import Any, Optional
 from ..schema import canonical_date, canonical_power_kw
 from .base import harmonize_klasa, harmonize_status
 
+
+#: Rozdzielacze wielu miejsc przyłączenia w jednej komórce mocy.
+_ROZDZ_MOC = re.compile(r"[\n\r;]+")
+
+
+def _rozbij_moc(value: Any) -> list[str]:
+    """Rozbij komórkę mocy na składowe dla wielu miejsc przyłączenia.
+
+    Liczba zwykła zwracana jest jako jedna składowa. Łańcuch rozdzielany jest po
+    złamaniu linii i średniku — i NIE po spacji, bo spacja jest u publikujących
+    separatorem tysięcznym.
+    """
+    if value is None:
+        return []
+    if isinstance(value, (int, float)):
+        return [] if (isinstance(value, float) and value != value) else [str(value)]
+    czesci = [c.strip() for c in _ROZDZ_MOC.split(str(value))]
+    return [c for c in czesci if c and c not in {"-", "--", "---"}]
+
 __all__ = ["LOGICAL", "PSE_XLSX_LAYOUT", "ENERGA_PDF_LAYOUT", "to_schema", "stan_na"]
 
 #: kolumny logiczne wzorca PTPiREE/PSE
@@ -203,7 +222,41 @@ def to_schema(raw, *, publisher_key: str, data_publikacji: Optional[str]):
         return pd.Series([None] * len(raw), index=raw.index, dtype="object")
 
     def mw(name: str):
-        return col(name).map(lambda v: canonical_power_kw(v, "MW"))
+        """Moc z kolumny SUROWEJ, z obsługą wielu miejsc przyłączenia.
+
+        Pułapka, która zawyżyła jeden wiersz o trzy rzędy wielkości: gdy wniosek
+        dotyczy kilku miejsc przyłączenia (kolumna "Wiele miejsc przyłączenia"
+        = TAK), publikujący wpisuje do jednej komórki kilka wartości rozdzielonych
+        ZŁAMANIEM LINII, czasem dodatkowo średnikiem. ``_clean`` zamieniał złamanie
+        linii na spację, a ``canonical_power_kw`` traktuje spację jako separator
+        tysięczny, więc "129⏎240" (129 MW + 240 MW) stawało się 129 240 MW.
+        W edycji, w której publikujący dopisał średniki, ta sama komórka nie
+        konwertowała się wcale i pole zostawało puste — czyli ten sam defekt
+        dawał raz absurd, raz milczący brak.
+
+        Zwracamy SUMĘ składowych, bo pole schematu opisuje moc wniosku, a wniosek
+        jest jeden. Składowe zachowujemy w rozszerzeniu, żeby nie zgubić podziału
+        na miejsca przyłączenia.
+        """
+        if name not in raw.columns:
+            return (pd.Series([None] * len(raw), index=raw.index, dtype="object"),
+                    pd.Series([None] * len(raw), index=raw.index, dtype="object"))
+        sumy, skladowe = [], []
+        for v in raw[name]:
+            czesci = _rozbij_moc(v)
+            vals = [canonical_power_kw(c, "MW") for c in czesci]
+            vals = [x for x in vals if x is not None]
+            if not vals:
+                sumy.append(None)
+                skladowe.append(None)
+            elif len(vals) == 1:
+                sumy.append(vals[0])
+                skladowe.append(None)
+            else:
+                sumy.append(float(sum(vals)))
+                skladowe.append("; ".join(f"{x / 1000.0:g}" for x in vals))
+        return (pd.Series(sumy, index=raw.index, dtype="object"),
+                pd.Series(skladowe, index=raw.index, dtype="object"))
 
     def dcol(name: str):
         """Data z kolumny SUROWEJ, bez przejścia przez ``_clean``.
@@ -237,8 +290,8 @@ def to_schema(raw, *, publisher_key: str, data_publikacji: Optional[str]):
     out["lokalizacja_tekst"] = col("lokalizacja")
     out["poziom_napiecia"] = col("poziom_napiecia").map(_volt)
     out["klasa_zasobu"] = col("rodzaj").map(harmonize_klasa)
-    out["moc_wprowadzana"] = mw("moc_wprowadzana")
-    out["moc_pobierana"] = mw("moc_pobierana")
+    out["moc_wprowadzana"], _skl_wpr = mw("moc_wprowadzana")
+    out["moc_pobierana"], _skl_pob = mw("moc_pobierana")
     out["status_procesu"] = col("status").map(harmonize_status)
     out["data_wniosku"] = dcol("data_zlozenia")
     out["data_warunkow"] = dcol("data_warunkow")
@@ -272,7 +325,9 @@ def to_schema(raw, *, publisher_key: str, data_publikacji: Optional[str]):
                      ("mz_mee_rozladowania", "_mz_mee_rozladowania"),
                      ("mz_mee_ladowania", "_mz_mee_ladowania"),
                      ("mz_odb", "_mz_odb"), ("mz_inne", "_mz_inne")):
-        out[dst] = mw(src)
+        out[dst], _ = mw(src)
     out["_uwagi"] = col("uwagi")
+    out["_moc_wprowadzana_skladowe_mw"] = _skl_wpr
+    out["_moc_pobierana_skladowe_mw"] = _skl_pob
     out["_lp_dokumentu"] = lp
     return out
