@@ -187,3 +187,38 @@ class TestKolizjeKlucza:
         assert d["wierszy_w_kolizji_a"] == 2
         assert d["odrzuconych_jako_niejednoznaczne_a"] == 1
         assert d["wspolnych"] == 1
+
+
+class TestZgodnoscZWersjaPandas:
+    """Klucz nie moze zalezec od wersji pandas.
+
+    Defekt wykryty przy uruchomieniu notatnika Colab na pandas 3: `.astype(str)`
+    zamienialo brak na lancuch "nan" w pandas 2, a w pandas 3 zachowuje wartosc
+    brakujaca, wiec zlaczenie skladowych klucza rzucalo TypeError. Klucz buduje
+    sie teraz jawna konwersja.
+    """
+
+    def test_brak_wartosci_daje_pusty_segment_bez_wyjatku(self):
+        import numpy as np
+        import pandas as pd
+
+        from gridqueue import surrogate_key
+
+        df = pd.DataFrame([_wiersz(moc_pobierana=np.nan, poziom_napiecia=None)])
+        k = surrogate_key(df).iloc[0]
+        assert isinstance(k, str)
+        assert "nan" not in k.lower(), k
+        assert "None" not in k, k
+
+    def test_braki_dopasowuja_sie_do_brakow(self):
+        """Wiersz z brakiem laczy sie tylko z wierszem, w ktorym brak tez jest."""
+        import numpy as np
+        import pandas as pd
+
+        from gridqueue import compare_editions
+
+        a = pd.DataFrame([_wiersz(moc_pobierana=np.nan)])
+        b = pd.DataFrame([_wiersz(moc_pobierana=np.nan)])
+        c = pd.DataFrame([_wiersz(moc_pobierana=1000.0)])
+        assert compare_editions(a, b).wspolnych == 1
+        assert compare_editions(a, c).wspolnych == 0

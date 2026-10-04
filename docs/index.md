@@ -5,7 +5,7 @@ title: gridqueue
 # gridqueue
 
 Harmonizator ustawowych ujawnień przyłączeniowych do sieci elektroenergetycznej.
-Wersja **1.1.0** · [repozytorium](https://github.com/s-matysik/gridqueue)
+Wersja **1.2.1** · [repozytorium](https://github.com/s-matysik/gridqueue)
 
 > **In English.** `gridqueue` parses the statutory grid-connection disclosures that Polish
 > distribution system operators must publish under Article 7(8l) of the Energy Law, and emits
@@ -56,6 +56,7 @@ poziom pewności i poziom dokładności umiejscowienia.
 * [Reguły kontroli jakości](jakosc.md)
 * [Zmierzona walidacja](walidacja.md)
 * [Analiza wzdłużna — porównanie edycji](wzdluzna.md)
+* [Uruchomienie w Google Colab](colab.md)
 * [Wiersz poleceń](cli.md)
 * [Ograniczenia](ograniczenia.md)
 

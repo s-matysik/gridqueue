@@ -4,6 +4,32 @@ Format oparty na [Keep a Changelog](https://keepachangelog.com/pl/1.1.0/);
 wersjonowanie semantyczne. Wersja schematu danych jest odrębna od wersji pakietu
 i podawana jako `SCHEMA_VERSION`.
 
+## 1.2.1 — 2026-10-04
+
+### Dodane
+- `notebooks/gridqueue_colab.ipynb` — pełny przebieg badawczy w przeglądarce, bez instalacji:
+  pobranie dwóch edycji wprost od publikującego, wydobycie, kontrola jakości, przepływy w kolejce
+  z precyzją dopasowania oraz **asercja zgodności z liczbami opublikowanymi w artykule**.
+  Dokumentacja: `docs/colab.md`.
+- `QualityReport.as_frame()` — metoda **obiecywana przez dokumentację, lecz nieobecna w kodzie**.
+  Defekt ujawnił się dopiero przy uruchomieniu notatnika, który korzystał z publicznego API
+  tak, jak opisuje je dokumentacja.
+- Dwa zadania ciągłej integracji: przebieg na `pandas>=3.0` oraz kontrola notatnika
+  (poprawność składniowa komórek i istnienie w API każdej nazwy z niego importowanej).
+
+### Naprawione
+- **Niezgodność z pandas 3.** Klucz wzdłużny budowano przez `.astype(str)`, co w pandas 2
+  zamieniało brak na łańcuch `"nan"`, a w pandas 3 zachowuje wartość brakującą — złączenie
+  składowych rzucało `TypeError` i cała analiza wzdłużna była na tej wersji niewykonalna.
+  Klucz buduje się teraz jawną konwersją, identycznie w obu wersjach; **wszystkie opublikowane
+  liczby pozostają bez zmian**, co sprawdzono porównaniem. Ta sama poprawka czyni regułę
+  „brak jest wartością" własnością kodu, a nie ubocznym skutkiem rzutowania typu.
+  Analogiczne założenie usunięto z adaptera operatora przesyłowego.
+
+### Zmienione
+- Macierz CI testowała wersje Pythona, lecz nie wersje bibliotek — stąd defekt przeszedł.
+  Zadanie `pandas3` zamyka tę lukę.
+
 ## 1.2.0 — 2026-10-04
 
 ### Dodane
