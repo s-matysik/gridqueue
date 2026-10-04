@@ -7,7 +7,7 @@ abstract: >-
   oraz odpowiadające im rejestry z innych jurysdykcji w jeden zbiór wierszy w 21-polowym
   schemacie wyprowadzonym ze struktury obowiązku prawnego.
 type: software
-version: "1.2.0"
+version: "1.2.1"
 date-released: "2026-10-04"
 license: Apache-2.0
 repository-code: "https://github.com/s-matysik/gridqueue"

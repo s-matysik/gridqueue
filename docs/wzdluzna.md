@@ -125,3 +125,7 @@ linkage_audit(a, b).as_dict()   # precyzja dopasowania
 ```
 
 Pełny przebieg z figurą: `examples/longitudinal_use_case.py`.
+
+## Uruchomienie bez instalacji
+
+Całą tę analizę odtwarza notatnik Colab na żywych danych publikującego, z asercją zgodności z liczbami opublikowanymi — patrz [Google Colab](colab.md).

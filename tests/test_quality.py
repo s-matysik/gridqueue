@@ -122,3 +122,22 @@ def test_r7_ocenia_wezel_wymaganiami_wezla():
     r7 = [x for x in run_quality(df).as_dict()["reguly"] if x["kod"] == "R7"][0]
     assert r7["naruszenia"] == 1
     assert r7["szczegoly"]["wierszy_encji"] == {"WEZEL": 2}
+
+
+def test_as_frame_zwraca_wiersz_na_regule():
+    """Dokumentacja obiecywala te metode, a pakiet jej nie mial.
+
+    Defekt wyszedl dopiero przy uruchomieniu notatnika Colab, ktory korzystal
+    z publicznego API tak, jak opisuje je dokumentacja.
+    """
+    import pandas as pd
+
+    from gridqueue import RULES, run_quality
+
+    df = pd.DataFrame([{"id_wniosku": "A", "lokalizacja_tekst": "Szczecin",
+                        "klasa_zasobu": "FW", "status_procesu": "WARUNKI_WYDANE",
+                        "moc_wprowadzana": 1000.0}])
+    ramka = run_quality(df).as_frame()
+    assert list(ramka.columns) == ["kod", "nazwa", "naruszenia", "udzial"]
+    assert len(ramka) == len(RULES)
+    assert ramka["udzial"].between(0, 1).all()

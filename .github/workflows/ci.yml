@@ -39,3 +39,65 @@ jobs:
           assert m, "nie znaleziono pola version w pyproject.toml"
           assert m.group(1) == gridqueue.__version__, (m.group(1), gridqueue.__version__)
           print("wersja zgodna:", gridqueue.__version__)
+
+  pandas3:
+    name: pandas 3 (zgodnosc w przod)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Instalacja z najnowszym pandas
+        # Macierz wyzej testuje wersje Pythona, nie wersje bibliotek. Defekt budowy
+        # klucza wzdluznego ujawnil sie dopiero na pandas 3, gdzie .astype(str)
+        # zachowuje brak jako wartosc brakujaca zamiast zamieniac go na "nan".
+        # To zadanie pilnuje, zeby taka zmiana zachowania nie przeszla niezauwazona.
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[test]"
+          python -m pip install --upgrade "pandas>=3.0"
+      - name: Wersje bibliotek
+        run: python -c "import pandas, sys; print('pandas', pandas.__version__, '| Python', sys.version.split()[0])"
+      - name: Testy
+        run: python -m pytest -q -rs
+
+  notatnik:
+    name: notatnik Colab — poprawnosc skladni i API
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Instalacja
+        run: python -m pip install --upgrade pip && python -m pip install -e ".[test]"
+      - name: Komorki kodu sa poprawne skladniowo, a uzyte nazwy istnieja w API
+        shell: python
+        run: |
+          # Nie uruchamiamy notatnika w CI, bo pobiera dokumenty od publikujacego,
+          # a te sa wymieniane kwartalnie. Sprawdzamy to, co sprawdzic mozna bez
+          # siegania do sieci: czy kod sie kompiluje i czy kazda nazwa importowana
+          # z pakietu faktycznie w nim istnieje.
+          import ast
+          import json
+          import pathlib
+
+          import gridqueue
+
+          nb = json.loads(pathlib.Path("notebooks/gridqueue_colab.ipynb").read_text(encoding="utf-8"))
+          brakujace, komorek = [], 0
+          for i, c in enumerate(nb["cells"]):
+              if c["cell_type"] != "code":
+                  continue
+              src = "".join(c["source"])
+              src = "\n".join(l for l in src.split("\n") if not l.lstrip().startswith(("%", "!")))
+              drzewo = ast.parse(src)  # rzuci SyntaxError i zatrzyma zadanie
+              komorek += 1
+              for w in ast.walk(drzewo):
+                  if isinstance(w, ast.ImportFrom) and (w.module or "").startswith("gridqueue"):
+                      for n in w.names:
+                          if not hasattr(gridqueue, n.name):
+                              brakujace.append((i, n.name))
+          assert not brakujace, f"notatnik uzywa nazw nieobecnych w API: {brakujace}"
+          print(f"komorek kodu: {komorek}; wszystkie nazwy z gridqueue istnieja")

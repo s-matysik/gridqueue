@@ -5,6 +5,7 @@
 [![licencja Apache-2.0](https://img.shields.io/badge/licencja-Apache--2.0-green)](LICENSE.txt)
 [![dokumentacja](https://img.shields.io/badge/dokumentacja-gh--pages-blue)](https://s-matysik.github.io/gridqueue/)
 [![wydanie](https://img.shields.io/github/v/release/s-matysik/gridqueue)](https://github.com/s-matysik/gridqueue/releases)
+[![Otwórz w Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/s-matysik/gridqueue/blob/main/notebooks/gridqueue_colab.ipynb)
 
 Harmonizator ustawowych ujawnień przyłączeniowych do sieci elektroenergetycznej.
 
@@ -29,12 +30,25 @@ indeksują i linkują do stron operatorów w skali europejskiej. `gridqueue` rob
 USA) dane są już tabelaryczne i ta warstwa jest zbędna — adapter brytyjski w tym pakiecie
 sprowadza się do pobrania CSV. Polska jest przypadkiem, w którym nie jest.
 
+## Uruchomienie bez instalacji — Google Colab
+
+[![Otwórz w Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/s-matysik/gridqueue/blob/main/notebooks/gridqueue_colab.ipynb)
+
+Notatnik `notebooks/gridqueue_colab.ipynb` wykonuje **pełny przebieg badawczy w przeglądarce**:
+pobiera dwie edycje ujawnienia wprost od publikującego, wydobywa wiersze, ocenia jakość, liczy
+przepływy w kolejce wraz z precyzją dopasowania i **porównuje odtworzone liczby z opublikowanymi
+w artykule, przerywając wykonanie przy rozjeździe**. Poniżej minuty na darmowej maszynie, bez
+akceleratora i bez konfiguracji.
+
+Notatnik nie odtwarza dokładności wydobycia wobec zbioru odniesienia, bo ten wymaga odczytu przez
+człowieka, ani nie rozstrzyga współrzędnych, bo gazeter jest osobnym pobraniem na licencji ODbL.
+
 ## Instalacja
 
 Jedno polecenie, bez kompilacji i bez usług zewnętrznych:
 
 ```bash
-pip install git+https://github.com/s-matysik/gridqueue@v1.2.0
+pip install git+https://github.com/s-matysik/gridqueue@v1.2.1
 ```
 
 Do pracy nad kodem, z ekstrasem testowym:
@@ -184,7 +198,7 @@ ujawnienia — naruszeń tej reguły było 5 390 (28,044 %) wobec **771 (4,011 %
 ## Testy
 
 ```bash
-python -m pytest -q      # 150 passed, 2 skipped (152 zebrane)
+python -m pytest -q      # 153 passed, 2 skipped (155 zebranych)
 ```
 
 Dwa pominięcia są warunkowe: to testy integracyjne adapterów PSE i ENERGI, wymagające
