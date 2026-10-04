@@ -32,7 +32,7 @@ import pandas as pd
 
 from gridqueue import (SCHEMA_VERSION, STATUS_ORDER, TERMINAL_NEGATIVE,
                        __version__, compare_editions, detect_publisher,
-                       get_adapter)
+                       get_adapter, linkage_audit)
 
 OPIS = {
     "WNIOSEK_ZLOZONY": "wniosek złożony",
@@ -120,6 +120,10 @@ def main(argv: list[str]) -> int:
     podsum["gridqueue"] = __version__
     podsum["schema_version"] = SCHEMA_VERSION
 
+    audyt = linkage_audit(a, b)
+    podsum.update({f"audyt_{k}": v for k, v in audyt.as_dict().items() if k != "par"})
+    audyt.rozbieznosci.to_csv(out / "audyt_dopasowania_rozbieznosci.csv", index=False)
+
     pd.DataFrame([podsum]).to_csv(out / "przeplywy_kolejki.csv", index=False)
     d.przejscia.to_csv(out / "przejscia_statusu.csv")
     figura(d.przejscia, out / "przejscia_statusu.png", (ea, eb))
@@ -138,6 +142,21 @@ def main(argv: list[str]) -> int:
               f"wierszy pojawia się już w stanie zamkniętym, a {podsum['ubyle_czynne']} "
               "wierszy o statusie czynnym znika. Różnicy między edycjami nie wolno "
               "czytać jako samej zmiany stanu kolejki.")
+    pa = audyt.precyzja_dolna * 100
+    pg = audyt.precyzja_gorna * 100
+    print(f"  Precyzja dopasowania oceniona na polach WYŁĄCZONYCH z klucza "
+          f"(nazwa podmiotu, nazwa obiektu, data wniosku, rozbicie mocy na technologie) "
+          f"wynosi {pa:.2f}–{pg:.2f} % na wszystkich {audyt.par} parach: "
+          f"{audyt.potwierdzonych} potwierdzonych, {audyt.niepewnych} niepewnych, "
+          f"{audyt.falszywych} fałszywych. Nie jest to walidacja wobec prawdy zewnętrznej, "
+          f"bo takiej dla tego rejestru nie ma — klucz nie wymusza zgodności tych pól, "
+          f"więc ich zgodność jest niezależnym świadectwem.")
+    print(f"  Wierszy odrzuconych z dopasowania jako niejednoznaczne: "
+          f"{podsum['odrzuconych_jako_niejednoznaczne_a']} i "
+          f"{podsum['odrzuconych_jako_niejednoznaczne_b']}; "
+          f"w kolizji klucza stoi odpowiednio {podsum['wierszy_w_kolizji_a']} i "
+          f"{podsum['wierszy_w_kolizji_b']} wierszy.")
+
     print(f"\nzapisano do: {out}")
     return 0
 

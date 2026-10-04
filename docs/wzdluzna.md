@@ -25,6 +25,63 @@ Ograniczenie klucza treściowego: rozjeżdża się, gdy publikujący skoryguje k
 wchodzących w jego skład, i wtedy ten sam wniosek wygląda jak zniknięcie w parze
 z pojawieniem. Miara niżej pozwala ocenić, jak często to się zdarza.
 
+## Algorytm dopasowania — pełna specyfikacja
+
+Żeby wynik dało się odtworzyć i zakwestionować, podajemy reguły wprost.
+
+1. **Klucz** jest konkatenacją sześciu pól: publikujący, lokalizacja tekstowa, poziom napięcia,
+   klasa zasobu, moc wprowadzana, moc pobierana. Wartości brane są **po harmonizacji przez
+   adapter**, a więc po normalizacji białych znaków, jednostek i słowników kontrolowanych;
+   poza tym porównanie jest **dokładne, bez tolerancji** — także dla mocy.
+2. **Brak wartości jest wartością.** Pole puste wchodzi do klucza jako pusty łańcuch, więc wiersz
+   z brakującą mocą dopasuje się tylko do wiersza, w którym ta moc też jest pusta. Uzupełnienie
+   mocy przez publikującego rozrywa zatem parę i daje jedno zniknięcie oraz jedno pojawienie.
+   To samo dotyczy zmiany poziomu napięcia albo klasy zasobu.
+3. **Unikalność jest wymagana w obu edycjach.** Wiersze o powtarzającym się kluczu są odrzucane
+   przed dopasowaniem — zachowywany jest pierwszy — bo dla nich przypisanie jeden-do-wielu nie ma
+   jednoznacznego rozstrzygnięcia. Liczby są raportowane: `wierszy_w_kolizji_a` i `_b` podają,
+   ile wierszy stoi w grupach kolizyjnych, a `odrzuconych_jako_niejednoznaczne_a` i `_b`, ile
+   faktycznie wypada z dopasowania.
+4. **Nowe i ubyłe** to po prostu różnice zbiorów kluczy, liczone po odrzuceniu kolizji.
+5. **Daty i status są z klucza wyłączone**: daty bywają uzupełniane między edycjami, a status
+   jest właśnie tym, czego zmianę mierzymy.
+
+Na parze edycji PSE kolizje obejmują 56 wierszy w edycji lipcowej i 48 w sierpniowej, co po
+odrzuceniu daje 31 i 27 wierszy wypadających z dopasowania — odpowiednio 3,5 % i 3,1 % wierszy.
+
+## Precyzja dopasowania zmierzona na polach wstrzymanych
+
+Macierz przejść jest świadectwem pośrednim, więc dokładamy świadectwo bezpośrednie.
+`linkage_audit` porównuje każdą dopasowaną parę na **dziewięciu polach wyłączonych z klucza**:
+nazwa podmiotu ubiegającego się, nazwa obiektu, data złożenia wniosku oraz sześć pól rozbicia
+mocy na technologie. Klucz nie wymusza zgodności żadnego z nich, więc ich zgodność jest
+niezależnym świadectwem, że para dotyczy tego samego wniosku.
+
+Para jest **fałszywa**, gdy rdzeń nazwy podmiotu ORAZ rdzeń nazwy obiektu są rozbieżne i żaden
+nie zawiera się w drugim; **niepewna**, gdy rozbieżny jest dokładnie jeden z nich; **potwierdzona**
+w pozostałych przypadkach. Rdzeń nazwy powstaje przez usunięcie formy prawnej, interpunkcji
+i spacji, bo publikujący zmienia zapis formy prawnej między edycjami. Pole uzupełnione
+jednostronnie — puste w jednej edycji, wypełnione w drugiej — nie jest liczone jako rozbieżność,
+bo jest redakcją tego samego wniosku.
+
+Wynik na parze edycji PSE, na **wszystkich 804 parach**, nie na próbce:
+
+| klasa pary | liczba | udział |
+|---|---:|---:|
+| potwierdzona | 795 | 98,88 % |
+| niepewna | 6 | 0,75 % |
+| fałszywa | 3 | 0,37 % |
+
+Precyzja dopasowania mieści się więc w przedziale **98,88 % do 99,63 %**, zależnie od tego, czy
+przypadki niepewne policzyć jako błędne, czy jako trafne. Trzy pary fałszywe to różne wnioski
+dzielące lokalizację, napięcie, klasę i obie moci — na przykład dwa magazyny energii tej samej
+mocy w tej samej miejscowości. Wynik przejść jest wobec nich odporny: po usunięciu dziewięciu
+par wątpliwych udział przejść w przód zmienia się z 98,28 % na 98,25 %.
+
+Zastrzeżenie, którego nie pomijamy: nie jest to walidacja wobec prawdy zewnętrznej, bo dla tego
+rejestru taka prawda nie istnieje — nie ma trwałego identyfikatora, wobec którego można by
+dopasowanie sprawdzić. Jest to test spójności wewnętrznej na danych, których klucz nie dotyka.
+
 ## Macierz przejść jako test dopasowania
 
 Jeśli klucz dopasowuje właściwe wiersze, przejścia statusu powinny biec zgodnie z kierunkiem
@@ -56,13 +113,15 @@ o statusie czynnym znikają, czego zakończeniem postępowania wyjaśnić nie mo
 `migawka_monotoniczna` zwraca w tej parze `False` i ma to być sygnał, nie szczegół techniczny.
 
 ```python
-from gridqueue import compare_editions, get_adapter
+from gridqueue import compare_editions, linkage_audit, get_adapter
 
 a = get_adapter("pl_pse").parse("edycja_2026_07_31.xlsx").frame
 b = get_adapter("pl_pse").parse("edycja_2026_08_31.xlsx").frame
 d = compare_editions(a, b, "2026-07-31", "2026-08-31")
 d.as_dict()
 d.przejscia          # macierz przejść statusu
+
+linkage_audit(a, b).as_dict()   # precyzja dopasowania
 ```
 
 Pełny przebieg z figurą: `examples/longitudinal_use_case.py`.

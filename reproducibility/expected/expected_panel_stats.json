@@ -1,0 +1,11 @@
+{
+ "gridqueue": "1.2.0",
+ "schema_version": "1.0",
+ "wierszy_panelu": 19220,
+ "kolumn_panelu": 84,
+ "publikujacych": 6,
+ "pol_schematu_wypelnionych": "21/21",
+ "wierszy_z_kompletnym_rdzeniem": 18449,
+ "naruszen_lacznie": 3012,
+ "niezgodnosc_suma_vs_panel": {}
+}

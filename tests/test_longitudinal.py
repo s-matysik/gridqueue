@@ -3,7 +3,7 @@
 import pandas as pd
 import pytest
 
-from gridqueue import compare_editions, surrogate_key
+from gridqueue import compare_editions, linkage_audit, surrogate_key
 from gridqueue.adapters._ptpiree import _rozbij_moc
 
 
@@ -116,3 +116,74 @@ class TestCompareEditions:
         d = compare_editions(a, a.copy())
         assert d.zmian_statusu == 0
         assert d.udzial_przejsc_w_przod is None
+
+
+class TestLinkageAudit:
+    """Ocena dopasowania na polach WYŁĄCZONYCH z klucza."""
+
+    def _para(self, **zmiany_b):
+        a = pd.DataFrame([_wiersz(_podmiot="Alfa Sp. z o.o.", _nazwa_obiektu="PV Wyszki")])
+        b_ = {"_podmiot": "Alfa Sp. z o.o.", "_nazwa_obiektu": "PV Wyszki"}
+        b_.update(zmiany_b)
+        return a, pd.DataFrame([_wiersz(**b_)])
+
+    def test_zgodne_pola_wstrzymane_daja_potwierdzenie(self):
+        a, b = self._para()
+        au = linkage_audit(a, b).as_dict()
+        assert (au["par"], au["potwierdzonych"], au["falszywych"]) == (1, 1, 0)
+        assert au["precyzja_dolna"] == 1.0
+
+    def test_oba_pola_tozsamosci_rozbiezne_to_falszywe_dopasowanie(self):
+        a, b = self._para(_podmiot="Beta Sp. z o.o.", _nazwa_obiektu="PV Bulkowo")
+        au = linkage_audit(a, b).as_dict()
+        assert au["falszywych"] == 1
+        assert au["precyzja_gorna"] == 0.0
+
+    def test_jedno_pole_rozbiezne_to_niepewne(self):
+        a, b = self._para(_nazwa_obiektu="PV Bulkowo")
+        au = linkage_audit(a, b).as_dict()
+        assert (au["niepewnych"], au["falszywych"]) == (1, 0)
+        assert au["precyzja_dolna"] == 0.0 and au["precyzja_gorna"] == 1.0
+
+    def test_inny_zapis_formy_prawnej_to_ten_sam_podmiot(self):
+        """Publikujący zmienia zapis formy prawnej miedzy edycjami."""
+        a, b = self._para(_podmiot="Alfa sp.z o.o.")
+        au = linkage_audit(a, b).as_dict()
+        assert au["potwierdzonych"] == 1
+
+    def test_nazwa_rozszerzona_nie_jest_konfliktem(self):
+        a, b = self._para(_nazwa_obiektu="PV Wyszki - zm. WP")
+        au = linkage_audit(a, b).as_dict()
+        assert au["potwierdzonych"] == 1
+
+    def test_uzupelnienie_jednostronne_nie_jest_konfliktem(self):
+        """Puste w jednej edycji, wypelnione w drugiej — to redakcja, nie inny wniosek."""
+        a = pd.DataFrame([_wiersz(_podmiot="Alfa Sp. z o.o.", data_wniosku=None)])
+        b = pd.DataFrame([_wiersz(_podmiot="Alfa Sp. z o.o.", data_wniosku="2026-07-31")])
+        wynik = linkage_audit(a, b)
+        assert wynik.as_dict()["potwierdzonych"] == 1
+        kat = set(wynik.rozbieznosci["kategoria"])
+        assert kat == {"uzupelnienie_jednostronne"}
+
+    def test_granice_precyzji_sie_nie_krzyzuja(self):
+        a = pd.DataFrame([_wiersz(lokalizacja_tekst=f"M{i}", _podmiot="Alfa Sp. z o.o.",
+                                  _nazwa_obiektu=f"PV {i}") for i in range(4)])
+        b = pd.DataFrame([_wiersz(lokalizacja_tekst="M0", _podmiot="Alfa Sp. z o.o.", _nazwa_obiektu="PV 0"),
+                          _wiersz(lokalizacja_tekst="M1", _podmiot="Beta Sp. z o.o.", _nazwa_obiektu="PV X"),
+                          _wiersz(lokalizacja_tekst="M2", _podmiot="Alfa Sp. z o.o.", _nazwa_obiektu="PV Y"),
+                          _wiersz(lokalizacja_tekst="M3", _podmiot="Alfa Sp. z o.o.", _nazwa_obiektu="PV 3")])
+        au = linkage_audit(a, b).as_dict()
+        assert au["par"] == 4
+        assert au["potwierdzonych"] + au["niepewnych"] + au["falszywych"] == 4
+        assert au["precyzja_dolna"] <= au["precyzja_gorna"]
+
+
+class TestKolizjeKlucza:
+    def test_kolizje_i_odrzucenia_sa_raportowane(self):
+        """Wiersze o powtarzajacym sie kluczu sa odrzucane, a liczba jest jawna."""
+        a = pd.DataFrame([_wiersz(), _wiersz(), _wiersz(lokalizacja_tekst="Inna")])
+        b = pd.DataFrame([_wiersz()])
+        d = compare_editions(a, b).as_dict()
+        assert d["wierszy_w_kolizji_a"] == 2
+        assert d["odrzuconych_jako_niejednoznaczne_a"] == 1
+        assert d["wspolnych"] == 1

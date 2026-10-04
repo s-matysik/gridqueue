@@ -120,8 +120,30 @@ def main(argv: list[str]) -> int:
     (outdir / "podsumowanie.json").write_text(
         json.dumps(podsum, ensure_ascii=False, indent=1), encoding="utf-8")
 
+    # Porównanie z wartościami oczekiwanymi dla tego wydania. Celowo pomijamy
+    # numer wersji pakietu: sprawdzamy, czy LICZBY się zgadzają, a nie czy ktoś
+    # uruchomił dokładnie ten sam tag.
+    oczek_plik = Path(__file__).parent / "expected" / "expected_panel_stats.json"
+    rozjazd: dict = {}
+    if oczek_plik.exists():
+        oczek = json.loads(oczek_plik.read_text(encoding="utf-8"))
+        for k, v in oczek.items():
+            if k in {"gridqueue", "niezgodnosc_suma_vs_panel"}:
+                continue
+            if podsum.get(k) != v:
+                rozjazd[k] = {"oczekiwano": v, "otrzymano": podsum.get(k)}
+
     for k, v in podsum.items():
         print(f"{k}: {v}")
+    if rozjazd:
+        print("\nBŁĄD: wynik nie odpowiada wartościom oczekiwanym dla tego wydania.",
+              file=sys.stderr)
+        for k, v in rozjazd.items():
+            print(f"  {k}: oczekiwano {v['oczekiwano']}, otrzymano {v['otrzymano']}",
+                  file=sys.stderr)
+        return 1
+    if oczek_plik.exists():
+        print("\nzgodność z expected/expected_panel_stats.json: OK")
     if niezgodne:
         print("\nUWAGA: suma naruszeń po publikujących nie domyka się do panelu.",
               file=sys.stderr)
