@@ -24,10 +24,11 @@ from .quality import RULES, run_quality, QualityReport  # noqa: F401
 from .longitudinal import (  # noqa: F401
     DEFAULT_KEY_FIELDS, STATUS_ORDER, TERMINAL_NEGATIVE,
     surrogate_key, EditionDelta, compare_editions,
+    HELD_OUT_FIELDS, LinkageAudit, linkage_audit,
 )
 from .registry import REGISTRY, get_adapter, detect_publisher, declarations  # noqa: F401
 
-__version__ = "1.1.0"
+__version__ = "1.2.0"
 __all__ = [
     "SCHEMA", "SCHEMA_VERSION", "FIELDS", "CORE_FIELDS", "OPTIONAL_FIELDS", "GROUPS",
     "CORE_ALTERNATIVES", "CORE_BY_ENTITY", "ENTITY_COLUMN", "DEFAULT_ENTITY",
@@ -40,5 +41,6 @@ __all__ = [
     "RULES", "run_quality", "QualityReport",
     "DEFAULT_KEY_FIELDS", "STATUS_ORDER", "TERMINAL_NEGATIVE",
     "surrogate_key", "EditionDelta", "compare_editions",
+    "HELD_OUT_FIELDS", "LinkageAudit", "linkage_audit",
     "REGISTRY", "get_adapter", "detect_publisher", "declarations", "__version__",
 ]

@@ -1,5 +1,11 @@
 # gridqueue
 
+[![testy](https://github.com/s-matysik/gridqueue/actions/workflows/ci.yml/badge.svg)](https://github.com/s-matysik/gridqueue/actions/workflows/ci.yml)
+[![Python 3.10–3.13](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue)](https://github.com/s-matysik/gridqueue)
+[![licencja Apache-2.0](https://img.shields.io/badge/licencja-Apache--2.0-green)](LICENSE.txt)
+[![dokumentacja](https://img.shields.io/badge/dokumentacja-gh--pages-blue)](https://s-matysik.github.io/gridqueue/)
+[![wydanie](https://img.shields.io/github/v/release/s-matysik/gridqueue)](https://github.com/s-matysik/gridqueue/releases)
+
 Harmonizator ustawowych ujawnień przyłączeniowych do sieci elektroenergetycznej.
 
 Operatorzy systemów dystrybucyjnych mają obowiązek publikować, kto ubiega się o przyłączenie,
@@ -28,7 +34,7 @@ sprowadza się do pobrania CSV. Polska jest przypadkiem, w którym nie jest.
 Jedno polecenie, bez kompilacji i bez usług zewnętrznych:
 
 ```bash
-pip install git+https://github.com/s-matysik/gridqueue@v1.1.0
+pip install git+https://github.com/s-matysik/gridqueue@v1.2.0
 ```
 
 Do pracy nad kodem, z ekstrasem testowym:
@@ -127,13 +133,15 @@ edycjami wymaga klucza treściowego. `compare_editions` buduje go i zwraca przep
 macierz przejść statusu:
 
 ```python
-from gridqueue import compare_editions, get_adapter
+from gridqueue import compare_editions, linkage_audit, get_adapter
 
 a = get_adapter("pl_pse").parse("edycja_2026_07_31.xlsx").frame
 b = get_adapter("pl_pse").parse("edycja_2026_08_31.xlsx").frame
 d = compare_editions(a, b, "2026-07-31", "2026-08-31")
 d.as_dict()["udzial_przejsc_w_przod"]   # 0.9828
 d.as_dict()["migawka_monotoniczna"]     # False
+
+linkage_audit(a, b).as_dict()           # precyzja dopasowania: 0.9888–0.9963
 ```
 
 Dwa wyniki na parze edycji PSE, lipiec–sierpień 2026. **98,28 % przejść statusu biegnie
@@ -142,6 +150,11 @@ dopasowujący losowo nie wytworzyłby tego porządku. I drugi: **rejestr nie jes
 migawką** — 13 wierszy pojawia się już w stanie zamkniętym, a 33 wiersze o statusie czynnym
 znikają. Różnicy między edycjami nie wolno więc czytać jako samej zmiany stanu kolejki,
 i narzędzie zgłasza to flagą, zamiast pozwolić użytkownikowi tego nie zauważyć.
+
+Ponieważ rejestr nie ma trwałego identyfikatora, samo dopasowanie też wymaga sprawdzenia.
+`linkage_audit` porównuje każdą parę na dziewięciu polach **wyłączonych z klucza** — klucz nie
+wymusza ich zgodności, więc zgodność jest świadectwem niezależnym. Na wszystkich 804 parach
+precyzja wynosi **98,88–99,63 %**: 795 par potwierdzonych, 6 niepewnych, 3 fałszywe.
 
 ```bash
 python examples/longitudinal_use_case.py edycja_A.xlsx edycja_B.xlsx 2026-07-31 2026-08-31
@@ -171,7 +184,7 @@ ujawnienia — naruszeń tej reguły było 5 390 (28,044 %) wobec **771 (4,011 %
 ## Testy
 
 ```bash
-python -m pytest -q      # 142 passed, 2 skipped (144 zebranych)
+python -m pytest -q      # 150 passed, 2 skipped (152 zebrane)
 ```
 
 Dwa pominięcia są warunkowe: to testy integracyjne adapterów PSE i ENERGI, wymagające
@@ -210,7 +223,9 @@ autorów osobowych przed zgłoszeniem artykułu.
 
 ## Licencja
 
-Apache-2.0 — patrz `LICENSE.txt`. Jest to wybór **roboczy**, podyktowany tym, że czasopismo
+Apache-2.0 dla **kodu**. Dane wejściowe i wyjściowe mają odrębny status — dokumenty urzędowe nie są redystrybuowane, a gazeter geometryczny podlega ODbL z obowiązkiem atrybucji i share-alike. Szczegóły w [`DATA_LICENSE.md`](DATA_LICENSE.md).
+
+Historia zmian: [`CHANGELOG.md`](CHANGELOG.md). — patrz `LICENSE.txt`. Jest to wybór **roboczy**, podyktowany tym, że czasopismo
 docelowe wymaga pliku licencji w repozytorium, a tekst Apache-2.0 nie wymaga wpisywania danych
 właściciela praw w samym pliku. Zmiana na inną licencję z listy dopuszczonych (MIT, BSD, GPL)
 jest jednym commitem, dopóki repozytorium nie ma zewnętrznych współautorów.
