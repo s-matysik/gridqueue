@@ -4,6 +4,40 @@ Format oparty na [Keep a Changelog](https://keepachangelog.com/pl/1.1.0/);
 wersjonowanie semantyczne. Wersja schematu danych jest odrębna od wersji pakietu
 i podawana jako `SCHEMA_VERSION`.
 
+## 1.4.0 — 2026-10-07
+
+### Dodane
+- Adapter `pt_eredes` — zdolność przyjęcia krajowej sieci dystrybucyjnej Portugalii,
+  469 wierszy encji WĘZEŁ, publikacja kwartalna. **Trzecia jurysdykcja w panelu
+  i trzeci tryb wydania**: nie dokument do druku i nie plik na stronie, lecz zbiór
+  na portalu otwartych danych z interfejsem REST.
+- Pierwsze zagraniczne źródło encji WĘZEŁ. Encja ta rośnie w panelu ze 165 wierszy
+  do 634, a obie jurysdykcje spełniają jej rdzeń **różnymi członami tej samej
+  alternatywy**: Polska mocą dostępną (58 % wierszy węzłowych), Portugalia flagą
+  ograniczenia (100 %). Warunkowy rdzeń wprowadzony w wersji 1.0 dla polskiego
+  błędu kategorialnego okazał się warunkiem wchłonięcia obcej jurysdykcji.
+
+### Rozstrzygnięte
+- **Jednostki.** Publikujący portugalski podaje moce w MVA, czyli w mocy pozornej,
+  a jednostką kanoniczną schematu jest kW mocy czynnej. Przeliczenie wymagałoby
+  nieujawnionego współczynnika mocy, więc `moc_dostepna` pozostaje puste, a wartości
+  źródłowe trafiają do pól rozszerzenia z jawnie zapisaną jednostką. Jest to ta sama
+  zasada, którą zastosowano wobec publikującego podającego liczbę wolnych miejsc
+  przyłączeniowych zamiast mocy.
+
+### Naprawione
+- **Test deklaracji adapterów niósł nieaktualny kontrakt rdzenia.** Wymagał od
+  każdego adaptera rdzenia encji WNIOSEK, czyli powielał błąd kategorialny naprawiony
+  w regule R7 w wersji 1.0: publikujący realizujący wyłącznie punkt 2 obowiązku
+  ujawnia węzły, a nie wnioski, więc nie ma ani identyfikatora wniosku, ani jego mocy.
+  Defekt ujawnił dopiero adapter portugalski. Test sprawdza teraz rdzeń **właściwej
+  dla adaptera encji**.
+
+### Zmienione
+- `reproducibility/manifest.csv` obejmuje eksport portugalski z sumą kontrolną.
+- Panel wzorcowy liczy 19 689 wierszy od siedmiu publikujących w trzech jurysdykcjach.
+
+
 ## 1.3.0 — 2026-10-07
 
 ### Dodane
