@@ -60,3 +60,37 @@ z żadnego innego źródła. Rozwiązywacz lokalizacji działa na nazwie miejsco
 podanej w dokumencie, nigdy na nazwie podmiotu. Odpowiedzialność za zgodne z prawem
 dalsze wykorzystanie wyjścia, w tym za ewentualną ocenę skutków dla ochrony danych,
 spoczywa na użytkowniku.
+
+
+## Dlaczego dokumenty źródłowe nie są dołączone do repozytorium
+
+Repozytorium zawiera **manifest** dokumentów (adres, data pobrania, rozmiar,
+suma SHA-256) oraz skrypt `reproducibility/fetch_sources.py`, który je pobiera
+i weryfikuje. Nie zawiera samych dokumentów. Powody są dwa i oba są praktyczne,
+a nie ostrożnościowe.
+
+**Po pierwsze, statusu prawnego redystrybucji nie rozstrzygamy.** Polskie prawo
+autorskie wyłącza z ochrony materiały urzędowe, ale ujawnienia, o których mowa,
+sporządzają i publikują spółki prowadzące działalność gospodarczą, wykonując
+obowiązek ustawowy — a to, czy mieszczą się one w tej kategorii, nie jest
+przesądzone. Niezależnie od prawa autorskiego do zbiorów danych może mieć
+zastosowanie ochrona *sui generis*. Nie jesteśmy w stanie tego rozstrzygnąć
+i nie udajemy, że jesteśmy; zespół zamierzający dołączyć dokumenty do
+publikacji powinien uzyskać opinię prawną.
+
+**Po drugie, dokumenty są wymieniane.** Obowiązek wyznacza co najmniej
+kwartalną aktualizację, więc kopia złożona w repozytorium po kilku miesiącach
+przedstawiałaby stan, którego już nie ma, i byłaby myląca tym bardziej, im
+bardziej wyglądałaby na aktualną.
+
+Konsekwencję trzeba powiedzieć wprost, bo jest niewygodna: **odtworzenie co do
+bajtu przestaje być możliwe, gdy publikujący wymieni albo przeniesie dokument.**
+Podczas przygotowania wydania 1.3.0 odsyłacz do ujawnienia jednego z operatorów
+przestał prowadzić do pliku i zaczął zwracać stronę serwisu — skrypt pobierający
+rozpoznaje ten przypadek i zgłasza go osobno, zamiast zapisać stronę jako
+dokument. Dlatego sumy kontrolne są w manifeście: niezgodność jest sygnałem, że
+liczby nie będą identyczne z opublikowanymi, a nie usterką do zignorowania.
+
+Zespołowi przygotowującemu publikację zalecamy **depozyt dokumentów w archiwum
+z trwałym identyfikatorem**, o ile opinia prawna na to pozwoli. Jest to jedyny
+sposób, by odsyłacz w artykule prowadził do tego, co faktycznie analizowano.
