@@ -460,6 +460,38 @@ def empty_frame():
     return pd.DataFrame({c: pd.Series(dtype="object") for c in FIELDS + META_COLUMNS})
 
 
+def _encja_pola(nazwa: str) -> str:
+    """Encja, w której pole występuje: WNIOSEK, WEZEL albo obie.
+
+    Wyprowadzone z CORE_BY_ENTITY oraz z przynależności pola do punktu obowiązku:
+    punkt 2 opisuje węzeł, punkty 1, 3 i 4 opisują wniosek.
+    """
+    wezlowe = {"id_wezla", "nazwa_wezla", "moc_dostepna", "moc_zarezerwowana",
+               "ograniczenie_flaga"}
+    obie = {"wspolrzedne", "data_publikacji"}
+    if nazwa in obie:
+        return "obie"
+    return "WEZEL" if nazwa in wezlowe else "WNIOSEK"
+
+
+def _status_rdzenia(nazwa: str) -> str:
+    """Trójwartościowy status: rdzeń bezwarunkowy, alternatywa rdzenia, rozszerzenie.
+
+    Rdzeń jest WARUNKOWY: pole bezwarunkowe dla jednej encji nie musi być
+    wymagane dla drugiej, a pary alternatyw wymagają wypełnienia co najmniej
+    jednego członu. Dwuwartościowa kolumna `rdzen` tego nie oddaje i dlatego
+    istnieje ta druga.
+    """
+    for encja, spec in CORE_BY_ENTITY.items():
+        if nazwa in spec["wymagane"]:
+            return f"rdzeń bezwarunkowy ({encja})"
+    for encja, spec in CORE_BY_ENTITY.items():
+        for para in spec["alternatywy"]:
+            if nazwa in para:
+                return f"alternatywa rdzenia ({encja}: {' albo '.join(para)})"
+    return "rozszerzenie"
+
+
 def schema_table():
     """Specyfikacja jako ramka -- artefakt do manuskryptu."""
     import pandas as pd
@@ -470,7 +502,9 @@ def schema_table():
                 "pole": f.name,
                 "typ": f.dtype,
                 "grupa": f.group,
+                "encja": _encja_pola(f.name),
                 "rdzen": f.core,
+                "status_rdzenia": _status_rdzenia(f.name),
                 "jednostka_kanoniczna": f.unit or "",
                 "podstawa_prawna": f.podstawa,
                 "opis": f.opis,

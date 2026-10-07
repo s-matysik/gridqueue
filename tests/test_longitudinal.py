@@ -3,7 +3,8 @@
 import pandas as pd
 import pytest
 
-from gridqueue import compare_editions, linkage_audit, surrogate_key
+from gridqueue import (compare_editions, linkage_audit, linkage_recall,
+                       surrogate_key)
 from gridqueue.adapters._ptpiree import _rozbij_moc
 
 
@@ -222,3 +223,44 @@ class TestZgodnoscZWersjaPandas:
         c = pd.DataFrame([_wiersz(moc_pobierana=1000.0)])
         assert compare_editions(a, b).wspolnych == 1
         assert compare_editions(a, c).wspolnych == 0
+
+
+class TestLinkageRecall:
+    """Czułość klucza: pary, których klucz treściowy NIE połączył."""
+
+    def test_zmiana_mocy_rozrywa_pare_i_jest_odzyskiwana(self):
+        a = pd.DataFrame([_wiersz(_podmiot="Alfa", _nazwa_obiektu="PV Wyszki",
+                                  moc_wprowadzana=1000.0)])
+        b = pd.DataFrame([_wiersz(_podmiot="Alfa", _nazwa_obiektu="PV Wyszki",
+                                  moc_wprowadzana=1200.0)])
+        d = compare_editions(a, b).as_dict()
+        assert d["wspolnych"] == 0 and d["nowych"] == 1 and d["ubylych"] == 1
+
+        r = linkage_recall(a, b)
+        assert r.odzyskanych == 1
+        assert r.odzyskane.iloc[0]["pola_klucza_rozne"] == "moc_wprowadzana"
+        assert r.czulosc_klucza == 0.0  # zero par połączonych, jedna możliwa
+
+    def test_pola_tozsamosci_musza_byc_rozlaczne_z_kluczem(self):
+        """Pole wspólne z kluczem nie wykryje pary rozerwanej zmianą tego pola."""
+        a = pd.DataFrame([_wiersz(_podmiot="Alfa", _nazwa_obiektu="PV Wyszki",
+                                  lokalizacja_tekst="Stacja A")])
+        b = pd.DataFrame([_wiersz(_podmiot="Alfa", _nazwa_obiektu="PV Wyszki",
+                                  lokalizacja_tekst="Stacja A - pole 12")])
+        assert linkage_recall(a, b).odzyskanych == 1
+        zepsute = linkage_recall(a, b, pola_tozsamosci=("_podmiot", "lokalizacja_tekst"))
+        assert zepsute.odzyskanych == 0
+
+    def test_niejednoznaczna_tozsamosc_nie_jest_odzyskiwana(self):
+        a = pd.DataFrame([_wiersz(_podmiot="Alfa", _nazwa_obiektu="PV", moc_wprowadzana=1.0),
+                          _wiersz(_podmiot="Alfa", _nazwa_obiektu="PV", moc_wprowadzana=2.0)])
+        b = pd.DataFrame([_wiersz(_podmiot="Alfa", _nazwa_obiektu="PV", moc_wprowadzana=3.0)])
+        assert linkage_recall(a, b).odzyskanych == 0
+
+    def test_zero_jako_brak_jest_wylaczone_domyslnie(self):
+        """Zero jest wartością ujawnioną; zrównanie go z brakiem to decyzja analityka."""
+        a = pd.DataFrame([_wiersz(moc_pobierana=0.0)])
+        b = pd.DataFrame([_wiersz(moc_pobierana=None)])
+        assert surrogate_key(a).iloc[0] != surrogate_key(b).iloc[0]
+        assert (surrogate_key(a, zero_jako_brak=True).iloc[0]
+                == surrogate_key(b, zero_jako_brak=True).iloc[0])

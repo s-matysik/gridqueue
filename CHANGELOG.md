@@ -4,6 +4,48 @@ Format oparty na [Keep a Changelog](https://keepachangelog.com/pl/1.1.0/);
 wersjonowanie semantyczne. Wersja schematu danych jest odrębna od wersji pakietu
 i podawana jako `SCHEMA_VERSION`.
 
+## 1.3.0 — 2026-10-07
+
+### Dodane
+- Moduł `analysis` z warstwą badawczą nad schematem: `station_node_map`,
+  `assign_to_nodes`, `node_loading`, `processing_time`, `kaplan_meier`.
+  Pozwala policzyć **obciążenie węzła** — stosunek mocy czynnej kolejki do
+  ujawnionej mocy dostępnej — czyli kryterium, które przeglądy literatury
+  opisują jako niemierzalne z powodu braku danych.
+- `linkage_recall` — **czułość** dopasowania wzdłużnego, obok mierzonej dotąd
+  precyzji. Na parze edycji operatora przesyłowego czułość klucza wynosi
+  0,9652: z 29 pominiętych par 10 rozrywa zapis lokalizacji, 15 zmiana mocy,
+  4 zmiana napięcia.
+- `surrogate_key(..., zero_jako_brak=True)` — opcja zrównująca zero z brakiem
+  wartości. Odzyskuje 12 z 51 par traconych przez klucz. **Domyślnie
+  wyłączona**: zero jest wartością ujawnioną, a brak jej nieujawnieniem, więc
+  zrównanie ich jest decyzją analityka i ma być widoczne w kodzie.
+- `schema_table()` zwraca kolumny `encja` oraz `status_rdzenia` — rdzeń jest
+  warunkowy per encja, czego dwuwartościowa kolumna `rdzen` nie oddawała.
+- `reproducibility/fetch_sources.py` — pobiera dokumenty źródłowe z manifestu
+  i weryfikuje sumy SHA-256. Obsługuje własny pakiet zaufanych wystawców przez
+  `GRIDQUEUE_CA_BUNDLE`, bez wyłączania weryfikacji.
+
+### Naprawione
+- **Normalizacja nazw rozcinała wyrazy z literą `ł`.** Rozkład kanoniczny
+  Unicode nie oddziela od niej znaku diakrytycznego, bo jest to osobna litera,
+  więc czyszczenie znaków zamieniało ją na spację i „Białogard" stawał się
+  „bia ogard". Dotyczy też `đ`, `ø`, `ß`, `æ`, `œ`. Jest to drugie wystąpienie
+  tej samej pułapki w projekcie — pierwsze dotyczyło harmonizacji statusów.
+- **Obiekty planowane na linii były arbitralnie przypisywane do węzła.** Wpis
+  „planowany RS w linii relacji A – B" opisuje obiekt leżący między węzłami;
+  dopasowanie po nazwie przypisywało mu pełną moc do tego końca, który akurat
+  występował w wykazie stacji. Takie wnioski mają teraz własny status `LINE`
+  i nie są przypisywane. Na danych jednego publikującego dotyczy to 63 wniosków.
+
+### Zmienione
+- `reproducibility/manifest.csv` obejmuje edycję lipcową ujawnienia operatora
+  przesyłowego, używaną w analizie wzdłużnej.
+- `DATA_LICENSE.md` wyjaśnia, dlaczego dokumenty nie są redystrybuowane,
+  i odnotowuje, że odsyłacz jednego z publikujących przestał prowadzić do pliku
+  — co skrypt pobierający rozpoznaje po sygnaturze pliku i zgłasza osobno.
+
+
 ## 1.2.1 — 2026-10-04
 
 ### Dodane

@@ -45,6 +45,9 @@ __all__ = [
     "HELD_OUT_FIELDS",
     "LinkageAudit",
     "linkage_audit",
+    "RECALL_FIELDS",
+    "LinkageRecall",
+    "linkage_recall",
 ]
 
 #: Pola domyślnego klucza treściowego. Celowo BEZ dat i bez statusu: daty bywają
@@ -84,10 +87,32 @@ def _jako_tekst(v) -> str:
     return str(v)
 
 
+def _jako_tekst_zero_jak_brak(v) -> str:
+    """Jak `_jako_tekst`, ale wartość liczbowa równa zeru daje łańcuch pusty."""
+    s = _jako_tekst(v)
+    if s == "":
+        return ""
+    try:
+        return "" if float(s) == 0.0 else s
+    except (TypeError, ValueError):
+        return s
+
+
 def surrogate_key(
-    df: pd.DataFrame, fields: Sequence[str] = DEFAULT_KEY_FIELDS
+    df: pd.DataFrame,
+    fields: Sequence[str] = DEFAULT_KEY_FIELDS,
+    zero_jako_brak: bool = False,
 ) -> pd.Series:
-    """Klucz treściowy wiersza, do dopasowania między edycjami."""
+    """Klucz treściowy wiersza, do dopasowania między edycjami.
+
+    `zero_jako_brak` zrównuje wartość 0 z brakiem wartości. Publikujący bywa
+    niekonsekwentny: tę samą nieujawnioną moc zapisuje raz jako pustą komórkę,
+    raz jako zero, i wtedy klucz rozpada parę, która dotyczy jednego wniosku.
+    Na parze edycji operatora przesyłowego włączenie tej opcji odzyskuje
+    12 z 51 par traconych przez klucz. Domyślnie WYŁĄCZONE, bo zero jest
+    wartością ujawnioną, a brak jej nieujawnieniem — zrównanie ich jest
+    decyzją analityka, nie własnością danych, i musi być widoczne w kodzie.
+    """
     uzyte = [f for f in fields if f in df.columns]
     if not uzyte:
         raise ValueError(f"żadne z pól klucza nie występuje w ramce: {list(fields)}")
@@ -95,7 +120,8 @@ def surrogate_key(
     # "nan", a w pandas 3 pozostaje wartoscia brakujaca i zlaczenie rzuca TypeError.
     # Jawna konwersja daje ten sam klucz w obu wersjach i czyni regule "brak jest
     # wartoscia" wlasnoscia kodu, a nie ubocznym skutkiem rzutowania typu.
-    kolumny = [df[c].map(_jako_tekst) for c in uzyte]
+    konw = _jako_tekst_zero_jak_brak if zero_jako_brak else _jako_tekst
+    kolumny = [df[c].map(konw) for c in uzyte]
     return reduce(lambda a, b: a + "|" + b, kolumny)
 
 
@@ -366,3 +392,87 @@ def linkage_audit(
         falszywych=falsz,
         rozbieznosci=pd.DataFrame(wiersze),
     )
+
+
+#: Pola tożsamości używane do odzyskania par, których klucz treściowy nie połączył.
+#: Muszą być ROZŁĄCZNE z polami klucza. Pole wspólne z kluczem nie wykryje pary
+#: rozerwanej zmianą właśnie tego pola, bo sama tożsamość też się wtedy rozjedzie:
+#: dołożenie lokalizacji do tego zestawu obniża zmierzoną czułość z 0,9652 do
+#: 0,9757, co wygląda na poprawę, a jest przeoczeniem dziesięciu par.
+RECALL_FIELDS: tuple = ("_podmiot", "_nazwa_obiektu")
+
+
+@dataclass
+class LinkageRecall:
+    """Czułość dopasowania: ile par klucz treściowy POMINĄŁ.
+
+    `linkage_audit` mierzy precyzję — czy połączone pary są tą samą sprawą.
+    Nie mówi nic o parach, których klucz nie połączył, a te są groźniejsze:
+    rozerwana para pojawia się jako jeden wiersz „ubyły" i jeden „nowy",
+    więc wygląda jak zdarzenie w rejestrze, a jest artefaktem dopasowania.
+    """
+
+    kluczy_a: int
+    kluczy_b: int
+    dopasowanych: int
+    odzyskanych: int
+    odzyskane: pd.DataFrame = field(repr=False)
+
+    @property
+    def czulosc_klucza(self) -> float:
+        """Udział par faktycznie połączonych wśród par możliwych do połączenia."""
+        mozliwe = self.dopasowanych + self.odzyskanych
+        return self.dopasowanych / mozliwe if mozliwe else float("nan")
+
+    def as_dict(self) -> dict:
+        return {"kluczy_a": self.kluczy_a, "kluczy_b": self.kluczy_b,
+                "dopasowanych": self.dopasowanych, "odzyskanych": self.odzyskanych,
+                "czulosc_klucza": self.czulosc_klucza}
+
+
+def linkage_recall(
+    a: pd.DataFrame,
+    b: pd.DataFrame,
+    fields: Sequence[str] = DEFAULT_KEY_FIELDS,
+    pola_tozsamosci: Sequence[str] = RECALL_FIELDS,
+) -> LinkageRecall:
+    """Szuka par pominiętych przez klucz treściowy, po polach tożsamości.
+
+    Bierze wiersze NIEDOPASOWANE kluczem i próbuje je połączyć po polach, które
+    do klucza nie wchodzą — nazwie podmiotu, nazwie obiektu i lokalizacji.
+    Para odzyskana tą drogą dotyczy tego samego wniosku, któremu zmieniono
+    którąś z wartości wchodzących do klucza; zwracana ramka podaje, które
+    pole klucza się różni, więc wynik jest sprawdzalny, a nie deklarowany.
+
+    Odzyskiwane są wyłącznie dopasowania JEDNOZNACZNE: jeśli ta sama tożsamość
+    występuje po którejkolwiek stronie więcej niż raz, para nie jest liczona.
+    """
+    aa, bb = a.copy(), b.copy()
+    aa["_klucz"] = surrogate_key(aa, fields)
+    bb["_klucz"] = surrogate_key(bb, fields)
+    wspolne = set(aa["_klucz"]) & set(bb["_klucz"])
+    reszta_a = aa[~aa["_klucz"].isin(wspolne)]
+    reszta_b = bb[~bb["_klucz"].isin(wspolne)]
+    uzyte = [p for p in pola_tozsamosci if p in aa.columns and p in bb.columns]
+    if not uzyte or not len(reszta_a) or not len(reszta_b):
+        return LinkageRecall(aa["_klucz"].nunique(), bb["_klucz"].nunique(),
+                             len(wspolne), 0, pd.DataFrame())
+    def tozsamosc(df):
+        return reduce(lambda x, y: x + "|" + y,
+                      [df[c].map(_jako_tekst).str.strip().str.upper() for c in uzyte])
+    reszta_a = reszta_a.assign(_toz=tozsamosc(reszta_a))
+    reszta_b = reszta_b.assign(_toz=tozsamosc(reszta_b))
+    jedno_a = reszta_a[~reszta_a["_toz"].duplicated(keep=False) & (reszta_a["_toz"] != "||")]
+    jedno_b = reszta_b[~reszta_b["_toz"].duplicated(keep=False) & (reszta_b["_toz"] != "||")]
+    wsp = set(jedno_a["_toz"]) & set(jedno_b["_toz"])
+    ia = jedno_a[jedno_a["_toz"].isin(wsp)].set_index("_toz")
+    ib = jedno_b[jedno_b["_toz"].isin(wsp)].set_index("_toz")
+    wiersze = []
+    for t in sorted(wsp):
+        ra, rb = ia.loc[t], ib.loc[t]
+        rozne = [f for f in fields
+                 if f in aa.columns and _jako_tekst(ra.get(f)) != _jako_tekst(rb.get(f))]
+        wiersze.append({"tozsamosc": t, "pola_klucza_rozne": ";".join(rozne),
+                        "status_a": ra.get("status_procesu"), "status_b": rb.get("status_procesu")})
+    return LinkageRecall(aa["_klucz"].nunique(), bb["_klucz"].nunique(),
+                         len(wspolne), len(wsp), pd.DataFrame(wiersze))

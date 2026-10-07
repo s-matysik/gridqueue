@@ -80,3 +80,4 @@ res.report["n_wierszy"]               # 10955
 audit_column_shift(df).udzial         # 0.0
 run_quality(df).as_dict()["naruszen_lacznie"]
 ```
+- [Warstwa analityczna](analiza.md)
