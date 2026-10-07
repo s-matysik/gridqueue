@@ -11,9 +11,10 @@ from gridqueue.registry import REGISTRY, declarations, get_adapter
 from gridqueue.schema import FIELDS, META_COLUMNS
 
 
-def test_rejestr_ma_szesc_adapterow():
-    assert set(REGISTRY) == {"pl_tauron", "pl_stoen", "pl_boryszew", "uk_nationalgrid",
-                             "pl_pse", "pl_energa"}
+def test_rejestr_ma_siedem_adapterow_w_trzech_jurysdykcjach():
+    assert set(REGISTRY) == {"pl_tauron", "pl_stoen", "pl_boryszew", "pl_pse", "pl_energa",
+                             "uk_nationalgrid", "pt_eredes"}
+    assert {get_adapter(k).jurisdiction for k in REGISTRY} == {"PL", "UK", "PT"}
 
 
 def test_deklaracje_pol_sa_podzbiorem_schematu():
@@ -22,12 +23,22 @@ def test_deklaracje_pol_sa_podzbiorem_schematu():
         assert all(k.startswith("_") for k in d["rozszerzenia"]), d["publikujacy"]
 
 
-def test_kazdy_adapter_deklaruje_rdzen():
-    rdzen = {"id_wniosku", "lokalizacja_tekst", "klasa_zasobu", "moc_pobierana",
-             "status_procesu"}
+def test_kazdy_adapter_deklaruje_rdzen_SWOJEJ_encji():
+    """Rdzeń jest warunkowy per encja, więc i ta kontrola musi być.
+
+    Poprzednia wersja wymagała od KAŻDEGO adaptera rdzenia encji WNIOSEK.
+    Jest to ten sam błąd kategorialny, który naprawiono w regule R7: publikujący
+    realizujący wyłącznie punkt 2 obowiązku ujawnia węzły, a nie wnioski, więc
+    nie ma ani identyfikatora wniosku, ani jego mocy. Adapter portugalski
+    pokazał, że test niósł nieaktualny kontrakt.
+    """
+    rdzen_wniosku = {"id_wniosku", "lokalizacja_tekst", "klasa_zasobu", "status_procesu"}
+    rdzen_wezla = {"id_wezla"}
     for key in REGISTRY:
-        a = get_adapter(key)
-        assert rdzen <= set(a.declared_fields), key
+        pola = set(get_adapter(key).declared_fields)
+        wniosek = rdzen_wniosku <= pola
+        wezel = rdzen_wezla <= pola and bool({"moc_dostepna", "ograniczenie_flaga"} & pola)
+        assert wniosek or wezel, key
 
 
 def test_get_adapter_odrzuca_nieznany_klucz():
@@ -120,7 +131,7 @@ def test_cli_schema_i_adapters(capsys, tmp_path):
     assert len(pd.read_csv(tmp_path / "s.csv")) == 21
     capsys.readouterr()
     assert main(["adapters"]) == 0
-    assert len(json.loads(capsys.readouterr().out)) == 6
+    assert len(json.loads(capsys.readouterr().out)) == len(REGISTRY)
 
 
 def test_cli_validate_i_export(tmp_path, capsys):

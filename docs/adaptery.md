@@ -51,3 +51,55 @@ detect_publisher("tauron_informacja_2026_06_30.pdf")   # 'pl_tauron'
 
 Kolejność jest celowa: nazwa pliku jest tania i zwykle wystarcza, treść pierwszej strony
 rozstrzyga resztę. Gdy nie rozstrzyga żadna z nich, zwracane jest `None` — bez zgadywania.
+
+## E-REDES (Portugalia) — `pt_eredes`
+
+Trzecia jurysdykcja w panelu i trzeci tryb wydania: **zbiór na portalu otwartych
+danych z interfejsem REST**, publikowany kwartalnie. Jednostką wiersza jest
+podstacja albo punkt cięcia sieci wysokiego napięcia; wierszy jest 469 i wszystkie
+należą do encji WĘZEŁ.
+
+Co ten adapter wnosi, czego nie było: **pierwsze zagraniczne źródło encji WĘZEŁ**.
+Dotąd wiersze węzłowe pochodziły wyłącznie od dwóch publikujących polskich, więc
+kryterium „dostępna moc przyłączeniowa" dawało się policzyć w jednej jurysdykcji.
+Źródło portugalskie podaje ponadto **skład grupy podstacji** — dokładnie tę
+informację, która w panelu polskim umożliwia przypisanie wniosków do węzła.
+
+### Rozstrzygnięcie o jednostkach
+
+Publikujący podaje zdolność przyjęcia i moce przyłączone w **MVA**, czyli w mocy
+pozornej. Jednostką kanoniczną schematu jest **kW mocy czynnej**. Są to różne
+wielkości fizyczne, a przeliczenie jednej na drugą wymaga współczynnika mocy,
+którego publikujący nie podaje.
+
+Dlatego `moc_dostepna` pozostaje **puste**, a wartości w MVA trafiają do pól
+rozszerzenia wraz z jawnie zapisaną jednostką źródłową:
+
+| pole rozszerzenia | znaczenie |
+|---|---|
+| `_jednostka_mocy_zrodlowa` | `MVA` |
+| `_moc_dostepna_mva` | zdolność przyjęcia SN+WN |
+| `_moc_przylaczona_mva` | moc już przyłączona |
+| `_moc_zakontraktowana_mva` | moc zakontraktowana |
+| `_moc_w_potwierdzaniu_mva` | moc w trakcie potwierdzania |
+
+Jest to ta sama zasada, którą zastosowano wobec publikującego podającego liczbę
+wolnych miejsc przyłączeniowych zamiast mocy: wpisanie liczby w pole o innej
+jednostce byłoby fabrykacją, nie harmonizacją.
+
+Rdzeń encji WĘZEŁ jest mimo to spełniony, bo realizuje go drugi człon alternatywy —
+`ograniczenie_flaga`, ustawiana na podstawie zerowej zdolności przyjęcia. Zero jest
+wartością **ujawnioną** i oznacza ograniczenie; pusta komórka oznacza nieujawnienie
+i flagi nie ustawia. Dotyczy to 222 z 469 węzłów.
+
+To rozstrzygnięcie jest zarazem wynikiem obserwacyjnym: **obie jurysdykcje spełniają
+rdzeń encji WĘZEŁ różnymi członami tej samej alternatywy** — Polska mocą dostępną,
+Portugalia flagą ograniczenia. Warunkowy rdzeń, wprowadzony w wersji 1.0 dla
+polskiego błędu kategorialnego, okazał się warunkiem wchłonięcia obcej jurysdykcji.
+
+```python
+from gridqueue import get_adapter
+r = get_adapter("pt_eredes").parse("pt_eredes_capacidade_rececao_rnd_2T2026.csv")
+r.frame[["id_wezla", "nazwa_wezla", "lokalizacja_tekst", "ograniczenie_flaga"]]
+r.report["uwaga_jednostki"]
+```
