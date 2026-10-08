@@ -103,3 +103,56 @@ r = get_adapter("pt_eredes").parse("pt_eredes_capacidade_rececao_rnd_2T2026.csv"
 r.frame[["id_wezla", "nazwa_wezla", "lokalizacja_tekst", "ograniczenie_flaga"]]
 r.report["uwaga_jednostki"]
 ```
+
+## e-Distribución (Hiszpania) — `es_edistribucion`
+
+**Pierwsze zagraniczne źródło wydawane jako dokument do druku.** Dotąd oba adaptery
+zagraniczne czytały dane już tabelaryczne, więc przenoszalność była wykazana na przypadku
+łatwiejszym niż polski; to źródło ten brak zamyka. Publikujący wydaje **PDF miesięczny**
+w serii obejmującej lata 2023–2025, na podstawie art. 33 ust. 9 ustawy 24/2013,
+art. 5 ust. 4 dekretu 1183/2020 i art. 12 okólnika 1/2021 regulatora CNMC — czyli
+w konstrukcji prawnej takiej samej jak polska: obowiązek ustawowy, stała częstość, format
+pozostawiony publikującemu.
+
+Wydanie z 1 sierpnia 2025: 28 stron, **1 838 wierszy encji WĘZEŁ**, wszystkie pola
+zadeklarowane wypełnione w 100 %, w tym **współrzędne geograficzne każdej podstacji** —
+czego nie robi żaden publikujący polski. Moce są w **MW mocy czynnej**, więc przeliczenie
+na kanoniczne kW jest zwykłą zmianą rzędu wielkości.
+
+### Semantyka kolumn ustalona arytmetyką, nie nagłówkiem
+
+Nagłówek ma komórki scalone w dwóch poziomach i sugeruje, że kolumny „Con permiso de AyC"
+oraz „En trámite con capacidad" należą do grupy mocy **przyjętej i nierozstrzygniętej**.
+Sprawdzenie sumami pokazuje co innego: ich suma odtwarza moc **zajętą** (395 wierszy zgodnych
+dokładnie przy 767 wierszach o niezerowej mocy zajętej), a rozbicie technologiczne odtwarza
+moc przyjętą i nierozstrzygniętą we **wszystkich** wierszach o niezerowej wartości.
+Odwzorowanie idzie za arytmetyką. Przyjęcie nagłówka na wiarę dałoby ciche przestawienie
+dwóch pól mocy.
+
+## ESB Networks (Irlandia) — `ie_esbnetworks`
+
+Najliczniejsze źródło w panelu: **46 527 wierszy**, jedyne schodzące poniżej poziomu stacji
+wysokiego napięcia aż do stacji SN/nn. Jednostką wiersza jest grupa transformatorów w stacji.
+Współrzędne są w 46 525 wierszach.
+
+### Dwie jednostki w jednym pliku
+
+Publikujący podaje stronę **odbiorczą w MVA** (moc pozorna), a **wytwórczą w MW** (moc czynna).
+Pole `moc_dostepna` niesie zatem dostępną moc **wytwórczą trwałą**, przeliczoną z MW na kW,
+a strona odbiorcza zostaje w rozszerzeniach z jednostką w nazwie pola. Zsumowanie MW z MVA
+dałoby liczbę bez sensu fizycznego, a wybór jednej strony bez powiedzenia tego wprost byłby
+ukryciem decyzji.
+
+### Jedna interpretacja, zapisana jawnie
+
+Kolumny ograniczenia niosą frazę `Constrained, otherwise capacity available = X kVA` albo są
+puste. Przyjmujemy, że **pusta komórka oznacza brak ograniczenia**, a nie brak deklaracji:
+kolumna jest wskaźnikiem binarnym, w którym wartość dodatnia niesie objaśnienie, a ujemna jest
+wyrażona pustką. Publikujący tej konwencji nigdzie nie opisuje, więc jest to **interpretacja,
+nie treść źródła** — surowa fraza zostaje w rozszerzeniu, liczba z niej jest wydobywana
+osobno i **nie jest przeliczana**, bo jest w kVA. Decyzja jest odnotowana w raporcie adaptera
+i przypięta testem, żeby jej zmiana była widoczna.
+
+Dwie flagi źródłowe (odbiorcza i wytwórcza) wchodzą do jednego pola schematu jako
+**alternatywa zachowująca nieokreśloność**: `None` w połączeniu z `False` daje `None`,
+a nie `False`.

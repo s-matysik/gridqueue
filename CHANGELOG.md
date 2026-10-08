@@ -4,6 +4,37 @@ Format oparty na [Keep a Changelog](https://keepachangelog.com/pl/1.1.0/);
 wersjonowanie semantyczne. Wersja schematu danych jest odrębna od wersji pakietu
 i podawana jako `SCHEMA_VERSION`.
 
+## 1.5.0 — 2026-10-08
+
+### Dodane
+- Adapter `es_edistribucion` — **pierwsze zagraniczne źródło wydawane jako dokument
+  do druku**, co zamyka najmocniejszy brakujący test przenoszalności. Wydanie miesięczne,
+  28 stron, 1 838 wierszy encji WĘZEŁ, wszystkie pola zadeklarowane wypełnione
+  w 100 %, w tym współrzędne geograficzne każdej podstacji. Moce w MW mocy czynnej.
+- Adapter `ie_esbnetworks` — najliczniejsze źródło w panelu, 46 527 wierszy, jedyne
+  schodzące poniżej stacji wysokiego napięcia. Współrzędne w 46 525 wierszach.
+- Panel wzorcowy: **68 054 wiersze, dziewięciu publikujących, pięć jurysdykcji**
+  (PL, GB, PT, ES, IE). Encja WĘZEŁ rośnie z 634 do 48 999 wierszy, a pokrycie pola
+  współrzędnych z 6,2 % do 72,9 % panelu.
+
+### Rozstrzygnięte
+- **Jednostki, po raz drugi i trzeci.** Źródło irlandzkie miesza w jednym pliku moc
+  pozorną po stronie odbiorczej z czynną po wytwórczej; pole mocy niesie stronę wytwórczą
+  przeliczoną z MW, a odbiorcza zostaje w rozszerzeniach z jednostką w nazwie. Źródło
+  hiszpańskie podaje MW mocy czynnej, więc przelicza się bez założeń. Trzy jurysdykcje
+  pokazują trzy różne praktyki jednostkowe w jednym polu schematu.
+- **Semantyka kolumn hiszpańskich ustalona arytmetyką, nie nagłówkiem.** Nagłówek
+  z komórkami scalonymi sugerował przypisanie dwóch kolumn do mocy nierozstrzygniętej;
+  sumy pokazały, że należą do mocy zajętej. Przyjęcie nagłówka na wiarę dałoby ciche
+  przestawienie dwóch pól mocy.
+- **Pusta komórka ograniczenia w źródle irlandzkim** czytana jest jako brak ograniczenia.
+  Publikujący tej konwencji nie opisuje, więc jest to interpretacja, nie treść źródła:
+  surowa fraza zostaje w rozszerzeniu, a decyzja jest przypięta testem.
+
+### Zmienione
+- Test rejestru obejmuje dziewięć adapterów w pięciu jurysdykcjach.
+- `reproducibility/manifest.csv` liczy 16 pozycji.
+
 ## 1.4.0 — 2026-10-07
 
 ### Dodane

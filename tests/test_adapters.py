@@ -11,10 +11,11 @@ from gridqueue.registry import REGISTRY, declarations, get_adapter
 from gridqueue.schema import FIELDS, META_COLUMNS
 
 
-def test_rejestr_ma_siedem_adapterow_w_trzech_jurysdykcjach():
+def test_rejestr_ma_dziewiec_adapterow_w_pieciu_jurysdykcjach():
     assert set(REGISTRY) == {"pl_tauron", "pl_stoen", "pl_boryszew", "pl_pse", "pl_energa",
-                             "uk_nationalgrid", "pt_eredes"}
-    assert {get_adapter(k).jurisdiction for k in REGISTRY} == {"PL", "UK", "PT"}
+                             "uk_nationalgrid", "pt_eredes", "es_edistribucion",
+                             "ie_esbnetworks"}
+    assert {get_adapter(k).jurisdiction for k in REGISTRY} == {"PL", "UK", "PT", "ES", "IE"}
 
 
 def test_deklaracje_pol_sa_podzbiorem_schematu():
