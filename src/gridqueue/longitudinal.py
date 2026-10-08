@@ -37,6 +37,8 @@ import pandas as pd
 
 __all__ = [
     "DEFAULT_KEY_FIELDS",
+    "NODE_KEY_FIELDS",
+
     "STATUS_ORDER",
     "TERMINAL_NEGATIVE",
     "surrogate_key",
@@ -60,6 +62,22 @@ DEFAULT_KEY_FIELDS: tuple[str, ...] = (
     "moc_wprowadzana",
     "moc_pobierana",
 )
+
+
+#: Klucz dla wierszy encji WEZEL. Domyślny `DEFAULT_KEY_FIELDS` jest zbudowany
+#: dla encji WNIOSEK i na wierszach węzłowych ROZPADA SIĘ: pola `klasa_zasobu`,
+#: `moc_wprowadzana` i `moc_pobierana` są tam puste, więc klucz traci
+#: rozróżnialność. Zmierzone na parze wydań publikującego hiszpańskiego:
+#: kluczem domyślnym 916 z 1838 wierszy wpada w kolizję i 660 zostaje
+#: odrzuconych jako niejednoznaczne, a kluczem poniżej kolizji jest ZERO,
+#: wszystkie 1838 par dopasowuje się jednoznacznie, przy precyzji i czułości
+#: równych 1,000.
+#:
+#: Wniosek ogólniejszy: klucz treściowy musi być dobrany do ENCJI, tak samo jak
+#: rdzeń schematu. Użycie klucza wnioskowego do wierszy węzłowych nie zgłasza
+#: błędu — po cichu produkuje kolizje, które w dalszej analizie wyglądają jak
+#: zdarzenia w rejestrze.
+NODE_KEY_FIELDS: tuple = ("publikujacy", "id_wezla")
 
 #: Porządek etapów postępowania. Służy wyłącznie do oceny, czy przejścia biegną
 #: w przód — nie jest słownikiem kontrolowanym schematu.

@@ -10,7 +10,8 @@ import pytest
 
 from gridqueue import core_complete_mask, get_adapter
 from gridqueue.adapters.es_edistribucion import _liczba as _liczba_es
-from gridqueue.adapters.es_edistribucion import _data_z_nazwy, _mw_na_kw
+from gridqueue.adapters.es_edistribucion import (_data_z_nazwy, _mw_na_kw,
+                                                 suma_skladnikow_mocy_zajetej)
 from gridqueue.adapters.ie_esbnetworks import (_alternatywa, _flaga,
                                                _pojemnosc_bez_ograniczenia)
 
@@ -110,3 +111,37 @@ class TestIrlandzkieOdwzorowanie:
         d = get_adapter("ie_esbnetworks").parse(_arkusz_ie(tmp_path, [
             self._wiersz(**{"Latitude": None, "Longitude": None})])).frame
         assert d.loc[0, "wspolrzedne"] is None
+
+
+class TestTozsamoscArytmetyczna:
+    """Suma jedenastu podkolumn domyka się do mocy zajętej.
+
+    Dla tego publikującego nie ma zbioru odniesienia odczytanego niezależnie
+    od parsera, więc domknięcie sumy jest jedynym sprawdzalnym świadectwem
+    spójności odczytu. Test pinuje kontrakt funkcji, nie wartość z dokumentu.
+    """
+
+    def _wiersz(self, laczna, pozycje=(), z_pozwoleniem="", w_toku=""):
+        w = [""] * 29
+        w[0] = "01 - Andalucía"
+        w[8] = laczna
+        for i, v in enumerate(pozycje):
+            w[9 + i] = v
+        w[18], w[19] = z_pozwoleniem, w_toku
+        return w
+
+    def test_obie_grupy_sa_skladnikami_a_nie_alternatywami(self):
+        """Wiersz z wypełnionymi OBIEMA grupami domyka się dopiero ich sumą."""
+        w = self._wiersz("97,3", pozycje=("24,6",), z_pozwoleniem="72,7")
+        assert suma_skladnikow_mocy_zajetej([w]) == (1, 1)
+
+    def test_same_pozycje_tez_domykaja(self):
+        assert suma_skladnikow_mocy_zajetej(
+            [self._wiersz("40,4", pozycje=("40,0",), w_toku="0,4")]) == (1, 1)
+
+    def test_niedomkniety_wiersz_jest_wykrywany(self):
+        assert suma_skladnikow_mocy_zajetej(
+            [self._wiersz("100,0", pozycje=("10,0",))]) == (0, 1)
+
+    def test_wiersz_bez_wartosci_lacznej_nie_jest_liczony(self):
+        assert suma_skladnikow_mocy_zajetej([self._wiersz("")]) == (0, 0)
