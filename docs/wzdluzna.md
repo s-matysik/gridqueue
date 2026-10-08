@@ -129,3 +129,32 @@ Pełny przebieg z figurą: `examples/longitudinal_use_case.py`.
 ## Uruchomienie bez instalacji
 
 Całą tę analizę odtwarza notatnik Colab na żywych danych publikującego, z asercją zgodności z liczbami opublikowanymi — patrz [Google Colab](colab.md).
+
+
+## Klucz musi być dobrany do encji
+
+Domyślny klucz treściowy jest zbudowany dla encji WNIOSEK. Na wierszach encji WĘZEŁ
+**rozpada się**, bo pola wniosku — klasa zasobu i obie moce — są tam puste. Niedopasowanie
+**nie zgłasza błędu**: po cichu produkuje kolizje, które w dalszej analizie wyglądają jak
+zdarzenia w rejestrze.
+
+Zmierzone na parze wydań publikującego hiszpańskiego (1 lipca i 1 sierpnia 2025, po 1 838
+wierszy każde):
+
+| klucz | kolizje | odrzucone jako niejednoznaczne | pary dopasowane | precyzja | czułość |
+|---|---:|---:|---:|---:|---:|
+| `DEFAULT_KEY_FIELDS` (wniosek) | 916 | 660 | 1 178 | — | — |
+| `NODE_KEY_FIELDS` (węzeł) | 0 | 0 | **1 838** | **1,000** | **1,000** |
+
+Dla porównania: na polskim rejestrze przesyłowym ta sama metoda daje precyzję 98,88–99,63 %
+i czułość 0,9652. Różnica nie jest własnością metody, lecz **praktyki ujawniania**: publikujący
+hiszpański wydaje stabilny identyfikator węzła, a polski nie publikuje trwałego identyfikatora
+wniosku. Metoda mierzy więc także to, na ile rejestr nadaje się do śledzenia w czasie.
+
+```python
+from gridqueue import NODE_KEY_FIELDS, compare_editions, linkage_audit
+
+d = compare_editions(a, b, "2025-07-01", "2025-08-01", fields=NODE_KEY_FIELDS)
+linkage_audit(a, b, fields=NODE_KEY_FIELDS,
+              held_out=("nazwa_wezla", "wspolrzedne", "_wezel_przesylowy")).as_dict()
+```

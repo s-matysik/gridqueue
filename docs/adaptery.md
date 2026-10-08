@@ -123,11 +123,21 @@ na kanoniczne kW jest zwykłą zmianą rzędu wielkości.
 
 Nagłówek ma komórki scalone w dwóch poziomach i sugeruje, że kolumny „Con permiso de AyC"
 oraz „En trámite con capacidad" należą do grupy mocy **przyjętej i nierozstrzygniętej**.
-Sprawdzenie sumami pokazuje co innego: ich suma odtwarza moc **zajętą** (395 wierszy zgodnych
-dokładnie przy 767 wierszach o niezerowej mocy zajętej), a rozbicie technologiczne odtwarza
-moc przyjętą i nierozstrzygniętą we **wszystkich** wierszach o niezerowej wartości.
-Odwzorowanie idzie za arytmetyką. Przyjęcie nagłówka na wiarę dałoby ciche przestawienie
-dwóch pól mocy.
+Rozstrzyga arytmetyka dokumentu. Jedenaście podkolumn — dziewięć pozycji stacji plus te dwie —
+sumuje się do mocy **zajętej**, dokładnie w **1 838 z 1 838 wierszy, w obu sprawdzonych
+wydaniach**; rozbicie technologiczne sumuje się do mocy przyjętej i nierozstrzygniętej we
+wszystkich wierszach o niezerowej wartości. Obie grupy są więc **składnikami**, a nie
+alternatywnymi rozbiciami. Przyjęcie nagłówka na wiarę dałoby ciche przestawienie dwóch pól mocy.
+
+### Domknięcie sumy zamiast zbioru odniesienia
+
+Dla tego publikującego **nie ma wzorca odczytanego niezależnie od parsera**, więc dokładności
+wydobycia nie da się zmierzyć tak, jak zmierzono ją dla publikujących polskich. Domknięcie sumy
+jest zastępczym świadectwem: aby suma jedenastu komórek zgadzała się z dwunastą, wszystkie
+dwanaście musi być odczytane poprawnie. Na dwóch wydaniach daje to **3 676 niezależnych
+sprawdzeń, wszystkie domknięte**. Jest to świadectwo **spójności odczytu, nie pomiar dokładności**
+— słabsze niż wzorzec, ale sprawdzalne na każdym nowym wydaniu, bez pracy anotatora.
+Raport adaptera podaje je w polu `tozsamosc_sumy_mocy_zajetej`.
 
 ## ESB Networks (Irlandia) — `ie_esbnetworks`
 

@@ -4,6 +4,33 @@ Format oparty na [Keep a Changelog](https://keepachangelog.com/pl/1.1.0/);
 wersjonowanie semantyczne. Wersja schematu danych jest odrębna od wersji pakietu
 i podawana jako `SCHEMA_VERSION`.
 
+## 1.5.1 — 2026-10-08
+
+### Poprawione
+- **Tożsamość arytmetyczna dokumentu hiszpańskiego opisana poprawnie.** Wersja 1.5.0
+  podawała, że kolumny „z pozwoleniem" i „w toku" odtwarzają moc zajętą w 395 z 767
+  wierszy. Było to **opisem niepełnej tożsamości**: obie grupy są SKŁADNIKAMI, a nie
+  alternatywnymi rozbiciami. Jedenaście podkolumn — dziewięć pozycji stacji plus te
+  dwie — sumuje się do mocy zajętej **dokładnie w 1 838 z 1 838 wierszy, w obu
+  sprawdzonych wydaniach**. Poprzednia liczba była prawdziwa, ale mierzyła wycinek.
+
+### Dodane
+- `suma_skladnikow_mocy_zajetej` oraz pole `tozsamosc_sumy_mocy_zajetej` w raporcie
+  adaptera hiszpańskiego. Dla tego publikującego **nie ma zbioru odniesienia** odczytanego
+  niezależnie od parsera, więc dokładności wydobycia nie da się zmierzyć wobec wzorca.
+  Domknięcie sumy jest świadectwem **spójności odczytu**: aby suma jedenastu komórek
+  zgadzała się z dwunastą, wszystkie dwanaście musi być odczytane poprawnie. Na dwóch
+  wydaniach daje to 3 676 niezależnych sprawdzeń, wszystkie domknięte. Jest to
+  świadectwo słabsze niż wzorzec i tak jest opisane.
+- `NODE_KEY_FIELDS` — klucz treściowy dla wierszy encji WĘZEŁ. Domyślny klucz jest
+  zbudowany dla encji WNIOSEK i na wierszach węzłowych **rozpada się**, bo pola wniosku
+  są tam puste. Zmierzone na parze wydań hiszpańskich: kluczem domyślnym 916 z 1 838
+  wierszy wpada w kolizję i 660 zostaje odrzuconych jako niejednoznaczne; kluczem
+  węzłowym kolizji jest **zero**, wszystkie 1 838 par dopasowuje się jednoznacznie,
+  przy precyzji i czułości **1,000**. Wniosek ogólniejszy: klucz treściowy musi być
+  dobrany do encji tak samo jak rdzeń schematu, a jego niedopasowanie **nie zgłasza
+  błędu** — po cichu produkuje kolizje wyglądające jak zdarzenia w rejestrze.
+
 ## 1.5.0 — 2026-10-08
 
 ### Dodane
@@ -26,7 +53,7 @@ i podawana jako `SCHEMA_VERSION`.
 - **Semantyka kolumn hiszpańskich ustalona arytmetyką, nie nagłówkiem.** Nagłówek
   z komórkami scalonymi sugerował przypisanie dwóch kolumn do mocy nierozstrzygniętej;
   sumy pokazały, że należą do mocy zajętej. Przyjęcie nagłówka na wiarę dałoby ciche
-  przestawienie dwóch pól mocy.
+  przestawienie dwóch pól mocy. **Uściślone w 1.5.1** — patrz niżej.
 - **Pusta komórka ograniczenia w źródle irlandzkim** czytana jest jako brak ograniczenia.
   Publikujący tej konwencji nie opisuje, więc jest to interpretacja, nie treść źródła:
   surowa fraza zostaje w rozszerzeniu, a decyzja jest przypięta testem.

@@ -3,8 +3,8 @@
 import pandas as pd
 import pytest
 
-from gridqueue import (compare_editions, linkage_audit, linkage_recall,
-                       surrogate_key)
+from gridqueue import (NODE_KEY_FIELDS, compare_editions, linkage_audit,
+                       linkage_recall, surrogate_key)
 from gridqueue.adapters._ptpiree import _rozbij_moc
 
 
@@ -264,3 +264,32 @@ class TestLinkageRecall:
         assert surrogate_key(a).iloc[0] != surrogate_key(b).iloc[0]
         assert (surrogate_key(a, zero_jako_brak=True).iloc[0]
                 == surrogate_key(b, zero_jako_brak=True).iloc[0])
+
+
+class TestKluczEncjiWezel:
+    """Klucz musi być dobrany do encji, tak samo jak rdzeń schematu.
+
+    Klucz wnioskowy na wierszach węzłowych nie zgłasza błędu — po cichu
+    produkuje kolizje, bo pola wniosku są tam puste.
+    """
+
+    def _wezly(self):
+        import pandas as pd
+        return pd.DataFrame([
+            {"publikujacy": "X", "id_wezla": "SUB_A|66", "_encja": "WEZEL",
+             "lokalizacja_tekst": "Gmina", "poziom_napiecia": "66 kV",
+             "klasa_zasobu": None, "moc_wprowadzana": None, "moc_pobierana": None},
+            {"publikujacy": "X", "id_wezla": "SUB_A|15", "_encja": "WEZEL",
+             "lokalizacja_tekst": "Gmina", "poziom_napiecia": "15 kV",
+             "klasa_zasobu": None, "moc_wprowadzana": None, "moc_pobierana": None},
+        ])
+
+    def test_klucz_wezlowy_rozroznia_poziomy_napiecia_tej_samej_stacji(self):
+        d = self._wezly()
+        assert surrogate_key(d, fields=NODE_KEY_FIELDS).nunique() == 2
+
+    def test_klucz_wnioskowy_na_wezlach_daje_kolizje(self):
+        """Regresja: to jest tryb awarii, dla którego NODE_KEY_FIELDS istnieje."""
+        d = self._wezly().assign(poziom_napiecia="66 kV")
+        assert surrogate_key(d).nunique() == 1
+        assert surrogate_key(d, fields=NODE_KEY_FIELDS).nunique() == 2

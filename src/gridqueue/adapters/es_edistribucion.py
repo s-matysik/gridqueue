@@ -18,11 +18,26 @@ Semantyka kolumn ustalona arytmetyką, nie nagłówkiem
 ----------------------------------------------------
 Nagłówek ma komórki scalone w dwóch poziomach i sugeruje, że kolumny „Con
 permiso de AyC" oraz „En trámite con capacidad" należą do grupy mocy przyjętej
-i nierozstrzygniętej. **Jest to mylące.** Sprawdzenie sumami na wydanym
-dokumencie pokazuje, że ich suma odtwarza moc ZAJĘTĄ (395 wierszy zgodnych
-dokładnie, przy 767 wierszach o niezerowej mocy zajętej), natomiast rozbicie
-technologiczne odtwarza moc przyjętą i nierozstrzygniętą we **wszystkich**
-wierszach o niezerowej wartości. Mapowanie idzie więc za arytmetyką.
+i nierozstrzygniętej. **Jest to mylące.** Rozstrzyga arytmetyka dokumentu:
+
+* jedenaście podkolumn — dziewięć pozycji stacji oraz te dwie — **sumuje się do
+  mocy ZAJĘTEJ**, dokładnie, w 1838 z 1838 wierszy, w obu sprawdzonych wydaniach;
+* rozbicie technologiczne sumuje się do mocy **przyjętej i nierozstrzygniętej**
+  we wszystkich wierszach o niezerowej wartości.
+
+Obie grupy są więc SKŁADNIKAMI mocy zajętej, a nie jej alternatywnymi
+rozbiciami: część węzłów ma wypełnione tylko pozycje, część tylko dwie
+pozostałe, a część obie, i dopiero suma wszystkich jedenastu zamyka się do
+wartości łącznej.
+
+Ma to wartość wykraczającą poza odwzorowanie pól. Dla tego publikującego **nie
+istnieje zbiór odniesienia odczytany niezależnie od parsera**, więc dokładności
+wydobycia nie da się zmierzyć w sposób, w jaki zmierzono ją dla publikujących
+polskich. Domknięcie sumy jest tu zastępczym, słabszym, ale sprawdzalnym
+świadectwem: aby suma jedenastu komórek zgadzała się z dwunastą, wszystkie
+dwanaście musi być odczytane poprawnie. Na dwóch wydaniach daje to 3676
+niezależnych sprawdzeń, wszystkie domknięte. Jest to świadectwo spójności
+odczytu, NIE pomiar dokładności wobec wzorca — i tak należy je czytać.
 
 Jednostki
 ---------
@@ -89,6 +104,35 @@ def _data_z_nazwy(nazwa: str) -> str | None:
     return f"{m.group(1)}-{m.group(2)}-{m.group(3)}" if m else None
 
 
+def suma_skladnikow_mocy_zajetej(wiersze) -> "tuple[int, int]":
+    """Ile wierszy domyka tożsamość arytmetyczną dokumentu.
+
+    Jedenaście podkolumn mocy zajętej (dziewięć pozycji stacji plus „z
+    pozwoleniem" i „w toku") sumuje się do wartości łącznej. Funkcja zwraca
+    parę (domkniętych, wszystkich).
+
+    Po co to jest: dla tego publikującego nie ma zbioru odniesienia odczytanego
+    niezależnie od parsera, więc dokładności wydobycia nie da się zmierzyć wobec
+    wzorca. Domknięcie sumy jest zastępczym świadectwem spójności odczytu —
+    słabszym niż wzorzec, ale sprawdzalnym na każdym wydaniu, bo wymaga
+    poprawnego odczytania wszystkich dwunastu komórek bloku.
+    """
+    domkniete = 0
+    for w in wiersze:
+        if not w or len(w) != SZEROKOSC_WIERSZA:
+            continue
+        laczna = _liczba(w[K_ZAJETA_TOTAL])
+        if laczna is None:
+            continue
+        skladniki = [_liczba(w[i]) or 0.0
+                     for i in (*K_POZYCJE, K_ZAJETA_Z_POZWOLENIEM, K_ZAJETA_W_TOKU)]
+        if round(sum(skladniki), 2) == round(laczna, 2):
+            domkniete += 1
+    return domkniete, sum(1 for w in wiersze
+                          if w and len(w) == SZEROKOSC_WIERSZA
+                          and _liczba(w[K_ZAJETA_TOTAL]) is not None)
+
+
 class EDistribucionAdapter(Adapter):
     publisher = PUBLISHER
     jurisdiction = JURISDICTION
@@ -126,6 +170,7 @@ class EDistribucionAdapter(Adapter):
                                 and _WSPOLNOTA.match(str(wiersz[K_WSPOLNOTA] or ""))):
                             surowe.append(wiersz)
 
+        domkniete, sprawdzonych = suma_skladnikow_mocy_zajetej(surowe)
         rekordy, ograniczonych, bez_wspolrzednych = [], 0, 0
         for w in surowe:
             def kom(i):
@@ -183,5 +228,12 @@ class EDistribucionAdapter(Adapter):
             "jednostka_mocy_zrodlowa": "MW",
             "przeliczenie": "MW -> kW, obie wielkości to moc czynna",
             "data_publikacji": data_pub,
+            "tozsamosc_sumy_mocy_zajetej": f"{domkniete}/{sprawdzonych}",
+            "uwaga_tozsamosc": (
+                "Jedenaście podkolumn mocy zajętej sumuje się do wartości łącznej. "
+                "Jest to świadectwo SPÓJNOŚCI odczytu, nie pomiar dokładności wobec "
+                "wzorca odczytanego niezależnie od parsera — takiego wzorca dla tego "
+                "publikującego nie ma."
+            ),
         }
         return ParseResult(frame=df, report=notes)
