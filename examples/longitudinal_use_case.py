@@ -3,7 +3,7 @@
 Pytanie badawcze
 ----------------
 Jak zmienia się kolejka przyłączeniowa między dwiema edycjami tego samego
-rejestru i czy rejestr zachowuje się jak **monotoniczna migawka** — to znaczy
+rejestru i czy rejestr zachowuje się jak **monotoniczna migawka**, to znaczy
 czy sprawy wchodzą do niego i wychodzą zgodnie z przebiegiem postępowania, czy
 też pojawiają się i znikają także poza tym porządkiem?
 
@@ -134,7 +134,7 @@ def main(argv: list[str]) -> int:
     print("Interpretacja:")
     u = d.udzial_przejsc_w_przod
     if u is not None:
-        print(f"  {u * 100:.2f} % przejść biegnie zgodnie z porządkiem postępowania — "
+        print(f"  {u * 100:.2f} % przejść biegnie zgodnie z porządkiem postępowania, "
               "jest to niezależny test dopasowania klucza treściowego, bo klucz "
               "dopasowujący losowo nie wytworzyłby tego porządku.")
     if not podsum["migawka_monotoniczna"]:
@@ -146,10 +146,10 @@ def main(argv: list[str]) -> int:
     pg = audyt.precyzja_gorna * 100
     print(f"  Precyzja dopasowania oceniona na polach WYŁĄCZONYCH z klucza "
           f"(nazwa podmiotu, nazwa obiektu, data wniosku, rozbicie mocy na technologie) "
-          f"wynosi {pa:.2f}–{pg:.2f} % na wszystkich {audyt.par} parach: "
+          f"wynosi {pa:.2f}-{pg:.2f} % na wszystkich {audyt.par} parach: "
           f"{audyt.potwierdzonych} potwierdzonych, {audyt.niepewnych} niepewnych, "
           f"{audyt.falszywych} fałszywych. Nie jest to walidacja wobec prawdy zewnętrznej, "
-          f"bo takiej dla tego rejestru nie ma — klucz nie wymusza zgodności tych pól, "
+          f"bo takiej dla tego rejestru nie ma, klucz nie wymusza zgodności tych pól, "
           f"więc ich zgodność jest niezależnym świadectwem.")
     print(f"  Wierszy odrzuconych z dopasowania jako niejednoznaczne: "
           f"{podsum['odrzuconych_jako_niejednoznaczne_a']} i "

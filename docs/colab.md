@@ -21,7 +21,7 @@ regulatora uruchamia pełny przebieg bez instalowania czegokolwiek, bez konta i 
 6. porównuje odtworzone liczby z opublikowanymi w artykule i **przerywa wykonanie przy rozjeździe**.
 
 Punkt szósty jest odpowiednikiem asercji z katalogu `reproducibility/`. Rozjazd nie musi oznaczać
-błędu — publikujący mógł wymienić edycję — ale musi być widoczny, a nie przemilczany.
+błędu, publikujący mógł wymienić edycję, ale musi być widoczny, a nie przemilczany.
 
 ## Czego notatnik nie robi
 
@@ -29,7 +29,7 @@ Nie odtwarza dokładności wydobycia wobec zbioru odniesienia, bo ten wymaga odc
 Nie rozstrzyga współrzędnych, bo gazeter geometryczny jest osobnym pobraniem i podlega ODbL,
 a notatnik nie powinien po cichu wciągać użytkownika w obowiązki licencyjne. Nie uruchamia też
 przykładu przekrojowego na tym publikującym, bo **nie spełnia on kryterium pokrycia dat**
-postawionego przed policzeniem wyniku — notatnik pokazuje to wprost, zamiast policzyć medianę
+postawionego przed policzeniem wyniku, notatnik pokazuje to wprost, zamiast policzyć medianę
 na kilkunastu procentach rekordów.
 
 ## Gdy pobranie się nie powiedzie
@@ -49,5 +49,5 @@ Ciągła integracja **nie uruchamia** notatnika, bo ten sięga po dokumenty wymi
 a zadanie zależne od zewnętrznej publikacji psułoby się bez związku z kodem. Osobne zadanie
 sprawdza natomiast to, co sprawdzić można bez sieci: czy wszystkie komórki kodu są poprawne
 składniowo i czy każda nazwa importowana z pakietu faktycznie w nim istnieje. To właśnie ta
-druga kontrola odpowiada defektowi, który ujawniło pierwsze uruchomienie notatnika —
+druga kontrola odpowiada defektowi, który ujawniło pierwsze uruchomienie notatnika -
 dokumentacja obiecywała metodę `as_frame`, której pakiet nie miał.

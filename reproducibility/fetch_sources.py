@@ -5,7 +5,7 @@ Dlaczego pobieranie zamiast dołączenia plików
 ---------------------------------------------
 Dokumenty NIE są rozpowszechniane w tym repozytorium. Powód jest podany
 w `DATA_LICENSE.md` i sprowadza się do tego, że status prawny ich redystrybucji
-nie jest przez nas rozstrzygnięty, a publikujący wymieniają je co kwartał —
+nie jest przez nas rozstrzygnięty, a publikujący wymieniają je co kwartał -
 kopia w repozytorium po kilku miesiącach wprowadzałaby w błąd.
 
 Manifest podaje dla każdego pliku adres, datę pobrania i sumę SHA-256, więc
@@ -17,8 +17,8 @@ Użycie
 ------
     python reproducibility/fetch_sources.py [katalog_docelowy]
 
-Kody wyjścia: 0 — wszystko pobrane i zgodne; 1 — czegoś brakuje albo suma
-się nie zgadza; 2 — manifest nieczytelny.
+Kody wyjścia: 0, wszystko pobrane i zgodne; 1, czegoś brakuje albo suma
+się nie zgadza; 2, manifest nieczytelny.
 """
 
 from __future__ import annotations
@@ -35,13 +35,13 @@ from pathlib import Path
 MANIFEST = Path(__file__).with_name("manifest.csv")
 AGENT = "gridqueue-reproducibility/1.3 (statutory grid connection disclosure)"
 #: Adresy, które wskazują stronę publikującego, a nie plik. Pobranie wymaga
-#: ręcznego odszukania bieżącej edycji — publikujący nie wystawia trwałego
+#: ręcznego odszukania bieżącej edycji, publikujący nie wystawia trwałego
 #: odsyłacza do pliku.
 BEZ_TRWALEGO_ODSYLACZA = ("https://www.stoen.pl/", "https://www.elana-energetyka.pl/")
 
 #: Zmienna środowiskowa wskazująca własny pakiet zaufanych wystawców. Potrzebna
 #: w sieciach, w których ruch przechodzi przez pośrednika podstawiającego własny
-#: certyfikat — wtedy weryfikacja łańcucha zawodzi mimo poprawnego serwera.
+#: certyfikat, wtedy weryfikacja łańcucha zawodzi mimo poprawnego serwera.
 #: Wskazujemy pakiet, a NIE wyłączamy weryfikacji: wyłączenie sprawiłoby, że
 #: pobrany plik przestaje być wiarygodny, a cały sens sum kontrolnych znika.
 ZMIENNA_CA = "GRIDQUEUE_CA_BUNDLE"
@@ -56,7 +56,7 @@ def _kontekst_ssl() -> ssl.SSLContext | None:
 
 
 #: Sygnatury początku pliku. Adres, który przestał prowadzić do dokumentu,
-#: zwykle zwraca stronę HTML z kodem 200 — bez tego sprawdzenia skrypt
+#: zwykle zwraca stronę HTML z kodem 200, bez tego sprawdzenia skrypt
 #: zdiagnozowałby to jako podmianę edycji, co jest myląco podobne, a wymaga
 #: zupełnie innej reakcji użytkownika.
 SYGNATURY = {".pdf": b"%PDF", ".xlsx": b"PK\x03\x04", ".csv": None, ".json": None}
@@ -119,7 +119,7 @@ def main(argv: list[str]) -> int:
                 print(f"[CERT ]  {plik}: weryfikacja łańcucha certyfikatów nie powiodła się.")
                 print(f"         Jeśli Twoja sieć używa pośrednika z własnym certyfikatem,")
                 print(f"         wskaż jego pakiet: {ZMIENNA_CA}=/ścieżka/do/ca-bundle.pem")
-                print( "         Nie wyłączaj weryfikacji — sumy kontrolne straciłyby sens.")
+                print( "         Nie wyłączaj weryfikacji, sumy kontrolne straciłyby sens.")
             else:
                 bledy.append((plik, f"pobranie nieudane: {powod}"))
                 print(f"[BŁĄD ]  {plik}: {powod}")
@@ -141,7 +141,7 @@ def main(argv: list[str]) -> int:
     print(f"\nzgodnych: {len(ok)}/{len(wiersze)} | do pobrania ręcznie: {len(recznie)}"
           f" | błędów: {len(bledy)}")
     if recznie:
-        print("\nPliki bez trwałego odsyłacza — odszukaj bieżącą edycję na stronie")
+        print("\nPliki bez trwałego odsyłacza, odszukaj bieżącą edycję na stronie")
         print("publikującego i zapisz pod nazwą z manifestu:")
         for plik, url in recznie:
             print(f"  {plik}  <-  {url}")

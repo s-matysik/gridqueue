@@ -104,7 +104,7 @@ class TestCompareEditions:
         assert d.udzial_przejsc_w_przod == 1.0
 
     def test_niemonotonicznosc_migawki(self):
-        """Nowy wiersz od razu zamknięty i ubyły wiersz czynny — obie flagi."""
+        """Nowy wiersz od razu zamknięty i ubyły wiersz czynny, obie flagi."""
         a = pd.DataFrame([_wiersz(lokalizacja_tekst="X", status_procesu="WARUNKI_WYDANE")])
         b = pd.DataFrame([_wiersz(lokalizacja_tekst="Y", status_procesu="WNIOSEK_WYCOFANY")])
         d = compare_editions(a, b).as_dict()
@@ -158,7 +158,7 @@ class TestLinkageAudit:
         assert au["potwierdzonych"] == 1
 
     def test_uzupelnienie_jednostronne_nie_jest_konfliktem(self):
-        """Puste w jednej edycji, wypelnione w drugiej — to redakcja, nie inny wniosek."""
+        """Puste w jednej edycji, wypelnione w drugiej, to redakcja, nie inny wniosek."""
         a = pd.DataFrame([_wiersz(_podmiot="Alfa Sp. z o.o.", data_wniosku=None)])
         b = pd.DataFrame([_wiersz(_podmiot="Alfa Sp. z o.o.", data_wniosku="2026-07-31")])
         wynik = linkage_audit(a, b)
@@ -269,7 +269,7 @@ class TestLinkageRecall:
 class TestKluczEncjiWezel:
     """Klucz musi być dobrany do encji, tak samo jak rdzeń schematu.
 
-    Klucz wnioskowy na wierszach węzłowych nie zgłasza błędu — po cichu
+    Klucz wnioskowy na wierszach węzłowych nie zgłasza błędu, po cichu
     produkuje kolizje, bo pola wniosku są tam puste.
     """
 

@@ -41,7 +41,7 @@ def _rozbij_moc(value: Any) -> list[str]:
     """Rozbij komórkę mocy na składowe dla wielu miejsc przyłączenia.
 
     Liczba zwykła zwracana jest jako jedna składowa. Łańcuch rozdzielany jest po
-    złamaniu linii i średniku — i NIE po spacji, bo spacja jest u publikujących
+    złamaniu linii i średniku, i NIE po spacji, bo spacja jest u publikujących
     separatorem tysięcznym.
     """
     if value is None:
@@ -231,7 +231,7 @@ def to_schema(raw, *, publisher_key: str, data_publikacji: Optional[str]):
         linii na spację, a ``canonical_power_kw`` traktuje spację jako separator
         tysięczny, więc "129⏎240" (129 MW + 240 MW) stawało się 129 240 MW.
         W edycji, w której publikujący dopisał średniki, ta sama komórka nie
-        konwertowała się wcale i pole zostawało puste — czyli ten sam defekt
+        konwertowała się wcale i pole zostawało puste, czyli ten sam defekt
         dawał raz absurd, raz milczący brak.
 
         Zwracamy SUMĘ składowych, bo pole schematu opisuje moc wniosku, a wniosek

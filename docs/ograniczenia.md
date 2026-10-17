@@ -22,7 +22,7 @@ niepoprawnie.
 
 Dwóch publikujących wykonuje ten sam punkt obowiązku w postaciach nieporównywalnych: jeden podaje
 **moc dostępną**, drugi **liczbę wolnych miejsc przyłączeniowych**. Odwzorowaliśmy to drugie na
-flagę ograniczenia i pole rozszerzenia, pozostawiając pole mocy puste — wpisanie liczby miejsc
+flagę ograniczenia i pole rozszerzenia, pozostawiając pole mocy puste, wpisanie liczby miejsc
 w pole mocy byłoby fabrykacją jednostki. Jest to wynik empiryczny, nie niedogodność
 implementacyjna.
 
@@ -49,7 +49,7 @@ twierdzenia o rozkładzie formatów wśród pozostałych publikujących**.
 
 * Zbiór odniesienia jest **częściowo jednoanotatorski**: zgodność międzyanotatorską zmierzono na
   podpróbce 35 wierszy, natomiast wzorce dwóch publikujących pozostają jednoanotatorskie.
-* Próba jest **klastrowa** — ciągi kolejnych wierszy na losowo wybranych stronach — a nie prosta
+* Próba jest **klastrowa**, ciągi kolejnych wierszy na losowo wybranych stronach, a nie prosta
   próba losowa, więc efektywna precyzja jest niższa, niż dałaby ta sama liczba niezależnych
   losowań.
 * Wzorzec obejmuje **encję wniosku**; dokładności tabel węzłowych, w tym pola mocy dostępnej
@@ -62,7 +62,7 @@ twierdzenia o rozkładzie formatów wśród pozostałych publikujących**.
 * Lokalizacja u największego publikującego to **wewnętrzny kod stacji**; operator nie publikuje
   słownika kodów, więc rozwiązywacz zwraca brak z przyczyną. **Nie zgaduje.** Pozyskanie słowników
   kodów stacji jednym krokiem przekształciłoby ten rejestr z aprzestrzennego w przestrzenny.
-* Nazwa ulicy nie wyznacza punktu — zob. [walidacja](walidacja.md).
+* Nazwa ulicy nie wyznacza punktu, zob. [walidacja](walidacja.md).
 
 ## Przenoszalność
 

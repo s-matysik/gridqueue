@@ -1,4 +1,4 @@
-"""Adapter: ESB Networks (IE) — mapa zdolności przyłączeniowej sieci.
+"""Adapter: ESB Networks (IE), mapa zdolności przyłączeniowej sieci.
 
 Publikujący wydaje jeden arkusz obejmujący **całą sieć aż do poziomu stacji
 SN/nn**, więc jest to najliczniejsze źródło w panelu i zarazem jedyne, które
@@ -19,7 +19,7 @@ Pole `moc_dostepna` niesie zatem dostępną moc **wytwórczą trwałą**, a nie 
 obu stron. Zsumowanie MW z MVA dałoby liczbę bez sensu fizycznego, a wybór
 jednej strony bez powiedzenia tego wprost byłby ukryciem decyzji.
 
-Źródło podaje współrzędne oraz dwie osobne flagi ograniczenia — dla strony
+Źródło podaje współrzędne oraz dwie osobne flagi ograniczenia, dla strony
 odbiorczej i wytwórczej. Do pola `ograniczenie_flaga` wchodzi **alternatywa
 obu**, bo pole schematu jest jedno; obie wartości źródłowe pozostają
 w rozszerzeniach.

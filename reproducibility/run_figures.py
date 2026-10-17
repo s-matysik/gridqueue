@@ -140,7 +140,7 @@ def fig_jakosc(panel: pd.DataFrame, plik: Path) -> None:
     ax.set_yticklabels([f"{k}  {nm}" for k, nm in zip(piv["kod"], piv["nazwa"])], fontsize=6.5)
     ax.set_xlim(0, szer * 1.45)
     ax.set_xlabel(f"wiersze naruszające regułę (panel {_th(n)} wierszy)", fontsize=7)
-    ax.set_title("Reguły wykrywają jakość źródła, nie błąd narzędzia — "
+    ax.set_title("Reguły wykrywają jakość źródła, nie błąd narzędzia, "
                  "i wskazują, który publikujący ją obniża", fontsize=8, loc="left")
     ax.legend(loc="lower right", fontsize=6, ncol=2, frameon=False,
               handlelength=1.1, columnspacing=1.0)

@@ -1,4 +1,4 @@
-"""Adapter: E-REDES (PT) — zdolność przyjęcia krajowej sieci dystrybucyjnej.
+"""Adapter: E-REDES (PT), zdolność przyjęcia krajowej sieci dystrybucyjnej.
 
 Źródło jest trzecim trybem wydania w panelu: nie dokument do druku i nie plik
 na stronie, lecz **zbiór na portalu otwartych danych z interfejsem REST**.
@@ -13,7 +13,7 @@ moc przyłączeniowa" dało się policzyć w jednej jurysdykcji. Źródło portu
 podaje ponadto **skład grupy podstacji**, czyli dokładnie tę informację, która
 w panelu polskim umożliwia przypisanie wniosków do węzła.
 
-Rozstrzygnięcie jednostek — przeczytaj, zanim zaczniesz porównywać
+Rozstrzygnięcie jednostek, przeczytaj, zanim zaczniesz porównywać
 ------------------------------------------------------------------
 Publikujący podaje zdolność przyjęcia i moce przyłączone w **MVA**, czyli
 w mocy pozornej. Jednostką kanoniczną schematu jest **kW mocy czynnej**. Są to
@@ -27,7 +27,7 @@ przyłączeniowych zamiast mocy: wpisanie liczby w pole o innej jednostce byłob
 fabrykacją, a nie harmonizacją.
 
 Rdzeń encji WĘZEŁ jest mimo to spełniony, bo realizuje go drugi człon
-alternatywy — `ograniczenie_flaga`, ustawiana na podstawie zerowej zdolności
+alternatywy, `ograniczenie_flaga`, ustawiana na podstawie zerowej zdolności
 przyjęcia. Zero zdolności przyjęcia jest wartością ujawnioną i oznacza
 ograniczenie, a nie brak danych.
 
@@ -136,11 +136,11 @@ class EredesAdapter(Adapter):
             rekordy.append({
                 "id_wezla": kod or None,
                 "nazwa_wezla": (w.get("instalacao") or "").strip() or None,
-                # Skład grupy podstacji — odpowiednik listy stacji w wierszu
+                # Skład grupy podstacji, odpowiednik listy stacji w wierszu
                 # węzłowym publikującego polskiego, więc trafia w to samo pole.
                 "lokalizacja_tekst": (w.get("grupo_de_subestacoes_rari") or "").strip() or None,
                 "poziom_napiecia": ", ".join(napiecia) or None,
-                "moc_dostepna": None,       # jednostka źródłowa to MVA — patrz nagłówek modułu
+                "moc_dostepna": None,       # jednostka źródłowa to MVA, patrz nagłówek modułu
                 "moc_zarezerwowana": None,  # jw.
                 "ograniczenie_flaga": ograniczenie,
                 "data_publikacji": _kwartal_na_date(w.get("data_ultimo_trimestre")),
