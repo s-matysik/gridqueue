@@ -2,7 +2,7 @@
 
 Najważniejszy z nich pilnuje rozstrzygnięcia o jednostkach: publikujący podaje
 moc pozorną w MVA, schemat operuje mocą czynną w kW, więc pole mocy musi zostać
-PUSTE. Wpisanie tam liczby z MVA byłoby cichym błędem jednostki — tej samej
+PUSTE. Wpisanie tam liczby z MVA byłoby cichym błędem jednostki, tej samej
 klasy, co błędy, które projekt już raz wykrył pomiarem.
 """
 

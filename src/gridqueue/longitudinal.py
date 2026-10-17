@@ -75,12 +75,12 @@ DEFAULT_KEY_FIELDS: tuple[str, ...] = (
 #:
 #: Wniosek ogólniejszy: klucz treściowy musi być dobrany do ENCJI, tak samo jak
 #: rdzeń schematu. Użycie klucza wnioskowego do wierszy węzłowych nie zgłasza
-#: błędu — po cichu produkuje kolizje, które w dalszej analizie wyglądają jak
+#: błędu, po cichu produkuje kolizje, które w dalszej analizie wyglądają jak
 #: zdarzenia w rejestrze.
 NODE_KEY_FIELDS: tuple = ("publikujacy", "id_wezla")
 
 #: Porządek etapów postępowania. Służy wyłącznie do oceny, czy przejścia biegną
-#: w przód — nie jest słownikiem kontrolowanym schematu.
+#: w przód, nie jest słownikiem kontrolowanym schematu.
 STATUS_ORDER: dict[str, int] = {
     "WNIOSEK_ZLOZONY": 0,
     "WNIOSEK_NIEKOMPLETNY": 1,
@@ -128,7 +128,7 @@ def surrogate_key(
     raz jako zero, i wtedy klucz rozpada parę, która dotyczy jednego wniosku.
     Na parze edycji operatora przesyłowego włączenie tej opcji odzyskuje
     12 z 51 par traconych przez klucz. Domyślnie WYŁĄCZONE, bo zero jest
-    wartością ujawnioną, a brak jej nieujawnieniem — zrównanie ich jest
+    wartością ujawnioną, a brak jej nieujawnieniem, zrównanie ich jest
     decyzją analityka, nie własnością danych, i musi być widoczne w kodzie.
     """
     uzyte = [f for f in fields if f in df.columns]
@@ -268,7 +268,7 @@ def compare_editions(
 
 
 #: Pola, których NIE ma w kluczu i które służą do niezależnej oceny dopasowania.
-#: Jeśli para jest fałszywa, te pola się rozjadą — klucz ich nie wymusza.
+#: Jeśli para jest fałszywa, te pola się rozjadą, klucz ich nie wymusza.
 HELD_OUT_FIELDS: tuple = (
     "_podmiot",
     "_nazwa_obiektu",
@@ -308,7 +308,7 @@ class LinkageAudit:
     """Ocena dopasowania par na polach WYŁĄCZONYCH z klucza.
 
     Nie jest to walidacja wobec prawdy zewnętrznej, bo takiej dla tego rejestru
-    nie ma — jest to test wewnętrznej spójności: klucz nie wymusza zgodności
+    nie ma, jest to test wewnętrznej spójności: klucz nie wymusza zgodności
     tych pól, więc ich zgodność jest niezależnym świadectwem, że para dotyczy
     tego samego wniosku. Zgłaszamy obie granice, bo przypadki niepewne nie
     rozstrzygają się same.
@@ -351,11 +351,11 @@ def linkage_audit(
 
     Para jest klasyfikowana jako:
 
-    * **fałszywa** — rdzeń nazwy podmiotu ORAZ rdzeń nazwy obiektu są rozbieżne
+    * **fałszywa**, rdzeń nazwy podmiotu ORAZ rdzeń nazwy obiektu są rozbieżne
       i żaden nie zawiera się w drugim; to dwa różne wnioski, które przypadkiem
       dzielą lokalizację, napięcie, klasę i obie moce;
-    * **niepewna** — rozbieżny jest dokładnie jeden z tych dwóch;
-    * **potwierdzona** — oba zgodne albo nieobecne.
+    * **niepewna**, rozbieżny jest dokładnie jeden z tych dwóch;
+    * **potwierdzona**, oba zgodne albo nieobecne.
 
     Pola uzupełnione jednostronnie (puste w jednej edycji, wypełnione w drugiej)
     nie są liczone jako rozbieżność, bo publikujący uzupełnia rekordy między
@@ -424,7 +424,7 @@ RECALL_FIELDS: tuple = ("_podmiot", "_nazwa_obiektu")
 class LinkageRecall:
     """Czułość dopasowania: ile par klucz treściowy POMINĄŁ.
 
-    `linkage_audit` mierzy precyzję — czy połączone pary są tą samą sprawą.
+    `linkage_audit` mierzy precyzję, czy połączone pary są tą samą sprawą.
     Nie mówi nic o parach, których klucz nie połączył, a te są groźniejsze:
     rozerwana para pojawia się jako jeden wiersz „ubyły" i jeden „nowy",
     więc wygląda jak zdarzenie w rejestrze, a jest artefaktem dopasowania.
@@ -457,7 +457,7 @@ def linkage_recall(
     """Szuka par pominiętych przez klucz treściowy, po polach tożsamości.
 
     Bierze wiersze NIEDOPASOWANE kluczem i próbuje je połączyć po polach, które
-    do klucza nie wchodzą — nazwie podmiotu, nazwie obiektu i lokalizacji.
+    do klucza nie wchodzą, nazwie podmiotu, nazwie obiektu i lokalizacji.
     Para odzyskana tą drogą dotyczy tego samego wniosku, któremu zmieniono
     którąś z wartości wchodzących do klucza; zwracana ramka podaje, które
     pole klucza się różni, więc wynik jest sprawdzalny, a nie deklarowany.

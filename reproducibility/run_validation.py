@@ -6,7 +6,7 @@ Odtwarza **liczby pochodne**: pokrycie pól, reguły kontroli jakości, audyt
 przesunięcia kolumn i kompletność rdzenia. Robi to z gotowego panelu, więc
 sprawdza odtwarzalność obliczeń, nie odtwarzalność wydobycia.
 
-Nie odtwarza **dokładności wobec zbioru odniesienia** — ta wymaga wzorca
+Nie odtwarza **dokładności wobec zbioru odniesienia**, ta wymaga wzorca
 odczytanego wzrokowo z dokumentu przez człowieka i jest opublikowana jako
 artefakt, a nie wyliczana przez kod.
 
@@ -14,7 +14,7 @@ Dokumenty źródłowe nie są redystrybuowane: część z nich jest objęta praw
 publikujących, a wszystkie są wymieniane kwartalnie na mocy obowiązku ustawowego.
 ``manifest.csv`` podaje dla każdego adres, datę pobrania i SHA-256, więc osoba
 odtwarzająca pracę może pobrać dokładnie te pliki albo stwierdzić, że publikujący
-wydał już inną edycję — i wtedy **powinna oczekiwać innych liczb wierszy**.
+wydał już inną edycję, i wtedy **powinna oczekiwać innych liczb wierszy**.
 
 Uruchomienie::
 

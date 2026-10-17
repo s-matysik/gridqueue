@@ -11,7 +11,7 @@ Adaptery są specyficzne dla źródła, ale **analiza badawcza już nie**. Poni�
 kod nie zawiera ani jednej gałęzi zależnej od publikującego: operuje wyłącznie
 na polach wspólnego schematu (`data_wniosku`, `data_warunkow`, `klasa_zasobu`,
 `publikujacy`) i wykonuje się identycznie na wyjściu każdego adaptera. Dokładnie
-to jest produktem harmonizacji — nie sam fakt, że dokument dał się rozłożyć na
+to jest produktem harmonizacji, nie sam fakt, że dokument dał się rozłożyć na
 wiersze.
 
 Dane wejściowe
@@ -134,7 +134,7 @@ def rysunek(tab: pd.DataFrame, plik: Path) -> None:
         ax.text(r["kwartyl_3"] + 8, i, f"{r['mediana']:.0f} d  (n={int(r['n'])})",
                 va="center", fontsize=7)
     ax.set_yticks(list(range(len(tab))))
-    ax.set_yticklabels([f"{r['klasa_opis']} — {r['publikujacy'].split()[0]}"
+    ax.set_yticklabels([f"{r['klasa_opis']}, {r['publikujacy'].split()[0]}"
                         for _, r in tab.iterrows()], fontsize=7)
     ax.invert_yaxis()
     ax.set_xlim(0, tab["kwartyl_3"].max() * 1.30)

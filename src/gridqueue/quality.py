@@ -59,7 +59,7 @@ class QualityReport:
     def as_frame(self):
         """Jeden wiersz na regule: kod, nazwa, naruszenia, udzial.
 
-        Kolumna `szczegoly` jest celowo pominieta — jej zawartosc rozni sie
+        Kolumna `szczegoly` jest celowo pominieta, jej zawartosc rozni sie
         strukturalnie miedzy regulami, wiec w ramce bylaby kolumna obiektow.
         Pelne szczegoly zwraca `as_dict()`.
         """
@@ -196,13 +196,13 @@ def r3_dopuszczalnosc_przejsc(df) -> tuple[int, dict]:
         return 0, {}
     date_cols = [c for c in ("data_wniosku", "data_warunkow", "data_odmowy",
                              "data_umowy", "data_energizacji") if c in df.columns]
+    globalne = {c for c in date_cols if df[c].map(lambda v: not _is_null(v)).any()}
     if "publikujacy" in df.columns:
         ujawniane = {}
         for pub, g in df.groupby("publikujacy"):
             ujawniane[pub] = {c for c in date_cols if g[c].map(lambda v: not _is_null(v)).any()}
     else:
         ujawniane = None
-        globalne = {c for c in date_cols if df[c].map(lambda v: not _is_null(v)).any()}
     szczegoly: dict[str, int] = {}
     n_bad = 0
     for i in range(len(df)):
@@ -210,7 +210,11 @@ def r3_dopuszczalnosc_przejsc(df) -> tuple[int, dict]:
         spec = _STATUS_WYMAGA.get(st)
         if not spec:
             continue
-        dost = (ujawniane[df["publikujacy"].iloc[i]] if ujawniane is not None else globalne)
+        # Klucz moze nie istniec: groupby pomija grupe o pustej nazwie publikujacego,
+        # wiec wiersz bez tej adnotacji nie ma wlasnego wpisu.  Wtedy stosujemy zbior
+        # globalny zamiast rzucac KeyError i tracic cala regule.
+        dost = (ujawniane.get(df["publikujacy"].iloc[i], globalne)
+                if ujawniane is not None else globalne)
         wymagane = tuple(c for c in spec[0] if c in dost)
         zakazane = spec[1]
         bad = False

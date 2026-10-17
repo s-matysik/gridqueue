@@ -4,7 +4,7 @@ title: Reguły jakości
 
 # Reguły kontroli jakości
 
-Osiem reguł. Każda zwraca **liczbę naruszeń, nie wyjątek** — bo naruszenie jest zwykle
+Osiem reguł. Każda zwraca **liczbę naruszeń, nie wyjątek**, bo naruszenie jest zwykle
 właściwością ujawnienia, a nie błędem narzędzia. Reguły są wyprowadzone z przepisu: dwuletnia
 ważność warunków przyłączenia wynika z art. 7 ust. 8i, a nie z preferencji projektanta.
 
@@ -23,14 +23,14 @@ Zmierzone na panelu 19 220 wierszy, schemat w wersji 1.0:
 
 Kolumna „panel" to liczba wierszy naruszających regułę w całym panelu; domyka się do sumy kolumn
 publikujących, co jest sprawdzane asercją przy generowaniu tej strony. W wersji 0.3.x strona
-podawała dla R7 liczby zawyżone — przyczynę opisuje akapit o R7 niżej.
+podawała dla R7 liczby zawyżone, przyczynę opisuje akapit o R7 niżej.
 
 ## Jak czytać wyniki
 
 **R2** jest sumą dwóch wzajemnie rozłącznych podkontroli i tak musi być raportowana: 361 dat
 wygaśnięcia przypada później niż dwa lata od wydania warunków, **oraz** 415 umów zawarto po
 upływie tych dwóch lat. Pierwszy składnik ma sygnaturę ustalonej reguły administracyjnej
-publikującego — mediana przekroczenia 21 dni — drugi pozostaje otwartym ustaleniem.
+publikującego, mediana przekroczenia 21 dni, drugi pozostaje otwartym ustaleniem.
 
 **R4 i R5** wskazują ten sam zbiór 13 wierszy z **ujemną mocą wprowadzaną**, najmniejsza wartość
 −700 kW. Jeden z nich trafił do próby wzorcowej i odczyt wzrokowy wartość ujemną potwierdza, więc
@@ -43,9 +43,9 @@ WĘZEŁ. Obie decyzje zamieniały **właściwość schematu w pozorne naruszenie
 czysto wytwórczy deklaruje moc wprowadzaną, nie pobieraną, a wiersz węzłowy nie ma ani
 identyfikatora wniosku, ani mocy wniosku, bo realizuje inny punkt przepisu. Rdzeń wymaga teraz:
 
-* dla encji **WNIOSEK** — `id_wniosku`, `lokalizacja_tekst`, `klasa_zasobu`, `status_procesu`
+* dla encji **WNIOSEK**, `id_wniosku`, `lokalizacja_tekst`, `klasa_zasobu`, `status_procesu`
   oraz **co najmniej jednego** z pary (`moc_pobierana`, `moc_wprowadzana`);
-* dla encji **WĘZEŁ** — `id_wezla` oraz **co najmniej jednego** z pary
+* dla encji **WĘZEŁ**, `id_wezla` oraz **co najmniej jednego** z pary
   (`moc_dostepna`, `ograniczenie_flaga`), bo pkt 2 obowiązku bywa realizowany mocą dostępną albo
   liczbą wolnych miejsc przyłączeniowych.
 

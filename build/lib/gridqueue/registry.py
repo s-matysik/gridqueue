@@ -12,6 +12,9 @@ from .adapters.pl_energa import EnergaAdapter
 from .adapters.pl_pse import PSEAdapter
 from .adapters.pl_stoen import StoenAdapter
 from .adapters.pl_tauron import TauronAdapter
+from .adapters.es_edistribucion import EDistribucionAdapter
+from .adapters.ie_esbnetworks import ESBNetworksAdapter
+from .adapters.pt_eredes import EredesAdapter
 from .adapters.uk_nationalgrid import NationalGridAdapter
 
 __all__ = ["REGISTRY", "get_adapter", "detect_publisher", "declarations"]
@@ -22,6 +25,9 @@ REGISTRY: dict[str, Type[Adapter]] = {
     "pl_pse": PSEAdapter,
     "pl_stoen": StoenAdapter,
     "pl_boryszew": BoryszewAdapter,
+    "es_edistribucion": EDistribucionAdapter,
+    "ie_esbnetworks": ESBNetworksAdapter,
+    "pt_eredes": EredesAdapter,
     "uk_nationalgrid": NationalGridAdapter,
 }
 

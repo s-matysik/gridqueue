@@ -3,12 +3,12 @@
 Dwie rodziny funkcji, obie wyprowadzone z pytań, które rejestr pozwala zadać
 dopiero po harmonizacji:
 
-* **obciążenie węzła** — zestawienie mocy objętej wnioskami z ujawnioną mocą
+* **obciążenie węzła**, zestawienie mocy objętej wnioskami z ujawnioną mocą
   dostępną w węźle. Jest to policzalna wersja kryterium „dostępna moc
   przyłączeniowa", które przeglądy literatury opisują jako niemierzalne
   z powodu braku danych. Wymaga publikującego, który ujawnia JEDNOCZEŚNIE moc
   dostępną w węźle i skład stacji wchodzących do węzła;
-* **czas rozpatrywania z cenzurowaniem** — wnioski bez daty rozstrzygnięcia nie
+* **czas rozpatrywania z cenzurowaniem**, wnioski bez daty rozstrzygnięcia nie
   są brakiem danych, tylko obserwacjami uciętymi na dacie publikacji. Liczenie
   mediany wyłącznie na przypadkach kompletnych ZANIŻA ją, i to tym silniej, im
   dłuższy jest rzeczywisty czas rozpatrywania.
@@ -100,12 +100,12 @@ def station_node_map(
 
     Publikujący, który realizuje punkt 2 obowiązku w podziale na GRUPY stacji,
     wymienia skład grupy w polu lokalizacji. To jedyne miejsce, w którym
-    przynależność stacji do węzła jest w ogóle ujawniona — stąd ta funkcja.
+    przynależność stacji do węzła jest w ogóle ujawniona, stąd ta funkcja.
 
     Kluczem jest GRUPA, nie identyfikator wiersza węzłowego. Publikujący
     wystawia tę samą grupę osobno dla kierunku wytwórczego i odbiorczego, więc
     odwzorowanie po identyfikatorze wiersza czyniłoby każdą stację
-    dwuznaczną — co byłoby artefaktem układu dokumentu, nie własnością sieci.
+    dwuznaczną, co byłoby artefaktem układu dokumentu, nie własnością sieci.
     Gdy kolumna grupy nie występuje, kluczem staje się identyfikator węzła.
 
     Zwraca ramkę: publikujacy, grupa, nazwa_wezla, stacja, stacja_norm.
@@ -156,8 +156,8 @@ def assign_to_nodes(
 
     ``EXACT``      nazwa stacji równa lokalizacji wniosku po normalizacji
     ``EXTENDED``   lokalizacja zawiera nazwę stacji jako ciągły podciąg tokenów
-    ``LINE``       obiekt planowany na linii między stacjami — nie w węźle
-    ``AMBIGUOUS``  pasuje więcej niż jedna grupa — przypisania nie dokonujemy
+    ``LINE``       obiekt planowany na linii między stacjami, nie w węźle
+    ``AMBIGUOUS``  pasuje więcej niż jedna grupa, przypisania nie dokonujemy
     ``NONE``       brak trafienia albo brak lokalizacji
 
     Dodaje kolumny `_grupa`, `_grupa_nazwa`, `_grupa_dopasowanie`.
@@ -277,9 +277,9 @@ def processing_time(
     Wniosek bez daty rozstrzygnięcia NIE jest brakiem danych: jest obserwacją
     uciętą na dacie publikacji edycji. Funkcja zwraca kolumnę `czas_dni` dla
     obu rodzajów obserwacji oraz `zdarzenie` równe 1 dla rozstrzygniętych i 0
-    dla uciętych — w postaci, której oczekuje estymator przeżycia.
+    dla uciętych, w postaci, której oczekuje estymator przeżycia.
 
-    `na_dzien` domyślnie bierze maksimum z pola daty publikacji, a gdy go brak —
+    `na_dzien` domyślnie bierze maksimum z pola daty publikacji, a gdy go brak -
     maksimum z dat rozstrzygnięć.
     """
     d = df.copy()

@@ -61,7 +61,7 @@ jobs:
         shell: python
         run: |
           # Bez tej asercji zadanie przechodziloby POZORNIE, gdyby pandas 3 nie
-          # zainstalowal sie z jakiegokolwiek powodu — a wtedy nie pilnowaloby niczego.
+          # zainstalowal sie z jakiegokolwiek powodu, a wtedy nie pilnowaloby niczego.
           import sys
 
           import pandas
@@ -73,7 +73,7 @@ jobs:
         run: python -m pytest -q -rs
 
   notatnik:
-    name: notatnik Colab — poprawnosc skladni i API
+    name: notatnik Colab, poprawnosc skladni i API
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

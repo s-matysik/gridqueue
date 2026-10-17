@@ -1,4 +1,4 @@
-"""Adapter: e-Distribución Redes Digitales (ES) — zdolność przyłączeniowa węzłów.
+"""Adapter: e-Distribución Redes Digitales (ES), zdolność przyłączeniowa węzłów.
 
 Dlaczego to źródło jest dla pakietu ważniejsze niż kolejny plik tabelaryczny
 --------------------------------------------------------------------------
@@ -8,7 +8,7 @@ wydawały dane już tabelaryczne, więc przenoszalność wykazano na przypadku
 łatwiejszym niż polski. To źródło ten brak zamyka. Publikujący wydaje **PDF
 miesięczny**, w serii obejmującej lata 2023-2025, na podstawie art. 33 ust. 9
 ustawy 24/2013, art. 5 ust. 4 dekretu 1183/2020 oraz art. 12 okólnika 1/2021
-regulatora CNMC — konstrukcja prawna jest więc taka sama jak polska: obowiązek
+regulatora CNMC, konstrukcja prawna jest więc taka sama jak polska: obowiązek
 ustawowy, stała częstość, format pozostawiony publikującemu.
 
 Układ strony niesie linie wektorowe tabeli, więc wydobycie opiera się na nich,
@@ -20,7 +20,7 @@ Nagłówek ma komórki scalone w dwóch poziomach i sugeruje, że kolumny „Con
 permiso de AyC" oraz „En trámite con capacidad" należą do grupy mocy przyjętej
 i nierozstrzygniętej. **Jest to mylące.** Rozstrzyga arytmetyka dokumentu:
 
-* jedenaście podkolumn — dziewięć pozycji stacji oraz te dwie — **sumuje się do
+* jedenaście podkolumn, dziewięć pozycji stacji oraz te dwie, **sumuje się do
   mocy ZAJĘTEJ**, dokładnie, w 1838 z 1838 wierszy, w obu sprawdzonych wydaniach;
 * rozbicie technologiczne sumuje się do mocy **przyjętej i nierozstrzygniętej**
   we wszystkich wierszach o niezerowej wartości.
@@ -37,7 +37,7 @@ polskich. Domknięcie sumy jest tu zastępczym, słabszym, ale sprawdzalnym
 świadectwem: aby suma jedenastu komórek zgadzała się z dwunastą, wszystkie
 dwanaście musi być odczytane poprawnie. Na dwóch wydaniach daje to 3676
 niezależnych sprawdzeń, wszystkie domknięte. Jest to świadectwo spójności
-odczytu, NIE pomiar dokładności wobec wzorca — i tak należy je czytać.
+odczytu, NIE pomiar dokładności wobec wzorca, i tak należy je czytać.
 
 Jednostki
 ---------
@@ -113,7 +113,7 @@ def suma_skladnikow_mocy_zajetej(wiersze) -> "tuple[int, int]":
 
     Po co to jest: dla tego publikującego nie ma zbioru odniesienia odczytanego
     niezależnie od parsera, więc dokładności wydobycia nie da się zmierzyć wobec
-    wzorca. Domknięcie sumy jest zastępczym świadectwem spójności odczytu —
+    wzorca. Domknięcie sumy jest zastępczym świadectwem spójności odczytu -
     słabszym niż wzorzec, ale sprawdzalnym na każdym wydaniu, bo wymaga
     poprawnego odczytania wszystkich dwunastu komórek bloku.
     """
@@ -232,7 +232,7 @@ class EDistribucionAdapter(Adapter):
             "uwaga_tozsamosc": (
                 "Jedenaście podkolumn mocy zajętej sumuje się do wartości łącznej. "
                 "Jest to świadectwo SPÓJNOŚCI odczytu, nie pomiar dokładności wobec "
-                "wzorca odczytanego niezależnie od parsera — takiego wzorca dla tego "
+                "wzorca odczytanego niezależnie od parsera, takiego wzorca dla tego "
                 "publikującego nie ma."
             ),
         }

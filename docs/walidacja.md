@@ -5,7 +5,7 @@ title: Walidacja
 # Zmierzona walidacja
 
 Dokładność wydobycia jest **zmierzona, nie zadeklarowana**. Zbiór odniesienia powstał przez
-wizualne odczytanie renderowanych wycinków stron (230–600 dpi, z naniesionymi granicami kolumn),
+wizualne odczytanie renderowanych wycinków stron (230-600 dpi, z naniesionymi granicami kolumn),
 **niezależnie od wyjścia parsera**.
 
 ## Dokładność per publikujący
@@ -19,11 +19,11 @@ wizualne odczytanie renderowanych wycinków stron (230–600 dpi, z naniesionymi
 | Boryszew Green Energy&Gas | 8 | 64 | **8 z 8** |
 
 Dwie niezgodności u TAURONA to ta sama para homoglifów: wielkie `I` wobec małego `l` w kroju
-bezszeryfowym. Rozstrzygnięcie wzrokowe jest tu niemożliwe **z zasady**, a nie tylko utrudnione —
+bezszeryfowym. Rozstrzygnięcie wzrokowe jest tu niemożliwe **z zasady**, a nie tylko utrudnione -
 oba znaki są renderowane glifami nierozróżnialnymi przy każdym powiększeniu. Jedynym dostępnym
 dowodem jest warstwa tekstowa pliku. **Podajemy obie wartości i żadna nie zastępuje drugiej.**
 
-Jedyna niezgodność u Stoena rozstrzygnęła się przy 600 dpi **na korzyść parsera** — był to błąd
+Jedyna niezgodność u Stoena rozstrzygnęła się przy 600 dpi **na korzyść parsera**, był to błąd
 anotatora. Jedna korekta wzorca ENERGI również wypadła na korzyść parsera.
 
 ## Zgodność międzyanotatorska
@@ -40,7 +40,7 @@ pierwszego anotatora, do tabeli dokładności, do raportu walidacji i do wyjści
 | zgodność parsera z wzorcem uzgodnionym | **400 z 400** |
 
 Wszystkie 11 niezgodności to **konwencja zapisu, nie różnica odczytu**: siedem dotyczy komórki
-zawierającej tekst niebędący datą w polu daty, cztery — łącznika na końcu wiersza w nazwisku.
+zawierającej tekst niebędący datą w polu daty, cztery, łącznika na końcu wiersza w nazwisku.
 **Niezgodności percepcyjnych nie było ani jednej.** Wzorce PSE i ENERGI pozostają
 jednoanotatorskie i dla nich zgodności nie mierzono.
 
@@ -69,7 +69,7 @@ miejscowości, u National Grid nazwy punktów zasilania zamiast adresów ulic.
 
 Weryfikacja na próbie warstwowej 102 punktów: zgodność nazwy ulicy z niezależnym geokodowaniem
 **101 z 102 = 99,02%**; mediana odległości między dwoma niezależnie wybranymi punktami
-reprezentatywnymi tej samej ulicy **259,2 m**, przy korelacji Spearmana z długością osi **0,714** —
+reprezentatywnymi tej samej ulicy **259,2 m**, przy korelacji Spearmana z długością osi **0,714** -
 źródła wskazują tę samą ulicę i różnią się tym, który jej punkt uznają za reprezentatywny.
 
 **Ograniczenie zasadnicze:** jest to weryfikacja wobec drugiego odczytu tej samej bazy, nie wobec
@@ -78,7 +78,7 @@ OpenStreetMap.
 
 **Nazwa ulicy nie wyznacza punktu.** 431 z 6 057 nazw warszawskich (7,12%) ma rozłączne składowe
 odległe o ponad 2 km. Rejestr podaje ulicę, lecz nie dzielnicę, więc tej niejednoznaczności
-**nie da się usunąć z danych opublikowanych** — jest to ustalenie o zakresie obowiązku ujawnienia,
+**nie da się usunąć z danych opublikowanych**, jest to ustalenie o zakresie obowiązku ujawnienia,
 nie o jakości narzędzia. Każdy wynik niesie liczbę składowych i ich rozrzut, żeby odbiorca mógł
 takie wiersze odfiltrować.
 
@@ -88,6 +88,6 @@ takie wiersze odfiltrować.
 warunkowe: testy integracyjne adapterów PSE i ENERGI wymagają dokumentów źródłowych.
 
 Obie metody wychwytują **różne klasy defektów** i oba mechanizmy są w pakiecie obecne. Pięć
-defektów odwzorowania przeszło przez cały zestaw testów, bo żaden nie rzucał wyjątku — w tym
+defektów odwzorowania przeszło przez cały zestaw testów, bo żaden nie rzucał wyjątku, w tym
 jeden zmieniający status umowy na przeciwny w 88 wierszach dwóch publikujących. Wykryło je
 porównanie wyjścia z wzorcem odczytanym z dokumentu. Wszystkie są objęte testami regresyjnymi.

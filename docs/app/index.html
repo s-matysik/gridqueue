@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>gridqueue in the browser</title>
+<style>
+ :root{--ink:#1a1a1a;--grey:#6e6e6e;--line:#d8dce0;--accent:#1f5c99;--warn:#c26a14;--bg:#fbfbfc}
+ *{box-sizing:border-box}
+ body{margin:0;background:var(--bg);color:var(--ink);
+      font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+ .wrap{max-width:1040px;margin:0 auto;padding:28px 20px 64px}
+ h1{font-size:25px;margin:0 0 4px}
+ h2{font-size:17px;margin:30px 0 10px;padding-bottom:5px;border-bottom:1px solid var(--line)}
+ .sub{color:var(--grey);margin:0 0 18px}
+ .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+ .card{background:#fff;border:1px solid var(--line);border-radius:7px;padding:16px 18px;margin:14px 0}
+ .note{background:#f3f6fa;border-left:3px solid var(--accent);padding:11px 14px;margin:14px 0;
+       font-size:13.5px;color:#30465e;border-radius:0 5px 5px 0}
+ .warnbox{background:#fdf5ec;border-left:3px solid var(--warn);padding:11px 14px;margin:14px 0;
+          font-size:13.5px;color:#6b4414;border-radius:0 5px 5px 0}
+ #drop{border:2px dashed var(--line);border-radius:8px;padding:34px 18px;text-align:center;
+       background:#fff;transition:.15s;cursor:pointer}
+ #drop.on{border-color:var(--accent);background:#f3f8fd}
+ #drop p{margin:5px 0}
+ button{font:inherit;padding:7px 15px;border:1px solid var(--line);background:#fff;
+        border-radius:6px;cursor:pointer}
+ button:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}
+ button:disabled{opacity:.45;cursor:not-allowed}
+ button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+ button.primary:hover:not(:disabled){background:#174a7c;color:#fff}
+ table{border-collapse:collapse;width:100%;font-size:13px}
+ th,td{border:1px solid var(--line);padding:5px 8px;text-align:left;vertical-align:top}
+ th{background:#f4f6f8;font-weight:600;position:sticky;top:0}
+ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+ .scroll{max-height:420px;overflow:auto;border:1px solid var(--line);border-radius:6px}
+ .pill{display:inline-block;background:#eef2f6;border-radius:11px;padding:2px 10px;
+       font-size:12.5px;margin:0 6px 6px 0}
+ .pill b{font-variant-numeric:tabular-nums}
+ #log{font-size:12.5px;color:var(--grey);white-space:pre-wrap;max-height:150px;overflow:auto}
+ .err{color:#a3281e}
+ a{color:var(--accent)}
+ .row{display:flex;gap:9px;flex-wrap:wrap;align-items:center;margin-top:12px}
+ .muted{color:var(--grey);font-size:13px}
+ ul.pub{columns:2;font-size:13.5px;margin:6px 0 0;padding-left:19px}
+ ul.pub li{margin:3px 0;break-inside:avoid}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>gridqueue in the browser</h1>
+<p class="sub">Turn a statutory grid-connection disclosure into a harmonised, row-level table,
+without installing anything.</p>
+
+<div class="note">
+<b>Nothing leaves your computer.</b> The page loads the real
+<span class="mono">gridqueue</span> Python package into a WebAssembly interpreter and runs it
+locally. Your document is never uploaded: there is no server to upload it to. This is the same
+package, at the same version, that produces the results reported in the accompanying article, so
+the output here is identical to the command-line output by construction.
+</div>
+
+<h2>1. Give it a document</h2>
+
+<div id="drop">
+  <p><b>Drop a disclosure file here</b>, or click to choose one.</p>
+  <p class="muted">PDF, XLSX or CSV, as published by one of the nine supported publishers.</p>
+  <input type="file" id="file" accept=".pdf,.xlsx,.xls,.csv" hidden>
+</div>
+
+<div class="row">
+  <button id="demo">Run a synthetic example instead</button>
+  <span class="muted">No real disclosure needed; shows the schema and the quality rules.</span>
+</div>
+
+<div class="warnbox">
+<b>Why no sample document is bundled here.</b> The disclosures are produced by commercial
+undertakings discharging a statutory duty, their status for redistribution is unsettled, and
+publishers replace them at least quarterly, so a bundled copy would misrepresent the register
+within months. Fetch a current edition from the publisher instead; the nine supported publishers are:
+<ul class="pub">
+ <li>PL &middot; <a href="https://www.pse.pl" rel="noopener">PSE</a></li>
+ <li>PL &middot; <a href="https://www.tauron-dystrybucja.pl" rel="noopener">TAURON Dystrybucja</a></li>
+ <li>PL &middot; <a href="https://energa-operator.pl" rel="noopener">ENERGA-OPERATOR</a></li>
+ <li>PL &middot; <a href="https://www.stoen.pl" rel="noopener">Stoen Operator</a></li>
+ <li>PL &middot; <a href="https://www.elana-energetyka.pl/" rel="noopener">Boryszew Green Energy&amp;Gas</a></li>
+ <li>ES &middot; <a href="https://www.edistribucion.com" rel="noopener">e-Distribuci&oacute;n</a></li>
+ <li>IE &middot; <a href="https://www.esbnetworks.ie" rel="noopener">ESB Networks</a></li>
+ <li>PT &middot; <a href="https://e-redes.opendatasoft.com" rel="noopener">E-REDES</a></li>
+ <li>GB &middot; <a href="https://connecteddata.nationalgrid.co.uk" rel="noopener">National Grid</a></li>
+</ul>
+</div>
+
+<h2>2. What it found</h2>
+<div class="card" id="status"><span class="muted">Loading the interpreter and the package&hellip;</span>
+<div id="log"></div></div>
+
+<div id="out" hidden>
+  <div class="card">
+    <div id="pills"></div>
+    <div class="row">
+      <button id="dlcsv" class="primary" disabled>Download harmonised CSV</button>
+      <button id="dljson" disabled>Download validation report (JSON)</button>
+    </div>
+  </div>
+
+  <h2>Harmonised rows</h2>
+  <p class="muted" id="tabnote"></p>
+  <div class="scroll"><table id="tab"></table></div>
+
+  <h2>Quality rules</h2>
+  <p class="muted">Each rule returns a count of violations, never an exception: a violation is a
+  property of the disclosure, not an error in the software. A rule that measures a schema property
+  rather than a disclosure property is marked as such in the documentation.</p>
+  <div class="scroll"><table id="qtab"></table></div>
+
+  <h2>Parse report</h2>
+  <p class="muted">Returned verbatim by the adapter, including anything it could not resolve.</p>
+  <div class="scroll"><table id="rtab"></table></div>
+</div>
+
+<h2>What this page does not do</h2>
+<p class="muted">
+It runs one document at a time. It does not geocode (the gazetteer is too large to ship to a
+browser), does not compare editions over time, and does not export Parquet. For those, install the
+package: <span class="mono">pip install gridqueue</span>, or open the
+<a href="../colab.html">Colab notebook</a>, which reproduces the article's longitudinal analysis and
+asserts agreement with the published numbers.
+</p>
+
+<p class="muted" style="margin-top:26px">
+<a href="https://github.com/s-matysik/gridqueue">Repository</a> &middot;
+<a href="../">Documentation</a> &middot;
+<span id="vers" class="mono"></span>
+</p>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/pyodide/v0.28.3/full/pyodide.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+const logEl = $("log");
+let py = null, ready = false;
+
+function log(msg, cls) {
+  const d = document.createElement("div");
+  if (cls) d.className = cls;
+  d.textContent = msg;
+  logEl.appendChild(d);
+  logEl.scrollTop = logEl.scrollHeight;
+}
+function setStatus(html) {
+  $("status").firstChild.innerHTML = html;
+}
+
+async function boot() {
+  try {
+    log("starting WebAssembly interpreter");
+    py = await loadPyodide({ indexURL: "https://cdn.jsdelivr.net/pyodide/v0.28.3/full/" });
+    log("loading pandas and imaging libraries");
+    await py.loadPackage(["pandas", "Pillow", "cryptography", "charset-normalizer", "micropip"]);
+    log("installing the PDF and spreadsheet readers");
+    // pdfplumber is installed without its own dependency resolution on purpose: it pins a Pillow
+    // newer than the one shipped here and requires pypdfium2, a binary package with no build for
+    // this platform. pypdfium2 is imported lazily by pdfplumber, only when rendering a page to an
+    // image, which this page never does.
+    await py.runPythonAsync(`
+import micropip
+await micropip.install("pdfminer.six")
+await micropip.install("openpyxl")
+await micropip.install("pdfplumber", deps=False)
+`);
+    log("installing gridqueue");
+    // Absolute URL built from the page location: micropip resolves a bare relative path
+    // against the interpreter's working directory, not against this document.
+    py.globals.set("_wheel", new URL("gridqueue-1.5.2-py3-none-any.whl", location.href).href);
+    await py.runPythonAsync(`
+import micropip
+await micropip.install(_wheel, deps=False)
+import gridqueue
+`);
+    const v = await py.runPythonAsync(
+      `import gridqueue; f"{gridqueue.__version__}|{gridqueue.SCHEMA_VERSION}|{len(gridqueue.REGISTRY)}"`);
+    const [pkg, schema, nad] = v.split("|");
+    $("vers").textContent = `gridqueue ${pkg} \u00b7 schema ${schema} \u00b7 ${nad} adapters`;
+    ready = true;
+    setStatus(`Ready. <b>gridqueue ${pkg}</b>, schema version ${schema}, ${nad} adapters loaded.`);
+    log("ready");
+  } catch (e) {
+    setStatus('<span class="err">The interpreter could not start.</span>');
+    log(String(e), "err");
+  }
+}
+
+function pills(obj) {
+  $("pills").innerHTML = Object.entries(obj)
+    .map(([k, v]) => `<span class="pill">${k} <b>${v}</b></span>`).join("");
+}
+function table(el, cols, rows, numCols) {
+  const th = cols.map(c => `<th class="${numCols && numCols.has(c) ? "num" : ""}">${c}</th>`).join("");
+  const tr = rows.map(r => "<tr>" + cols.map(c => {
+    const v = r[c];
+    const isNum = numCols && numCols.has(c);
+    const s = (v === null || v === undefined || v === "") ? '<span class="muted">, </span>' : String(v);
+    return `<td class="${isNum ? "num" : ""}">${s}</td>`;
+  }).join("") + "</tr>").join("");
+  el.innerHTML = `<thead><tr>${th}</tr></thead><tbody>${tr}</tbody>`;
+}
+function download(name, text, mime) {
+  const b = new Blob([text], { type: mime });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(b); a.download = name; a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+async function runOn(filename, bytes) {
+  if (!ready) { log("still loading; try again in a moment"); return; }
+  $("out").hidden = true;
+  setStatus(`Parsing <b>${filename}</b>&hellip;`);
+  try {
+    if (bytes) py.FS.writeFile("/" + filename, bytes);
+    py.globals.set("_fname", filename);
+    py.globals.set("_synthetic", bytes ? false : true);
+    const res = await py.runPythonAsync(`
+import json, pandas as pd, gridqueue as G
+
+if _synthetic:
+    # Built as its own frame and reindexed onto the schema columns. Assigning into an
+    # empty frame writes strings into float columns, which pandas 3 refuses, and
+    # concatenating with an empty frame changes dtype resolution in the same version.
+    df = pd.DataFrame([
+        {"id_wniosku": "SYN-1", "lokalizacja_tekst": "Example substation",
+         "klasa_zasobu": "ODB", "status_procesu": "WARUNKI_WYDANE",
+         "poziom_napiecia": "SN", "moc_pobierana": 1500.0,
+         "data_wniosku": "2025-02-03", "data_warunkow": "2025-06-18"},
+        {"id_wniosku": "SYN-2", "lokalizacja_tekst": "Example substation",
+         "klasa_zasobu": "PV", "status_procesu": "WNIOSEK_ZLOZONY",
+         "poziom_napiecia": "SN", "moc_wprowadzana": 980.0,
+         "data_wniosku": "2025-04-21"},
+    ]).reindex(columns=list(G.empty_frame().columns))
+    report = {"source": "synthetic example built from the schema, not a real disclosure",
+              "rows": int(len(df))}
+    publisher = "(none, synthetic)"
+else:
+    publisher = G.detect_publisher("/" + _fname)
+    if publisher is None:
+        raise ValueError(
+            "No adapter recognised this file. The file name and, for PDFs, the first page are "
+            "used for detection. Supported publishers are listed on this page.")
+    out = G.get_adapter(publisher).parse("/" + _fname)
+    df, report = out.frame, dict(out.report)
+
+q = G.run_quality(df).as_dict()
+schema_fields = [f for f in G.FIELDS if f in df.columns]
+filled = {f: int(df[f].notna().sum()) for f in schema_fields}
+preview_cols = [f for f in schema_fields if filled[f] > 0][:12]
+prev = df[preview_cols].head(200).where(pd.notna(df[preview_cols].head(200)), None)
+
+json.dumps({
+  "publisher": publisher,
+  "rows": int(len(df)),
+  "cols": int(df.shape[1]),
+  "schema_filled": sum(1 for v in filled.values() if v > 0),
+  "schema_total": len(G.FIELDS),
+  "violations": int(q.get("naruszen_lacznie", 0)),
+  "preview_cols": preview_cols,
+  "preview": prev.to_dict("records"),
+  "quality": q.get("reguly", []),
+  "report": {k: (v if isinstance(v, (str, int, float, bool, type(None))) else str(v))
+             for k, v in report.items()},
+  "csv": df.to_csv(index=False),
+  "validation": json.dumps({"report": {k: str(v) for k, v in report.items()},
+                            "quality": q,
+                            "package": G.__version__,
+                            "schema": G.SCHEMA_VERSION}, ensure_ascii=False, indent=1),
+}, ensure_ascii=False, default=str)
+`);
+    const d = JSON.parse(res);
+
+    pills({ "publisher": d.publisher, "rows": d.rows.toLocaleString("en"),
+            "columns": d.cols, "schema fields populated": `${d.schema_filled}/${d.schema_total}`,
+            "quality violations": d.violations.toLocaleString("en") });
+
+    const numeric = new Set(["moc_pobierana","moc_wprowadzana","moc_dostepna","moc_zarezerwowana",
+                             "pozycja_w_kolejce"]);
+    table($("tab"), d.preview_cols, d.preview, numeric);
+    $("tabnote").textContent =
+      `Showing the first ${Math.min(200, d.rows).toLocaleString("en")} of ${d.rows.toLocaleString("en")} rows `
+      + `and the ${d.preview_cols.length} schema fields this publisher populates. `
+      + `The full table is in the CSV download.`;
+
+    const qcols = Object.keys(d.quality[0] || {}).filter(k => typeof d.quality[0][k] !== "object");
+    table($("qtab"), qcols, d.quality, new Set(["naruszenia","udzial"]));
+
+    const rrows = Object.entries(d.report).map(([k, v]) => ({ field: k, value: v }));
+    table($("rtab"), ["field", "value"], rrows);
+
+    $("dlcsv").disabled = false;
+    $("dljson").disabled = false;
+    $("dlcsv").onclick = () => download(
+      filename.replace(/\.[^.]+$/, "") + "_gridqueue.csv", d.csv, "text/csv");
+    $("dljson").onclick = () => download(
+      filename.replace(/\.[^.]+$/, "") + "_validation.json", d.validation, "application/json");
+
+    $("out").hidden = false;
+    setStatus(`Parsed <b>${filename}</b> with adapter <span class="mono">${d.publisher}</span>.`);
+  } catch (e) {
+    setStatus('<span class="err">That file could not be parsed.</span>');
+    log(String(e), "err");
+  }
+}
+
+const drop = $("drop"), fileIn = $("file");
+drop.onclick = () => fileIn.click();
+drop.ondragover = (e) => { e.preventDefault(); drop.classList.add("on"); };
+drop.ondragleave = () => drop.classList.remove("on");
+drop.ondrop = async (e) => {
+  e.preventDefault(); drop.classList.remove("on");
+  const f = e.dataTransfer.files[0];
+  if (f) runOn(f.name, new Uint8Array(await f.arrayBuffer()));
+};
+fileIn.onchange = async () => {
+  const f = fileIn.files[0];
+  if (f) runOn(f.name, new Uint8Array(await f.arrayBuffer()));
+};
+$("demo").onclick = () => runOn("synthetic_example", null);
+
+boot();
+</script>
+</body>
+</html>

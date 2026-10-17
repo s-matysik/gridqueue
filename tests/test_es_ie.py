@@ -37,7 +37,7 @@ class TestIrlandzkieFlagi:
         assert _flaga("Constrained, otherwise capacity available =122 kVA") is True
 
     def test_pusta_komorka_to_brak_ograniczenia(self):
-        """Interpretacja, nie treść źródła — pinujemy ją, żeby zmiana była widoczna."""
+        """Interpretacja, nie treść źródła, pinujemy ją, żeby zmiana była widoczna."""
         assert _flaga(None) is False
         assert _flaga("") is False
 

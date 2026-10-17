@@ -22,22 +22,22 @@ najmniej raz na kwartał, więc plik pod danym adresem **bywa zastępowany nowsz
 Dokładne odtworzenie obliczeniowe jest zatem uwarunkowane dalszą dostępnością archiwalnych
 plików źródłowych u publikujących albo ich zarchiwizowaniem przez użytkownika.
 
-## 3. Gazeter geometryczny — OpenStreetMap
+## 3. Gazeter geometryczny, OpenStreetMap
 
 Gazeter wykorzystywany przez rozwiązywacz lokalizacji pochodzi z OpenStreetMap i podlega
 **Open Database License 1.0**. Oznacza to dla użytkownika trzy obowiązki, których Apache-2.0
 nie obejmuje:
 
-- **atrybucja** — wskazanie OpenStreetMap jako źródła przy każdej publikacji wyników
+- **atrybucja**, wskazanie OpenStreetMap jako źródła przy każdej publikacji wyników
   zawierających współrzędne;
-- **share-alike** — udostępnienie bazy pochodnej, jeśli jest publicznie dystrybuowana,
+- **share-alike**, udostępnienie bazy pochodnej, jeśli jest publicznie dystrybuowana,
   na tej samej licencji;
-- **brak ograniczeń technicznych** — nie wolno dystrybuować bazy pochodnej w sposób
+- **brak ograniczeń technicznych**, nie wolno dystrybuować bazy pochodnej w sposób
   uniemożliwiający odbiorcy korzystanie z niej na warunkach ODbL.
 
-Rozróżnienie istotne w praktyce: *produced work* — na przykład mapa albo tabela wyników —
-wymaga atrybucji, lecz nie uruchamia share-alike; *derivative database* — na przykład panel
-z doklejonymi współrzędnymi, udostępniany dalej — uruchamia share-alike.
+Rozróżnienie istotne w praktyce: *produced work*, na przykład mapa albo tabela wyników -
+wymaga atrybucji, lecz nie uruchamia share-alike; *derivative database*, na przykład panel
+z doklejonymi współrzędnymi, udostępniany dalej, uruchamia share-alike.
 
 ## 4. Panel wynikowy
 
@@ -72,7 +72,7 @@ a nie ostrożnościowe.
 **Po pierwsze, statusu prawnego redystrybucji nie rozstrzygamy.** Polskie prawo
 autorskie wyłącza z ochrony materiały urzędowe, ale ujawnienia, o których mowa,
 sporządzają i publikują spółki prowadzące działalność gospodarczą, wykonując
-obowiązek ustawowy — a to, czy mieszczą się one w tej kategorii, nie jest
+obowiązek ustawowy, a to, czy mieszczą się one w tej kategorii, nie jest
 przesądzone. Niezależnie od prawa autorskiego do zbiorów danych może mieć
 zastosowanie ochrona *sui generis*. Nie jesteśmy w stanie tego rozstrzygnąć
 i nie udajemy, że jesteśmy; zespół zamierzający dołączyć dokumenty do
@@ -86,7 +86,7 @@ bardziej wyglądałaby na aktualną.
 Konsekwencję trzeba powiedzieć wprost, bo jest niewygodna: **odtworzenie co do
 bajtu przestaje być możliwe, gdy publikujący wymieni albo przeniesie dokument.**
 Podczas przygotowania wydania 1.3.0 odsyłacz do ujawnienia jednego z operatorów
-przestał prowadzić do pliku i zaczął zwracać stronę serwisu — skrypt pobierający
+przestał prowadzić do pliku i zaczął zwracać stronę serwisu, skrypt pobierający
 rozpoznaje ten przypadek i zgłasza go osobno, zamiast zapisać stronę jako
 dokument. Dlatego sumy kontrolne są w manifeście: niezgodność jest sygnałem, że
 liczby nie będą identyczne z opublikowanymi, a nie usterką do zignorowania.

@@ -5,7 +5,7 @@ title: Adaptery
 # Adaptery
 
 Każdy adapter realizuje ten sam interfejs i **deklaruje**, które pola schematu wypełnia oraz jakie
-rozszerzenia wnosi. Deklaracja jest częścią wyniku, nie dokumentacji — dzięki temu pokrycie pól
+rozszerzenia wnosi. Deklaracja jest częścią wyniku, nie dokumentacji, dzięki temu pokrycie pól
 nie jest twierdzeniem, a wartością odczytywalną z kodu.
 
 | klucz | publikujący | jurysdykcja | pól schematu | rozszerzeń |
@@ -18,7 +18,7 @@ nie jest twierdzeniem, a wartością odczytywalną z kodu.
 | `uk_nationalgrid` | National Grid Electricity Distribution | UK | 10 | 9 |
 
 Adaptery `pl_pse` i `pl_energa` dzielą moduł `adapters/_ptpiree.py`, bo oba publikujące wypełniają
-ten sam uzgodniony wzorzec sprawozdawczy — jeden wydaje go jako arkusz, drugi jako dokument do
+ten sam uzgodniony wzorzec sprawozdawczy, jeden wydaje go jako arkusz, drugi jako dokument do
 druku. To nie jest zbieg okoliczności implementacyjny, lecz odwzorowanie praktyki sektora.
 
 ## Dodanie publikującego
@@ -50,9 +50,9 @@ detect_publisher("tauron_informacja_2026_06_30.pdf")   # 'pl_tauron'
 ```
 
 Kolejność jest celowa: nazwa pliku jest tania i zwykle wystarcza, treść pierwszej strony
-rozstrzyga resztę. Gdy nie rozstrzyga żadna z nich, zwracane jest `None` — bez zgadywania.
+rozstrzyga resztę. Gdy nie rozstrzyga żadna z nich, zwracane jest `None`, bez zgadywania.
 
-## E-REDES (Portugalia) — `pt_eredes`
+## E-REDES (Portugalia), `pt_eredes`
 
 Trzecia jurysdykcja w panelu i trzeci tryb wydania: **zbiór na portalu otwartych
 danych z interfejsem REST**, publikowany kwartalnie. Jednostką wiersza jest
@@ -62,7 +62,7 @@ należą do encji WĘZEŁ.
 Co ten adapter wnosi, czego nie było: **pierwsze zagraniczne źródło encji WĘZEŁ**.
 Dotąd wiersze węzłowe pochodziły wyłącznie od dwóch publikujących polskich, więc
 kryterium „dostępna moc przyłączeniowa" dawało się policzyć w jednej jurysdykcji.
-Źródło portugalskie podaje ponadto **skład grupy podstacji** — dokładnie tę
+Źródło portugalskie podaje ponadto **skład grupy podstacji**, dokładnie tę
 informację, która w panelu polskim umożliwia przypisanie wniosków do węzła.
 
 ### Rozstrzygnięcie o jednostkach
@@ -87,13 +87,13 @@ Jest to ta sama zasada, którą zastosowano wobec publikującego podającego lic
 wolnych miejsc przyłączeniowych zamiast mocy: wpisanie liczby w pole o innej
 jednostce byłoby fabrykacją, nie harmonizacją.
 
-Rdzeń encji WĘZEŁ jest mimo to spełniony, bo realizuje go drugi człon alternatywy —
+Rdzeń encji WĘZEŁ jest mimo to spełniony, bo realizuje go drugi człon alternatywy -
 `ograniczenie_flaga`, ustawiana na podstawie zerowej zdolności przyjęcia. Zero jest
 wartością **ujawnioną** i oznacza ograniczenie; pusta komórka oznacza nieujawnienie
 i flagi nie ustawia. Dotyczy to 222 z 469 węzłów.
 
 To rozstrzygnięcie jest zarazem wynikiem obserwacyjnym: **obie jurysdykcje spełniają
-rdzeń encji WĘZEŁ różnymi członami tej samej alternatywy** — Polska mocą dostępną,
+rdzeń encji WĘZEŁ różnymi członami tej samej alternatywy**, Polska mocą dostępną,
 Portugalia flagą ograniczenia. Warunkowy rdzeń, wprowadzony w wersji 1.0 dla
 polskiego błędu kategorialnego, okazał się warunkiem wchłonięcia obcej jurysdykcji.
 
@@ -104,18 +104,18 @@ r.frame[["id_wezla", "nazwa_wezla", "lokalizacja_tekst", "ograniczenie_flaga"]]
 r.report["uwaga_jednostki"]
 ```
 
-## e-Distribución (Hiszpania) — `es_edistribucion`
+## e-Distribución (Hiszpania), `es_edistribucion`
 
 **Pierwsze zagraniczne źródło wydawane jako dokument do druku.** Dotąd oba adaptery
 zagraniczne czytały dane już tabelaryczne, więc przenoszalność była wykazana na przypadku
 łatwiejszym niż polski; to źródło ten brak zamyka. Publikujący wydaje **PDF miesięczny**
-w serii obejmującej lata 2023–2025, na podstawie art. 33 ust. 9 ustawy 24/2013,
-art. 5 ust. 4 dekretu 1183/2020 i art. 12 okólnika 1/2021 regulatora CNMC — czyli
+w serii obejmującej lata 2023-2025, na podstawie art. 33 ust. 9 ustawy 24/2013,
+art. 5 ust. 4 dekretu 1183/2020 i art. 12 okólnika 1/2021 regulatora CNMC, czyli
 w konstrukcji prawnej takiej samej jak polska: obowiązek ustawowy, stała częstość, format
 pozostawiony publikującemu.
 
 Wydanie z 1 sierpnia 2025: 28 stron, **1 838 wierszy encji WĘZEŁ**, wszystkie pola
-zadeklarowane wypełnione w 100 %, w tym **współrzędne geograficzne każdej podstacji** —
+zadeklarowane wypełnione w 100 %, w tym **współrzędne geograficzne każdej podstacji** -
 czego nie robi żaden publikujący polski. Moce są w **MW mocy czynnej**, więc przeliczenie
 na kanoniczne kW jest zwykłą zmianą rzędu wielkości.
 
@@ -123,7 +123,7 @@ na kanoniczne kW jest zwykłą zmianą rzędu wielkości.
 
 Nagłówek ma komórki scalone w dwóch poziomach i sugeruje, że kolumny „Con permiso de AyC"
 oraz „En trámite con capacidad" należą do grupy mocy **przyjętej i nierozstrzygniętej**.
-Rozstrzyga arytmetyka dokumentu. Jedenaście podkolumn — dziewięć pozycji stacji plus te dwie —
+Rozstrzyga arytmetyka dokumentu. Jedenaście podkolumn, dziewięć pozycji stacji plus te dwie -
 sumuje się do mocy **zajętej**, dokładnie w **1 838 z 1 838 wierszy, w obu sprawdzonych
 wydaniach**; rozbicie technologiczne sumuje się do mocy przyjętej i nierozstrzygniętej we
 wszystkich wierszach o niezerowej wartości. Obie grupy są więc **składnikami**, a nie
@@ -136,10 +136,10 @@ wydobycia nie da się zmierzyć tak, jak zmierzono ją dla publikujących polski
 jest zastępczym świadectwem: aby suma jedenastu komórek zgadzała się z dwunastą, wszystkie
 dwanaście musi być odczytane poprawnie. Na dwóch wydaniach daje to **3 676 niezależnych
 sprawdzeń, wszystkie domknięte**. Jest to świadectwo **spójności odczytu, nie pomiar dokładności**
-— słabsze niż wzorzec, ale sprawdzalne na każdym nowym wydaniu, bez pracy anotatora.
+- słabsze niż wzorzec, ale sprawdzalne na każdym nowym wydaniu, bez pracy anotatora.
 Raport adaptera podaje je w polu `tozsamosc_sumy_mocy_zajetej`.
 
-## ESB Networks (Irlandia) — `ie_esbnetworks`
+## ESB Networks (Irlandia), `ie_esbnetworks`
 
 Najliczniejsze źródło w panelu: **46 527 wierszy**, jedyne schodzące poniżej poziomu stacji
 wysokiego napięcia aż do stacji SN/nn. Jednostką wiersza jest grupa transformatorów w stacji.
@@ -159,7 +159,7 @@ Kolumny ograniczenia niosą frazę `Constrained, otherwise capacity available = 
 puste. Przyjmujemy, że **pusta komórka oznacza brak ograniczenia**, a nie brak deklaracji:
 kolumna jest wskaźnikiem binarnym, w którym wartość dodatnia niesie objaśnienie, a ujemna jest
 wyrażona pustką. Publikujący tej konwencji nigdzie nie opisuje, więc jest to **interpretacja,
-nie treść źródła** — surowa fraza zostaje w rozszerzeniu, liczba z niej jest wydobywana
+nie treść źródła**, surowa fraza zostaje w rozszerzeniu, liczba z niej jest wydobywana
 osobno i **nie jest przeliczana**, bo jest w kVA. Decyzja jest odnotowana w raporcie adaptera
 i przypięta testem, żeby jej zmiana była widoczna.
 

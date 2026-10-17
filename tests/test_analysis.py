@@ -24,7 +24,7 @@ def _wniosek(lok, moc, status="WARUNKI_WYDANE"):
 
 class TestNormalizacja:
     def test_litera_l_z_kreska_nie_rozcina_wyrazu(self):
-        """NFKD nie rozkłada 'ł' — bez jawnej podmiany wyraz pękłby na spacji."""
+        """NFKD nie rozkłada 'ł', bez jawnej podmiany wyraz pękłby na spacji."""
         assert normalizuj_nazwe("Białogard") == "bialogard"
         assert normalizuj_nazwe("Łęczyca") == "leczyca"
         assert normalizuj_nazwe("Kołobrzeg 6 Dywizji") == "kolobrzeg 6 dywizji"
@@ -46,7 +46,7 @@ class TestOdwzorowanie:
         assert len(mapa) == 2  # dwie stacje, nie cztery
 
     def test_obiekt_na_linii_nie_jest_przypisywany_do_wezla(self):
-        """Stacja planowana na linii leży MIĘDZY węzłami — przypisanie byłoby arbitralne."""
+        """Stacja planowana na linii leży MIĘDZY węzłami, przypisanie byłoby arbitralne."""
         df = pd.DataFrame([
             _wezel(1, "Alfa", "Stacja A", 1000.0),
             _wniosek("planowany RS w linii 110 kV relacji Stacja A - Stacja C", 50.0),

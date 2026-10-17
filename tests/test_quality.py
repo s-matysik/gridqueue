@@ -141,3 +141,31 @@ def test_as_frame_zwraca_wiersz_na_regule():
     assert list(ramka.columns) == ["kod", "nazwa", "naruszenia", "udzial"]
     assert len(ramka) == len(RULES)
     assert ramka["udzial"].between(0, 1).all()
+
+
+def test_r3_nie_wywraca_sie_na_pustym_publikujacym():
+    """R3 musi dzialac, gdy kolumna publikujacego jest obecna, ale pusta.
+
+    `groupby` pomija grupe o wartosci pustej, wiec wiersz bez tej adnotacji nie
+    ma wlasnego wpisu w slowniku pol ujawnianych.  Przed poprawka odwolanie po
+    kluczu rzucalo `KeyError`, regula zwracala -1, a suma naruszen calego
+    raportu stawala sie ujemna -- defekt niemy, wykryty dopiero uruchomieniem
+    pakietu na ramce zbudowanej recznie.
+    """
+    import pandas as pd
+
+    from gridqueue import empty_frame, run_quality
+
+    df = pd.DataFrame([
+        {"id_wniosku": "A-1", "lokalizacja_tekst": "Stacja A", "klasa_zasobu": "ODB",
+         "status_procesu": "WARUNKI_WYDANE", "moc_pobierana": 1000.0,
+         "data_wniosku": "2024-01-10", "data_warunkow": "2024-05-10"},
+    ]).reindex(columns=list(empty_frame().columns))
+    assert df["publikujacy"].isna().all()
+
+    rap = run_quality(df).as_dict()
+    r3 = [r for r in rap["reguly"] if r["kod"] == "R3"][0]
+
+    assert r3["naruszenia"] >= 0, r3["szczegoly"]
+    assert "blad" not in r3["szczegoly"]
+    assert rap["naruszen_lacznie"] >= 0

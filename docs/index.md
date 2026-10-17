@@ -5,11 +5,11 @@ title: gridqueue
 # gridqueue
 
 Harmonizator ustawowych ujawnień przyłączeniowych do sieci elektroenergetycznej.
-Wersja **1.2.1** · [repozytorium](https://github.com/s-matysik/gridqueue)
+Wersja **1.5.2** · [repozytorium](https://github.com/s-matysik/gridqueue)
 
 > **In English.** `gridqueue` parses the statutory grid-connection disclosures that Polish
 > distribution system operators must publish under Article 7(8l) of the Energy Law, and emits
-> rows in a single 21-field schema with **measured** extraction accuracy. Six adapters cover two
+> rows in a single 21-field schema with **measured** extraction accuracy. Nine adapters cover five
 > jurisdictions; the schema is derived from the legal obligation, not from any one document.
 > Failures are returned as missing-with-reason, never as guesses.
 
@@ -17,19 +17,19 @@ Wersja **1.2.1** · [repozytorium](https://github.com/s-matysik/gridqueue)
 
 Operatorzy systemów dystrybucyjnych mają obowiązek publikować, kto ubiega się o przyłączenie,
 gdzie, o jaką moc i na jakim etapie stoi postępowanie. W Polsce obowiązek dotyczy około
-180 koncesjonowanych operatorów i **każdy publikuje we własnym formacie** — najczęściej jako
+180 koncesjonowanych operatorów i **każdy publikuje we własnym formacie**, najczęściej jako
 dokument do druku. Informacja jest jawna, ale nie jest przetwarzalna.
 
 Niejednorodność dotyczy jednak **nośnika, nie pojęć**. Arkusz operatora przesyłowego zawiera
 listę dopuszczalnych wartości pola publikującego, wymieniającą sześciu największych operatorów
-w kraju — formularz jest więc uzgodnionym wzorcem sprawozdawczym, który każdy z nich wypełnia,
+w kraju, formularz jest więc uzgodnionym wzorcem sprawozdawczym, który każdy z nich wypełnia,
 tylko jeden wydaje go jako arkusz, a drugi jako dokument do druku. Wspólny schemat tego pakietu
 jest odtworzeniem tego uzgodnienia.
 
 ## Czego pakiet nie robi
 
 Nie jest indeksem publikacji operatorów ani mapą przeglądową. Nie jest też oszacowaniem dostępnej
-mocy przyłączeniowej: rejestr ujawnia **kolejkę, nie zapas**. Nie jest rankingiem lokalizacji —
+mocy przyłączeniowej: rejestr ujawnia **kolejkę, nie zapas**. Nie jest rankingiem lokalizacji -
 nie zawiera żadnego modelu preferencji.
 
 ## Stan wydania
@@ -44,18 +44,20 @@ nie zawiera żadnego modelu preferencji.
 | Boryszew Green Energy&Gas Sp. z o.o. | 8 | 8 | 9 |
 
 **Wszystkie 21 pól schematu jest wypełnionych w panelu.** Pole współrzędnych nie jest ujawniane
-przez żadnego publikującego i powstaje przez wyprowadzenie z nazwy miejsca — dlatego w tabeli
+przez żadnego publikującego i powstaje przez wyprowadzenie z nazwy miejsca, dlatego w tabeli
 rozdzielono pola z ujawnienia od pola wyprowadzonego, a w wyniku każdego rozwiązania zapisany jest
 poziom pewności i poziom dokładności umiejscowienia.
 
 ## Strony
 
+* [**Uruchom w przeglądarce**](app/) bez instalacji: ta sama biblioteka w interpreterze
+  WebAssembly, dokument przetwarzany lokalnie i nigdzie nie wysyłany
 * [Schemat 21 pól](schemat.md)
 * [Adaptery i jak dodać publikującego](adaptery.md)
 * [Metoda wydobycia](wydobycie.md)
 * [Reguły kontroli jakości](jakosc.md)
 * [Zmierzona walidacja](walidacja.md)
-* [Analiza wzdłużna — porównanie edycji](wzdluzna.md)
+* [Analiza wzdłużna, porównanie edycji](wzdluzna.md)
 * [Uruchomienie w Google Colab](colab.md)
 * [Wiersz poleceń](cli.md)
 * [Ograniczenia](ograniczenia.md)
