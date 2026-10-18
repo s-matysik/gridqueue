@@ -3,163 +3,334 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>gridqueue in the browser</title>
+<title>gridqueue, run it in your browser</title>
+<meta name="description" content="Turn a statutory grid connection disclosure into a harmonised, row level table. Runs entirely in your browser.">
 <style>
- :root{--ink:#1a1a1a;--grey:#6e6e6e;--line:#d8dce0;--accent:#1f5c99;--warn:#c26a14;--bg:#fbfbfc}
- *{box-sizing:border-box}
- body{margin:0;background:var(--bg);color:var(--ink);
-      font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
- .wrap{max-width:1040px;margin:0 auto;padding:28px 20px 64px}
- h1{font-size:25px;margin:0 0 4px}
- h2{font-size:17px;margin:30px 0 10px;padding-bottom:5px;border-bottom:1px solid var(--line)}
- .sub{color:var(--grey);margin:0 0 18px}
- .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
- .card{background:#fff;border:1px solid var(--line);border-radius:7px;padding:16px 18px;margin:14px 0}
- .note{background:#f3f6fa;border-left:3px solid var(--accent);padding:11px 14px;margin:14px 0;
-       font-size:13.5px;color:#30465e;border-radius:0 5px 5px 0}
- .warnbox{background:#fdf5ec;border-left:3px solid var(--warn);padding:11px 14px;margin:14px 0;
-          font-size:13.5px;color:#6b4414;border-radius:0 5px 5px 0}
- #drop{border:2px dashed var(--line);border-radius:8px;padding:34px 18px;text-align:center;
-       background:#fff;transition:.15s;cursor:pointer}
- #drop.on{border-color:var(--accent);background:#f3f8fd}
- #drop p{margin:5px 0}
- button{font:inherit;padding:7px 15px;border:1px solid var(--line);background:#fff;
-        border-radius:6px;cursor:pointer}
- button:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}
- button:disabled{opacity:.45;cursor:not-allowed}
- button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
- button.primary:hover:not(:disabled){background:#174a7c;color:#fff}
- table{border-collapse:collapse;width:100%;font-size:13px}
- th,td{border:1px solid var(--line);padding:5px 8px;text-align:left;vertical-align:top}
- th{background:#f4f6f8;font-weight:600;position:sticky;top:0}
- td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
- .scroll{max-height:420px;overflow:auto;border:1px solid var(--line);border-radius:6px}
- .pill{display:inline-block;background:#eef2f6;border-radius:11px;padding:2px 10px;
-       font-size:12.5px;margin:0 6px 6px 0}
- .pill b{font-variant-numeric:tabular-nums}
- #log{font-size:12.5px;color:var(--grey);white-space:pre-wrap;max-height:150px;overflow:auto}
- .err{color:#a3281e}
- a{color:var(--accent)}
- .row{display:flex;gap:9px;flex-wrap:wrap;align-items:center;margin-top:12px}
- .muted{color:var(--grey);font-size:13px}
- ul.pub{columns:2;font-size:13.5px;margin:6px 0 0;padding-left:19px}
- ul.pub li{margin:3px 0;break-inside:avoid}
+:root{
+  --ink:#10151c; --ink-2:#3d4a5c; --ink-3:#6b7889;
+  --line:#e2e7ee; --line-2:#eef2f7;
+  --bg:#f7f9fc; --card:#ffffff;
+  --brand:#1d4ed8; --brand-dark:#1740a8; --brand-soft:#eef3ff;
+  --ok:#0f7b52; --ok-soft:#e9f7f0;
+  --warn:#9a5b00; --warn-soft:#fff6e8;
+  --err:#b42318; --err-soft:#fdeceb;
+  --radius:12px;
+  --shadow:0 1px 2px rgba(16,21,28,.05), 0 8px 24px rgba(16,21,28,.05);
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font:16px/1.65 ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1080px;margin:0 auto;padding:0 24px 96px}
+.mono{font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;font-size:.92em}
+
+/* ---------- hero ---------- */
+header.hero{padding:64px 0 36px;border-bottom:1px solid var(--line)}
+.eyebrow{font-size:13px;font-weight:650;letter-spacing:.09em;text-transform:uppercase;color:var(--brand);margin:0 0 14px}
+h1{font-size:clamp(30px,4.6vw,46px);line-height:1.12;letter-spacing:-.022em;margin:0 0 16px;font-weight:700}
+.lede{font-size:clamp(17px,2vw,20px);line-height:1.55;color:var(--ink-2);margin:0;max-width:62ch}
+.lede b{color:var(--ink);font-weight:650}
+
+/* ---------- sections ---------- */
+section{padding-top:44px}
+h2{font-size:13px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);
+   margin:0 0 18px;display:flex;align-items:center;gap:12px}
+h2::after{content:"";flex:1;height:1px;background:var(--line)}
+h3{font-size:19px;letter-spacing:-.011em;margin:30px 0 10px;font-weight:650}
+p{margin:0 0 14px;max-width:72ch}
+.small{font-size:14.5px;color:var(--ink-3)}
+
+/* ---------- callouts ---------- */
+.callout{display:flex;gap:14px;padding:16px 18px;border-radius:var(--radius);margin:0 0 22px;font-size:15px;line-height:1.6}
+.callout .ic{flex:0 0 auto;width:22px;height:22px;margin-top:1px}
+.callout p{margin:0;max-width:none}
+.callout.priv{background:var(--ok-soft);color:#09563a}
+.callout.priv b{color:#06452e}
+.callout.note{background:var(--warn-soft);color:#7a4700}
+
+/* ---------- drop zone ---------- */
+.dropzone{
+  position:relative;background:var(--card);border:2px dashed var(--line);border-radius:16px;
+  padding:48px 28px;text-align:center;cursor:pointer;transition:border-color .15s,background .15s,transform .1s;
+  box-shadow:var(--shadow);
+}
+.dropzone:hover{border-color:#c3cfe0}
+.dropzone.armed{border-color:var(--brand);background:var(--brand-soft)}
+.dropzone[aria-disabled="true"]{cursor:progress;opacity:.72}
+.dropzone .big{font-size:20px;font-weight:650;margin:0 0 6px;letter-spacing:-.01em}
+.dropzone .sub{font-size:14.5px;color:var(--ink-3);margin:0}
+.dz-icon{width:40px;height:40px;margin:0 auto 16px;color:var(--brand);opacity:.9}
+.or{display:flex;align-items:center;gap:14px;color:var(--ink-3);font-size:13.5px;margin:20px 0;
+    text-transform:uppercase;letter-spacing:.08em}
+.or::before,.or::after{content:"";flex:1;height:1px;background:var(--line)}
+
+/* ---------- buttons ---------- */
+.btn{font:inherit;font-size:15px;font-weight:550;padding:10px 18px;border-radius:9px;cursor:pointer;
+     border:1px solid var(--line);background:var(--card);color:var(--ink);transition:.14s;
+     display:inline-flex;align-items:center;gap:8px}
+.btn:hover:not(:disabled){border-color:#bdcbe0;background:#fbfcfe}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.primary{background:var(--brand);border-color:var(--brand);color:#fff}
+.btn.primary:hover:not(:disabled){background:var(--brand-dark);border-color:var(--brand-dark)}
+.btn svg{width:17px;height:17px}
+.btnrow{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+
+/* ---------- boot progress ---------- */
+.boot{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+      padding:20px 22px;box-shadow:var(--shadow)}
+.boot .title{display:flex;align-items:center;gap:11px;font-weight:600;font-size:16px;margin-bottom:4px}
+.boot .hint{font-size:14px;color:var(--ink-3);margin:0}
+.steps{list-style:none;margin:16px 0 0;padding:0;display:grid;gap:9px}
+.steps li{display:flex;align-items:center;gap:11px;font-size:14.5px;color:var(--ink-3)}
+.steps li .dot{flex:0 0 auto;width:18px;height:18px;border-radius:50%;border:2px solid var(--line-2);
+               display:grid;place-items:center}
+.steps li.active{color:var(--ink)}
+.steps li.active .dot{border-color:var(--brand);border-right-color:transparent;animation:spin .8s linear infinite}
+.steps li.done{color:var(--ink-2)}
+.steps li.done .dot{border-color:var(--ok);background:var(--ok)}
+.steps li.done .dot::after{content:"";width:5px;height:9px;border:solid #fff;border-width:0 2px 2px 0;
+                           transform:rotate(45deg) translate(-1px,-1px)}
+@keyframes spin{to{transform:rotate(360deg)}}
+.badge{display:inline-flex;align-items:center;gap:7px;font-size:13.5px;font-weight:600;
+       padding:5px 11px;border-radius:999px}
+.badge.ok{background:var(--ok-soft);color:var(--ok)}
+.badge.err{background:var(--err-soft);color:var(--err)}
+.badge.run{background:var(--brand-soft);color:var(--brand)}
+
+/* ---------- stats ---------- */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:14px;margin:0 0 22px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px 20px;
+      box-shadow:var(--shadow)}
+.stat .k{font-size:12.5px;font-weight:600;letter-spacing:.055em;text-transform:uppercase;color:var(--ink-3);margin:0 0 7px}
+.stat .v{font-size:28px;font-weight:700;letter-spacing:-.024em;font-variant-numeric:tabular-nums;line-height:1.1}
+.stat .v.sm{font-size:19px;letter-spacing:-.01em}
+
+/* ---------- tables ---------- */
+.tablecard{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+           overflow:hidden;box-shadow:var(--shadow)}
+.tablescroll{max-height:460px;overflow:auto}
+table{border-collapse:separate;border-spacing:0;width:100%;font-size:14px}
+thead th{position:sticky;top:0;z-index:2;background:#f8fafc;color:var(--ink-2);text-align:left;
+         font-weight:650;font-size:12.5px;letter-spacing:.04em;text-transform:uppercase;
+         padding:11px 14px;border-bottom:1px solid var(--line);white-space:nowrap}
+tbody td{padding:9px 14px;border-bottom:1px solid var(--line-2);vertical-align:top}
+tbody tr:nth-child(even) td{background:#fcfdfe}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover td{background:var(--brand-soft)}
+th.num,td.num{text-align:right;font-variant-numeric:tabular-nums}
+td.nil{color:#aab4c2}
+caption{caption-side:bottom;text-align:left;padding:12px 14px;font-size:13.5px;color:var(--ink-3);
+        border-top:1px solid var(--line-2);background:#fcfdfe}
+
+/* ---------- misc ---------- */
+details.diag{margin-top:16px;border-top:1px solid var(--line-2);padding-top:14px}
+details.diag summary{cursor:pointer;font-size:14px;color:var(--ink-3);font-weight:550}
+details.diag summary:hover{color:var(--brand)}
+#log{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;color:var(--ink-3);
+     white-space:pre-wrap;max-height:190px;overflow:auto;margin-top:11px;
+     background:#f8fafc;border:1px solid var(--line-2);border-radius:8px;padding:11px 13px}
+#log .err{color:var(--err)}
+a{color:var(--brand);text-decoration-thickness:1px;text-underline-offset:2px}
+a:hover{color:var(--brand-dark)}
+ul.pub{list-style:none;margin:10px 0 0;padding:0;display:grid;
+       grid-template-columns:repeat(auto-fit,minmax(246px,1fr));gap:2px 20px}
+ul.pub li{display:flex;align-items:baseline;gap:9px;font-size:14.5px;padding:3px 0}
+ul.pub .cc{flex:0 0 auto;font-size:11px;font-weight:700;letter-spacing:.06em;color:var(--ink-3);
+           background:var(--line-2);border-radius:4px;padding:2px 6px}
+footer{margin-top:52px;padding-top:22px;border-top:1px solid var(--line);
+       display:flex;gap:18px;flex-wrap:wrap;align-items:center;font-size:14px;color:var(--ink-3)}
+.vis-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+@media (max-width:640px){
+  header.hero{padding:40px 0 28px}
+  .dropzone{padding:34px 18px}
+  .stat .v{font-size:24px}
+}
 </style>
 </head>
 <body>
 <div class="wrap">
 
-<h1>gridqueue in the browser</h1>
-<p class="sub">Turn a statutory grid-connection disclosure into a harmonised, row-level table,
-without installing anything.</p>
+<header class="hero">
+  <p class="eyebrow">Open research software</p>
+  <h1>Statutory grid connection registers,<br>as a table you can actually use</h1>
+  <p class="lede">Network operators across the European Union must publish the connection capacity
+  available at each node, at least quarterly. Most of them publish it as documents built for
+  printing. <b>Drop one below and get harmonised rows back,</b> with no installation and no upload.</p>
+</header>
 
-<div class="note">
-<b>Nothing leaves your computer.</b> The page loads the real
-<span class="mono">gridqueue</span> Python package into a WebAssembly interpreter and runs it
-locally. Your document is never uploaded: there is no server to upload it to. This is the same
-package, at the same version, that produces the results reported in the accompanying article, so
-the output here is identical to the command-line output by construction.
-</div>
-
-<h2>1. Give it a document</h2>
-
-<div id="drop">
-  <p><b>Drop a disclosure file here</b>, or click to choose one.</p>
-  <p class="muted">PDF, XLSX or CSV, as published by one of the nine supported publishers.</p>
-  <input type="file" id="file" accept=".pdf,.xlsx,.xls,.csv" hidden>
-</div>
-
-<div class="row">
-  <button id="demo">Run a synthetic example instead</button>
-  <span class="muted">No real disclosure needed; shows the schema and the quality rules.</span>
-</div>
-
-<div class="warnbox">
-<b>Why no sample document is bundled here.</b> The disclosures are produced by commercial
-undertakings discharging a statutory duty, their status for redistribution is unsettled, and
-publishers replace them at least quarterly, so a bundled copy would misrepresent the register
-within months. Fetch a current edition from the publisher instead; the nine supported publishers are:
-<ul class="pub">
- <li>PL &middot; <a href="https://www.pse.pl" rel="noopener">PSE</a></li>
- <li>PL &middot; <a href="https://www.tauron-dystrybucja.pl" rel="noopener">TAURON Dystrybucja</a></li>
- <li>PL &middot; <a href="https://energa-operator.pl" rel="noopener">ENERGA-OPERATOR</a></li>
- <li>PL &middot; <a href="https://www.stoen.pl" rel="noopener">Stoen Operator</a></li>
- <li>PL &middot; <a href="https://www.elana-energetyka.pl/" rel="noopener">Boryszew Green Energy&amp;Gas</a></li>
- <li>ES &middot; <a href="https://www.edistribucion.com" rel="noopener">e-Distribuci&oacute;n</a></li>
- <li>IE &middot; <a href="https://www.esbnetworks.ie" rel="noopener">ESB Networks</a></li>
- <li>PT &middot; <a href="https://e-redes.opendatasoft.com" rel="noopener">E-REDES</a></li>
- <li>GB &middot; <a href="https://connecteddata.nationalgrid.co.uk" rel="noopener">National Grid</a></li>
-</ul>
-</div>
-
-<h2>2. What it found</h2>
-<div class="card" id="status"><span class="muted">Loading the interpreter and the package&hellip;</span>
-<div id="log"></div></div>
-
-<div id="out" hidden>
-  <div class="card">
-    <div id="pills"></div>
-    <div class="row">
-      <button id="dlcsv" class="primary" disabled>Download harmonised CSV</button>
-      <button id="dljson" disabled>Download validation report (JSON)</button>
-    </div>
+<section>
+  <div class="callout priv">
+    <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+      <path d="M12 3l7 3v6c0 4.2-2.9 7.8-7 9-4.1-1.2-7-4.8-7-9V6l7-3z" stroke-linejoin="round"/>
+      <path d="M9.2 12.2l2 2 3.6-3.9" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <p><b>Your document never leaves this computer.</b> The page loads the real
+    <span class="mono">gridqueue</span> package into a Python interpreter compiled to WebAssembly and
+    runs it locally. There is no server to upload anything to. It is the same package, at the same
+    version, that produced the results in the accompanying article, so what you see here matches the
+    command line output by construction.</p>
   </div>
 
+  <div class="boot" id="boot">
+    <div class="title"><span id="bootBadge" class="badge run">Starting</span>
+      <span id="bootTitle">Preparing the interpreter</span></div>
+    <p class="hint" id="bootHint">First run downloads the interpreter and the libraries, about 30 MB.
+      Later visits start from the browser cache.</p>
+    <ul class="steps" id="steps">
+      <li data-step="0"><span class="dot"></span>WebAssembly interpreter</li>
+      <li data-step="1"><span class="dot"></span>Data and imaging libraries</li>
+      <li data-step="2"><span class="dot"></span>PDF and spreadsheet readers</li>
+      <li data-step="3"><span class="dot"></span>gridqueue package</li>
+    </ul>
+    <details class="diag"><summary>Diagnostics</summary><div id="log"></div></details>
+  </div>
+</section>
+
+<section>
+  <h2>Give it a document</h2>
+  <div class="dropzone" id="drop" role="button" tabindex="0" aria-disabled="true"
+       aria-label="Drop a disclosure file, or click to choose one">
+    <svg class="dz-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+      <path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M4 15v3.5A1.5 1.5 0 005.5 20h13a1.5 1.5 0 001.5-1.5V15" stroke-linecap="round"/>
+    </svg>
+    <p class="big" id="dropBig">Drop a disclosure file here</p>
+    <p class="sub" id="dropSub">PDF, XLSX or CSV, as published by one of the nine supported publishers</p>
+    <input type="file" id="file" accept=".pdf,.xlsx,.xls,.csv" class="vis-hidden">
+  </div>
+
+  <div class="or">or</div>
+
+  <div class="btnrow">
+    <button id="demo" class="btn" disabled>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+        <path d="M8 5.5v13l10-6.5-10-6.5z" stroke-linejoin="round"/></svg>
+      Run a synthetic example
+    </button>
+    <span class="small">No real disclosure needed. Shows the schema and the eight quality rules.</span>
+  </div>
+
+  <div class="callout note" style="margin-top:26px">
+    <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+      <circle cx="12" cy="12" r="9"/><path d="M12 7.6v5.2" stroke-linecap="round"/>
+      <circle cx="12" cy="16.4" r="1" fill="currentColor" stroke="none"/>
+    </svg>
+    <p><b>No sample document ships with this page.</b> The disclosures are produced by commercial
+    undertakings discharging a statutory duty, their status for redistribution is unsettled, and
+    publishers replace them at least quarterly, so a bundled copy would misrepresent the register
+    within months. Fetch a current edition from the publisher instead.</p>
+  </div>
+
+  <ul class="pub">
+    <li><span class="cc">PL</span><a href="https://www.pse.pl" rel="noopener">PSE</a></li>
+    <li><span class="cc">PL</span><a href="https://www.tauron-dystrybucja.pl" rel="noopener">TAURON Dystrybucja</a></li>
+    <li><span class="cc">PL</span><a href="https://energa-operator.pl" rel="noopener">ENERGA-OPERATOR</a></li>
+    <li><span class="cc">PL</span><a href="https://www.stoen.pl" rel="noopener">Stoen Operator</a></li>
+    <li><span class="cc">PL</span><a href="https://www.elana-energetyka.pl/" rel="noopener">Boryszew Green Energy&amp;Gas</a></li>
+    <li><span class="cc">ES</span><a href="https://www.edistribucion.com" rel="noopener">e-Distribuci&oacute;n</a></li>
+    <li><span class="cc">IE</span><a href="https://www.esbnetworks.ie" rel="noopener">ESB Networks</a></li>
+    <li><span class="cc">PT</span><a href="https://e-redes.opendatasoft.com" rel="noopener">E-REDES</a></li>
+    <li><span class="cc">GB</span><a href="https://connecteddata.nationalgrid.co.uk" rel="noopener">National Grid</a></li>
+  </ul>
+  <p class="small" style="margin-top:12px">Detection uses the file name first and, for PDFs, the text
+  of the first page. Keep the name the publisher gave the file.</p>
+</section>
+
+<div id="out" hidden>
+<section>
+  <h2>Result</h2>
+  <div class="stats" id="stats"></div>
+  <div class="btnrow">
+    <button id="dlcsv" class="btn primary" disabled>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+        <path d="M12 4v11m0 0l-4-4m4 4l4-4" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M5 19h14" stroke-linecap="round"/></svg>
+      Harmonised table, CSV
+    </button>
+    <button id="dljson" class="btn" disabled>Validation report, JSON</button>
+  </div>
+</section>
+
+<section>
   <h2>Harmonised rows</h2>
-  <p class="muted" id="tabnote"></p>
-  <div class="scroll"><table id="tab"></table></div>
+  <div class="tablecard">
+    <div class="tablescroll"><table id="tab"></table></div>
+    <div id="tabnote" class="small" style="padding:12px 14px;border-top:1px solid var(--line-2);background:#fcfdfe"></div>
+  </div>
+</section>
 
+<section>
   <h2>Quality rules</h2>
-  <p class="muted">Each rule returns a count of violations, never an exception: a violation is a
-  property of the disclosure, not an error in the software. A rule that measures a schema property
-  rather than a disclosure property is marked as such in the documentation.</p>
-  <div class="scroll"><table id="qtab"></table></div>
+  <p class="small">Every rule returns a count, never an exception. A violation is a property of the
+  disclosure, not a fault in the software, which is why the count is reported rather than raised.</p>
+  <div class="tablecard"><div class="tablescroll"><table id="qtab"></table></div></div>
+</section>
 
+<section>
   <h2>Parse report</h2>
-  <p class="muted">Returned verbatim by the adapter, including anything it could not resolve.</p>
-  <div class="scroll"><table id="rtab"></table></div>
+  <p class="small">Returned verbatim by the adapter, including whatever it could not resolve.</p>
+  <div class="tablecard"><div class="tablescroll"><table id="rtab"></table></div></div>
+</section>
 </div>
 
-<h2>What this page does not do</h2>
-<p class="muted">
-It runs one document at a time. It does not geocode (the gazetteer is too large to ship to a
-browser), does not compare editions over time, and does not export Parquet. For those, install the
-package: <span class="mono">pip install gridqueue</span>, or open the
-<a href="../colab.html">Colab notebook</a>, which reproduces the article's longitudinal analysis and
-asserts agreement with the published numbers.
-</p>
+<section>
+  <h2>What this page will not do</h2>
+  <p>It handles one document at a time. It does not geocode, because the gazetteer is too large to
+  send to a browser, does not compare editions over time, and does not export Parquet. For those,
+  install the package with <span class="mono">pip install gridqueue</span>, or open the
+  <a href="../colab.html">Colab notebook</a>, which reproduces the longitudinal analysis from the
+  article and stops if the figures disagree with the published ones.</p>
+</section>
 
-<p class="muted" style="margin-top:26px">
-<a href="https://github.com/s-matysik/gridqueue">Repository</a> &middot;
-<a href="../">Documentation</a> &middot;
-<span id="vers" class="mono"></span>
-</p>
+<footer>
+  <a href="https://github.com/s-matysik/gridqueue">Repository</a>
+  <a href="../">Documentation</a>
+  <span id="vers" class="mono"></span>
+</footer>
 
 </div>
 
 <script src="https://cdn.jsdelivr.net/pyodide/v0.28.3/full/pyodide.js"></script>
 <script>
 const $ = (id) => document.getElementById(id);
-const logEl = $("log");
 let py = null, ready = false;
 
-function log(msg, cls) {
+function log(msg, cls){
   const d = document.createElement("div");
   if (cls) d.className = cls;
   d.textContent = msg;
-  logEl.appendChild(d);
-  logEl.scrollTop = logEl.scrollHeight;
+  $("log").appendChild(d);
+  $("log").scrollTop = $("log").scrollHeight;
 }
-function setStatus(html) {
-  $("status").firstChild.innerHTML = html;
+function step(i, state){
+  const li = document.querySelector(`.steps li[data-step="${i}"]`);
+  if (li) li.className = state;
+}
+function bootState(badgeText, badgeCls, title, hint){
+  $("bootBadge").textContent = badgeText;
+  $("bootBadge").className = "badge " + badgeCls;
+  $("bootTitle").textContent = title;
+  if (hint !== undefined) $("bootHint").innerHTML = hint;
+}
+function arm(on){
+  ready = on;
+  $("drop").setAttribute("aria-disabled", on ? "false" : "true");
+  $("demo").disabled = !on;
+  $("dropBig").textContent = on ? "Drop a disclosure file here" : "Preparing, one moment";
 }
 
-async function boot() {
-  try {
+async function boot(){
+  try{
+    step(0, "active");
     log("starting WebAssembly interpreter");
     py = await loadPyodide({ indexURL: "https://cdn.jsdelivr.net/pyodide/v0.28.3/full/" });
+    step(0, "done"); step(1, "active");
     log("loading pandas and imaging libraries");
     await py.loadPackage(["pandas", "Pillow", "cryptography", "charset-normalizer", "micropip"]);
+    step(1, "done"); step(2, "active");
     log("installing the PDF and spreadsheet readers");
     // pdfplumber is installed without its own dependency resolution on purpose: it pins a Pillow
     // newer than the one shipped here and requires pypdfium2, a binary package with no build for
@@ -171,6 +342,7 @@ await micropip.install("pdfminer.six")
 await micropip.install("openpyxl")
 await micropip.install("pdfplumber", deps=False)
 `);
+    step(2, "done"); step(3, "active");
     log("installing gridqueue");
     // Absolute URL built from the page location: micropip resolves a bare relative path
     // against the interpreter's working directory, not against this document.
@@ -180,45 +352,50 @@ import micropip
 await micropip.install(_wheel, deps=False)
 import gridqueue
 `);
+    step(3, "done");
     const v = await py.runPythonAsync(
       `import gridqueue; f"{gridqueue.__version__}|{gridqueue.SCHEMA_VERSION}|{len(gridqueue.REGISTRY)}"`);
     const [pkg, schema, nad] = v.split("|");
-    $("vers").textContent = `gridqueue ${pkg} \u00b7 schema ${schema} \u00b7 ${nad} adapters`;
-    ready = true;
-    setStatus(`Ready. <b>gridqueue ${pkg}</b>, schema version ${schema}, ${nad} adapters loaded.`);
+    $("vers").textContent = `gridqueue ${pkg}, schema ${schema}, ${nad} adapters`;
+    bootState("Ready", "ok", `gridqueue ${pkg} is loaded and running locally`,
+      `Schema version ${schema}, ${nad} adapters. Nothing is sent anywhere.`);
+    arm(true);
     log("ready");
-  } catch (e) {
-    setStatus('<span class="err">The interpreter could not start.</span>');
+  }catch(e){
+    bootState("Failed", "err", "The interpreter could not start",
+      "Open Diagnostics below for the reason. A corporate proxy that rewrites certificates is the usual cause.");
     log(String(e), "err");
   }
 }
 
-function pills(obj) {
-  $("pills").innerHTML = Object.entries(obj)
-    .map(([k, v]) => `<span class="pill">${k} <b>${v}</b></span>`).join("");
+function stats(items){
+  $("stats").innerHTML = items.map(([k, v, small]) =>
+    `<div class="stat"><p class="k">${k}</p><div class="v${small ? " sm" : ""}">${v}</div></div>`).join("");
 }
-function table(el, cols, rows, numCols) {
+function table(el, cols, rows, numCols, caption){
   const th = cols.map(c => `<th class="${numCols && numCols.has(c) ? "num" : ""}">${c}</th>`).join("");
   const tr = rows.map(r => "<tr>" + cols.map(c => {
     const v = r[c];
-    const isNum = numCols && numCols.has(c);
-    const s = (v === null || v === undefined || v === "") ? '<span class="muted">, </span>' : String(v);
-    return `<td class="${isNum ? "num" : ""}">${s}</td>`;
+    const blank = (v === null || v === undefined || v === "");
+    const cls = (numCols && numCols.has(c) ? "num " : "") + (blank ? "nil" : "");
+    return `<td class="${cls.trim()}">${blank ? "not disclosed" : String(v)}</td>`;
   }).join("") + "</tr>").join("");
-  el.innerHTML = `<thead><tr>${th}</tr></thead><tbody>${tr}</tbody>`;
+  el.innerHTML = `<thead><tr>${th}</tr></thead><tbody>${tr}</tbody>`
+    + (caption ? `<caption>${caption}</caption>` : "");
 }
-function download(name, text, mime) {
+function download(name, text, mime){
   const b = new Blob([text], { type: mime });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(b); a.download = name; a.click();
   URL.revokeObjectURL(a.href);
 }
+const fmt = (n) => Number(n).toLocaleString("en-US");
 
-async function runOn(filename, bytes) {
-  if (!ready) { log("still loading; try again in a moment"); return; }
+async function runOn(filename, bytes){
+  if (!ready) { log("still loading, try again in a moment"); return; }
   $("out").hidden = true;
-  setStatus(`Parsing <b>${filename}</b>&hellip;`);
-  try {
+  bootState("Working", "run", `Parsing ${filename}`, "Large documents take a while in a browser.");
+  try{
     if (bytes) py.FS.writeFile("/" + filename, bytes);
     py.globals.set("_fname", filename);
     py.globals.set("_synthetic", bytes ? false : true);
@@ -278,54 +455,61 @@ json.dumps({
 `);
     const d = JSON.parse(res);
 
-    pills({ "publisher": d.publisher, "rows": d.rows.toLocaleString("en"),
-            "columns": d.cols, "schema fields populated": `${d.schema_filled}/${d.schema_total}`,
-            "quality violations": d.violations.toLocaleString("en") });
+    stats([
+      ["Publisher", d.publisher, true],
+      ["Rows", fmt(d.rows)],
+      ["Schema fields populated", `${d.schema_filled} <span style="color:var(--ink-3);font-size:.62em">of ${d.schema_total}</span>`],
+      ["Columns", fmt(d.cols)],
+      ["Quality violations", fmt(d.violations)],
+    ]);
 
     const numeric = new Set(["moc_pobierana","moc_wprowadzana","moc_dostepna","moc_zarezerwowana",
                              "pozycja_w_kolejce"]);
     table($("tab"), d.preview_cols, d.preview, numeric);
     $("tabnote").textContent =
-      `Showing the first ${Math.min(200, d.rows).toLocaleString("en")} of ${d.rows.toLocaleString("en")} rows `
-      + `and the ${d.preview_cols.length} schema fields this publisher populates. `
-      + `The full table is in the CSV download.`;
+      `First ${fmt(Math.min(200, d.rows))} of ${fmt(d.rows)} rows, and the ${d.preview_cols.length} `
+      + `schema fields this publisher populates. The full table is in the CSV download.`;
 
     const qcols = Object.keys(d.quality[0] || {}).filter(k => typeof d.quality[0][k] !== "object");
     table($("qtab"), qcols, d.quality, new Set(["naruszenia","udzial"]));
 
-    const rrows = Object.entries(d.report).map(([k, v]) => ({ field: k, value: v }));
-    table($("rtab"), ["field", "value"], rrows);
+    table($("rtab"), ["field", "value"],
+          Object.entries(d.report).map(([k, v]) => ({ field: k, value: v })));
 
-    $("dlcsv").disabled = false;
-    $("dljson").disabled = false;
-    $("dlcsv").onclick = () => download(
-      filename.replace(/\.[^.]+$/, "") + "_gridqueue.csv", d.csv, "text/csv");
-    $("dljson").onclick = () => download(
-      filename.replace(/\.[^.]+$/, "") + "_validation.json", d.validation, "application/json");
+    $("dlcsv").disabled = false; $("dljson").disabled = false;
+    const stem = filename.replace(/\.[^.]+$/, "");
+    $("dlcsv").onclick = () => download(stem + "_gridqueue.csv", d.csv, "text/csv");
+    $("dljson").onclick = () => download(stem + "_validation.json", d.validation, "application/json");
 
     $("out").hidden = false;
-    setStatus(`Parsed <b>${filename}</b> with adapter <span class="mono">${d.publisher}</span>.`);
-  } catch (e) {
-    setStatus('<span class="err">That file could not be parsed.</span>');
+    bootState("Done", "ok", `Parsed ${filename}`,
+      `Adapter <span class="mono">${d.publisher}</span>, ${fmt(d.rows)} rows. Drop another file to run again.`);
+    $("out").scrollIntoView({ behavior: "smooth", block: "start" });
+  }catch(e){
+    bootState("Failed", "err", `Could not parse ${filename}`,
+      "Open Diagnostics below. A file renamed away from the publisher's own name is the usual cause.");
     log(String(e), "err");
   }
 }
 
 const drop = $("drop"), fileIn = $("file");
-drop.onclick = () => fileIn.click();
-drop.ondragover = (e) => { e.preventDefault(); drop.classList.add("on"); };
-drop.ondragleave = () => drop.classList.remove("on");
-drop.ondrop = async (e) => {
-  e.preventDefault(); drop.classList.remove("on");
+const pick = () => { if (ready) fileIn.click(); };
+drop.addEventListener("click", pick);
+drop.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(); }});
+drop.addEventListener("dragover", (e) => { e.preventDefault(); if (ready) drop.classList.add("armed"); });
+drop.addEventListener("dragleave", () => drop.classList.remove("armed"));
+drop.addEventListener("drop", async (e) => {
+  e.preventDefault(); drop.classList.remove("armed");
   const f = e.dataTransfer.files[0];
   if (f) runOn(f.name, new Uint8Array(await f.arrayBuffer()));
-};
-fileIn.onchange = async () => {
+});
+fileIn.addEventListener("change", async () => {
   const f = fileIn.files[0];
   if (f) runOn(f.name, new Uint8Array(await f.arrayBuffer()));
-};
-$("demo").onclick = () => runOn("synthetic_example", null);
+});
+$("demo").addEventListener("click", () => runOn("synthetic_example", null));
 
+arm(false);
 boot();
 </script>
 </body>
