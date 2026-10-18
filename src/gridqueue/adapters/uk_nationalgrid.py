@@ -1,14 +1,14 @@
-"""Adapter: National Grid Electricity Distribution (UK) -- zbiór "Connection Queue".
+"""Adapter: National Grid Electricity Distribution (UK), the "Connection Queue" dataset.
 
-Ten adapter istnieje po to, żeby udowodnić przenoszalność schematu, a nie żeby
-sparsować kolejny PDF.  Brytyjski publikujący wystawia te same informacje jako
-45 osobnych plików CSV w katalogu CKAN -- dane są już tabelaryczne, więc CAŁA
-warstwa wydobycia po układzie strony jest tu zbędna.  To jest dokładnie ta
-asymetria, którą narzędzie ma pokazać: w jurysdykcji o dobrych danych parser
-jest niepotrzebny, w Polsce jest warunkiem dostępu do treści obowiązku.
+This adapter exists to prove the portability of the schema, not to
+parse another PDF.  The British publisher issues the same information as
+45 separate CSV files in the CKAN catalog; the data is already tabular, so the ENTIRE
+extraction layer after the page layout is unnecessary here.  This is exactly the
+asymmetry that the tool is meant to show: in a jurisdiction with good data the parser
+is unnecessary, in Poland it is a precondition for access to the content of the duty.
 
-Dostęp: publiczny endpoint ``package_search`` CKAN, bez klucza.  Klient
-przedstawia się uczciwie w nagłówku User-Agent; nie podszywamy się pod przeglądarkę.
+Access: public ``package_search`` CKAN endpoint, no key required.  The client
+identifies itself honestly in the User-Agent header; we do not impersonate a browser.
 """
 
 from __future__ import annotations
@@ -36,15 +36,15 @@ class NationalGridAdapter(Adapter):
         "status_procesu",
     )
     declared_extensions = {
-        "_licence_area": "obszar licencyjny operatora",
+        "_licence_area": "operator's licence area",
         "_gsp": "Grid Supply Point",
-        "_machine_id": "identyfikator jednostki w ramach lokalizacji",
-        "_machine_export_kw": "moc eksportowa pojedynczej jednostki",
-        "_machine_import_kw": "moc importowa pojedynczej jednostki",
-        "_tanm": "Transmission Area Network Management (flaga ograniczenia)",
-        "_danm": "Distribution Area Network Management (flaga ograniczenia)",
-        "_plik_zrodlowy": "nazwa zasobu CSV w katalogu CKAN",
-        "_status_raw": "status tak, jak w źródle",
+        "_machine_id": "unit identifier within the location",
+        "_machine_export_kw": "export capacity of a single unit",
+        "_machine_import_kw": "import capacity of a single unit",
+        "_tanm": "Transmission Area Network Management (constraint flag)",
+        "_danm": "Distribution Area Network Management (constraint flag)",
+        "_plik_zrodlowy": "name of the CSV resource in the CKAN catalog",
+        "_status_raw": "status exactly as in the source",
     }
     detect_patterns = (r"connection.?queue", r"national.?grid")
 
@@ -54,7 +54,7 @@ class NationalGridAdapter(Adapter):
 
     # ------------------------------------------------------------------
     def fetch(self) -> tuple["Any", dict]:
-        """Pobierz wszystkie zasoby CSV zbioru z katalogu CKAN."""
+        """Download all CSV resources of the dataset from the CKAN catalog."""
         import pandas as pd
         import requests
 
@@ -65,7 +65,7 @@ class NationalGridAdapter(Adapter):
         r.raise_for_status()
         pkgs = [p for p in r.json()["result"]["results"] if p["name"] == self.dataset]
         if not pkgs:
-            raise LookupError(f"nie znaleziono zbioru {self.dataset!r} w katalogu CKAN")
+            raise LookupError(f"dataset {self.dataset!r} not found in the CKAN catalog")
         pkg = pkgs[0]
         resources = [res for res in pkg["resources"]
                      if (res.get("format") or "").upper() == "CSV"]
@@ -78,7 +78,7 @@ class NationalGridAdapter(Adapter):
                 d["_plik_zrodlowy"] = res.get("name") or res["url"].rsplit("/", 1)[-1]
                 frames.append(d)
                 ok.append(res.get("name"))
-            except Exception as exc:  # zapisujemy, nie ukrywamy
+            except Exception as exc:  # we record it, not hide it
                 failed.append({"zasob": res.get("name"), "blad": f"{type(exc).__name__}: {exc}"})
         raw = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
         meta = {
@@ -93,7 +93,7 @@ class NationalGridAdapter(Adapter):
 
     # ------------------------------------------------------------------
     def parse(self, source=None) -> ParseResult:
-        """``source``: None -> pobierz z CKAN; ścieżka/DataFrame -> użyj lokalnie."""
+        """``source``: None -> download from CKAN; path/DataFrame -> use locally."""
         import pandas as pd
 
         if source is None:
@@ -146,7 +146,7 @@ class NationalGridAdapter(Adapter):
 
         report = {
             "publikujacy": self.publisher,
-            "strategia_wydobycia": "CSV z katalogu CKAN (dane już tabelaryczne)",
+            "strategia_wydobycia": "CSV from the CKAN catalog (data already tabular)",
             "n_wierszy": int(len(out)),
             "katalog": meta,
         }

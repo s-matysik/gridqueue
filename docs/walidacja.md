@@ -1,59 +1,60 @@
 ---
-title: Walidacja
+title: Validation
 ---
 
-# Zmierzona walidacja
+# Measured validation
 
-Dokładność wydobycia jest **zmierzona, nie zadeklarowana**. Zbiór odniesienia powstał przez
-wizualne odczytanie renderowanych wycinków stron (230-600 dpi, z naniesionymi granicami kolumn),
-**niezależnie od wyjścia parsera**.
+The extraction accuracy is **measured, not declared**. The reference set was produced by visually
+reading rendered crops of the pages (230-600 dpi, with the column boundaries drawn in),
+**independently of the parser output**.
 
-## Dokładność per publikujący
+## Accuracy per publisher
 
-| publikujący | wierszy wzorca | porównań | wierszy w pełni poprawnych |
+| publisher | reference rows | comparisons | fully correct rows |
 |---|---:|---:|---|
-| TAURON Dystrybucja | 100 | 1 200 | **98 z 100**, 100 z 100 po wyłączeniu pary homoglifów |
-| Stoen Operator | 100 | 1 200 | **99 z 100**, 100 z 100 po adjudykacji |
-| PSE | 60 | 780 | **60 z 60** |
-| ENERGA-OPERATOR | 60 | 780 | **60 z 60** |
-| Boryszew Green Energy&Gas | 8 | 64 | **8 z 8** |
+| TAURON Dystrybucja | 100 | 1 200 | **98 of 100**, 100 of 100 once the homoglyph pair is excluded |
+| Stoen Operator | 100 | 1 200 | **99 of 100**, 100 of 100 after adjudication |
+| PSE | 60 | 780 | **60 of 60** |
+| ENERGA-OPERATOR | 60 | 780 | **60 of 60** |
+| Boryszew Green Energy&Gas | 8 | 64 | **8 of 8** |
 
-Dwie niezgodności u TAURONA to ta sama para homoglifów: wielkie `I` wobec małego `l` w kroju
-bezszeryfowym. Rozstrzygnięcie wzrokowe jest tu niemożliwe **z zasady**, a nie tylko utrudnione -
-oba znaki są renderowane glifami nierozróżnialnymi przy każdym powiększeniu. Jedynym dostępnym
-dowodem jest warstwa tekstowa pliku. **Podajemy obie wartości i żadna nie zastępuje drugiej.**
+The two discrepancies at TAURON are the same homoglyph pair: capital `I` against lower-case `l` in a
+sans-serif typeface. A visual settlement is impossible here **in principle**, not merely difficult,
+both characters are rendered with glyphs that cannot be told apart at any magnification. The only
+available evidence is the text layer of the file. **We report both values and neither replaces the
+other.**
 
-Jedyna niezgodność u Stoena rozstrzygnęła się przy 600 dpi **na korzyść parsera**, był to błąd
-anotatora. Jedna korekta wzorca ENERGI również wypadła na korzyść parsera.
+The single discrepancy at Stoen settled at 600 dpi **in the parser's favour**; it was an annotator
+error. One correction to the ENERGA reference set also fell in the parser's favour.
 
-## Zgodność międzyanotatorska
+## Inter-annotator agreement
 
-Podpróbkę 35 wierszy odczytał **drugi anotator pracujący w zaślepieniu**: bez dostępu do wzorca
-pierwszego anotatora, do tabeli dokładności, do raportu walidacji i do wyjścia parsera.
+A subsample of 35 rows was read by **a second annotator working blind**: with no access to the first
+annotator's reference set, to the accuracy table, to the validation report or to the parser output.
 
-| miara | wartość |
+| measure | value |
 |---|---:|
-| porównań pole-wiersz | 400 |
-| zgodność surowa | **0,9725** |
-| zgodność oczekiwana losowo | 0,1120 |
-| **kappa Cohena** | **0,9690** |
-| zgodność parsera z wzorcem uzgodnionym | **400 z 400** |
+| field-row comparisons | 400 |
+| raw agreement | **0,9725** |
+| agreement expected by chance | 0,1120 |
+| **Cohen's kappa** | **0,9690** |
+| agreement of the parser with the adjudicated reference set | **400 of 400** |
 
-Wszystkie 11 niezgodności to **konwencja zapisu, nie różnica odczytu**: siedem dotyczy komórki
-zawierającej tekst niebędący datą w polu daty, cztery, łącznika na końcu wiersza w nazwisku.
-**Niezgodności percepcyjnych nie było ani jednej.** Wzorce PSE i ENERGI pozostają
-jednoanotatorskie i dla nich zgodności nie mierzono.
+All 11 discrepancies are **a convention of notation, not a difference of reading**: seven concern a
+cell containing text that is not a date in a date field, four, a hyphen at the end of a line in a
+surname. **There was not a single perceptual discrepancy.** The PSE and ENERGA reference sets remain
+single-annotator and agreement was not measured for them.
 
-Zastrzeżenie: podpróbka nie zawiera wierszy z parą homoglifów, więc wynik 400 z 400 dotyczy innego
-zbioru wierszy i **nie unieważnia** pomiaru 98 z 100.
+A caveat: the subsample contains no rows with the homoglyph pair, so the 400 of 400 result concerns a
+different set of rows and **does not invalidate** the 98 of 100 measurement.
 
-## Geolokalizacja
+## Geolocation
 
-Pole współrzędnych nie jest ujawniane przez żadnego publikującego; powstaje przez wyprowadzenie
-z nazwy miejsca wobec gazetera z geometrią (13 149 nazw w 25 miejscowościach, 292 punkty adresowe,
+The coordinate field is not disclosed by any publisher; it arises by derivation from the place name
+against a gazetteer with geometry (13 149 names in 25 localities, 292 address points,
 OpenStreetMap, ODbL 1.0).
 
-| publikujący | wierszy | ze współrzędnymi | pokrycie |
+| publisher | rows | with coordinates | coverage |
 |---|---:|---:|---:|
 | Stoen Operator | 1 236 | 1 217 | **98,463%** |
 | Boryszew Green Energy&Gas | 8 | 8 | **100,000%** |
@@ -63,31 +64,33 @@ OpenStreetMap, ODbL 1.0).
 | National Grid | 694 | 0 | 0,000% |
 | **panel** | **19 220** | **1 225** | **6,374%** |
 
-Zera są **potwierdzone, nie naprawiane zgadywaniem**, i każde ma zapisaną przyczynę: u TAURONA
-kod stacji bez opublikowanego słownika, u PSE i ENERGI przewaga wierszy bez zadeklarowanej
-miejscowości, u National Grid nazwy punktów zasilania zamiast adresów ulic.
+The zeros are **confirmed, not repaired by guessing**, and each one has a recorded reason: at TAURON
+a substation code with no published dictionary, at PSE and ENERGA a preponderance of rows with no
+declared locality, at National Grid the names of grid supply points instead of street addresses.
 
-Weryfikacja na próbie warstwowej 102 punktów: zgodność nazwy ulicy z niezależnym geokodowaniem
-**101 z 102 = 99,02%**; mediana odległości między dwoma niezależnie wybranymi punktami
-reprezentatywnymi tej samej ulicy **259,2 m**, przy korelacji Spearmana z długością osi **0,714** -
-źródła wskazują tę samą ulicę i różnią się tym, który jej punkt uznają za reprezentatywny.
+Verification on a stratified sample of 102 points: agreement of the street name with independent
+geocoding **101 of 102 = 99,02%**; the median distance between two independently chosen
+representative points of the same street **259,2 m**, with a Spearman correlation with the length of
+the axis of **0,714**, the sources indicate the same street and differ in which of its points they
+take to be representative.
 
-**Ograniczenie zasadnicze:** jest to weryfikacja wobec drugiego odczytu tej samej bazy, nie wobec
-pomiaru terenowego. Źródła są skorelowane, więc pomiar nie wyklucza błędu wspólnego dla
-OpenStreetMap.
+**A fundamental limitation:** this is verification against a second reading of the same database, not
+against a field measurement. The sources are correlated, so the measurement does not rule out an
+error common to OpenStreetMap.
 
-**Nazwa ulicy nie wyznacza punktu.** 431 z 6 057 nazw warszawskich (7,12%) ma rozłączne składowe
-odległe o ponad 2 km. Rejestr podaje ulicę, lecz nie dzielnicę, więc tej niejednoznaczności
-**nie da się usunąć z danych opublikowanych**, jest to ustalenie o zakresie obowiązku ujawnienia,
-nie o jakości narzędzia. Każdy wynik niesie liczbę składowych i ich rozrzut, żeby odbiorca mógł
-takie wiersze odfiltrować.
+**A street name does not determine a point.** 431 of 6 057 Warsaw names (7,12%) have disjoint
+components more than 2 km apart. The register gives the street but not the district, so this
+ambiguity **cannot be removed from the published data**; it is a finding about the scope of the
+disclosure duty, not about the quality of the tool. Every result carries the number of components and
+their spread, so that the recipient can filter such rows out.
 
-## Testy a pomiar wzrokowy
+## Tests versus visual measurement
 
-`python -m pytest -q` zgłasza **120 passed, 2 skipped** na 122 zebrane. Dwa pominięcia są
-warunkowe: testy integracyjne adapterów PSE i ENERGI wymagają dokumentów źródłowych.
+`python -m pytest -q` reports **120 passed, 2 skipped** out of 122 collected. The two skips are
+conditional: the integration tests of the PSE and ENERGA adapters require the source documents.
 
-Obie metody wychwytują **różne klasy defektów** i oba mechanizmy są w pakiecie obecne. Pięć
-defektów odwzorowania przeszło przez cały zestaw testów, bo żaden nie rzucał wyjątku, w tym
-jeden zmieniający status umowy na przeciwny w 88 wierszach dwóch publikujących. Wykryło je
-porównanie wyjścia z wzorcem odczytanym z dokumentu. Wszystkie są objęte testami regresyjnymi.
+The two methods catch **different classes of defect** and both mechanisms are present in the package.
+Five mapping defects passed through the entire test suite, because none of them raised an exception,
+among them one that reversed the agreement status in 88 rows of two publishers. They were detected by
+comparing the output with the reference set read from the document. All of them are covered by
+regression tests.

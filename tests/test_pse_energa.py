@@ -1,8 +1,8 @@
-"""Testy adapterów PSE S.A. i ENERGA-OPERATOR S.A.
+"""Tests of the PSE S.A. and ENERGA-OPERATOR S.A. adapters.
 
-Testy regresyjne pilnują trzech defektów wykrytych POMIAREM na wzorcu odczytanym
-wzrokowo -- każdy z nich przechodził niezauważony przez testy jednostkowe, bo
-każdy dawał wynik pusty albo pozornie sensowny, nie wyjątek.
+The regression tests guard three defects found by MEASUREMENT against a visually
+read reference set; each of them passed unnoticed through the unit tests, because
+each produced an empty or an apparently sensible result rather than an exception.
 """
 
 from __future__ import annotations
@@ -24,45 +24,45 @@ def _ma(plik: str) -> bool:
     return os.path.exists(os.path.join(DANE, plik))
 
 
-# --- rejestr -------------------------------------------------------------
+# --- registry ------------------------------------------------------------
 
-def test_adaptery_zarejestrowane():
+def test_the_adapters_are_registered():
     assert "pl_pse" in REGISTRY
     assert "pl_energa" in REGISTRY
     assert get_adapter("pl_pse").publisher == "PSE S.A."
     assert get_adapter("pl_energa").publisher == "ENERGA-OPERATOR S.A."
 
 
-# --- regresja 1: pusty identyfikator ------------------------------------
+# --- regression 1: empty identifier -------------------------------------
 
-def test_blank_lapie_nan():
-    """``nan`` jest w Pythonie prawdziwe -- ``if v`` nie wystarcza."""
+def test_blank_catches_nan():
+    """``nan`` is truthy in Python, so ``if v`` is not enough."""
     assert T._blank(float("nan")) is True
     assert T._blank(None) is True
     assert T._blank("  ") is True
     assert T._blank("0") is False
 
 
-def test_zastepnik_identyfikatora_dziala_gdy_id_puste():
+def test_the_identifier_surrogate_works_when_the_id_is_empty():
     raw = pd.DataFrame({"id_obiektu": [None, "X-1", float("nan")], "lp": ["1.", "2.", None]})
     out = T.to_schema(raw, publisher_key="pse", data_publikacji="2026-08-31")
     assert out["id_wniosku"].tolist() == ["pse:poz:1", "X-1", "pse:poz:3"]
 
 
-# --- regresja 2: poziom napięcia klasowy --------------------------------
+# --- regression 2: class voltage level -----------------------------------
 
-def test_poziom_napiecia_klasowy_bez_jednostki():
-    """"SN" to klasa napięcia, nie liczba kilowoltów -- "SN kV" nic nie znaczy."""
+def test_a_class_voltage_level_carries_no_unit():
+    """"SN" is a voltage class, not a number of kilovolts, so "SN kV" means nothing."""
     assert T._volt("SN") == "SN"
     assert T._volt("sn") == "SN"
     assert T._volt("110") == "110 kV"
     assert T._volt("110; 400") == "110; 400 kV"
 
 
-# --- regresja 3: data z komórki arkusza ---------------------------------
+# --- regression 3: date from a spreadsheet cell --------------------------
 
-def test_daty_przechodza_przez_typ_timestamp():
-    """openpyxl zwraca daty jako Timestamp; ``str()`` na nich gubił wszystkie daty."""
+def test_dates_survive_the_timestamp_type():
+    """openpyxl returns dates as Timestamp; ``str()`` on them lost every date."""
     raw = pd.DataFrame({
         "id_obiektu": ["A"],
         "data_zlozenia": [pd.Timestamp("2023-08-07")],
@@ -72,22 +72,22 @@ def test_daty_przechodza_przez_typ_timestamp():
     out = T.to_schema(raw, publisher_key="pse", data_publikacji=None)
     assert out["data_wniosku"].iloc[0] == "2023-08-07"
     assert out["data_warunkow"].iloc[0] == "2024-03-18"
-    # nierówność nie jest datą: pole schematu puste, treść zachowana w rozszerzeniu
+    # an inequality is not a date: the schema field stays empty, the content is kept in an extension
     assert out["data_energizacji"].iloc[0] is None
     assert out["_energizacja_tekst"].iloc[0] == "po 30.06.2026"
 
 
-# --- regresja 4: status rozwiązanej umowy -------------------------------
+# --- regression 4: status of a terminated agreement ----------------------
 
-def test_umowa_rozwiazana_nie_jest_obowiazujaca():
-    """Lista rozwijana wspólnego szablonu deklaruje oba statusy osobno."""
+def test_a_terminated_agreement_is_not_an_effective_one():
+    """The drop-down list of the shared template declares both statuses separately."""
     assert harmonize_status("UMOWA O PRZYŁĄCZENIE rozwiązana") == "UMOWA_ROZWIAZANA"
     assert harmonize_status("UMOWA O PRZYŁĄCZENIE obowiązująca") == "UMOWA_OBOWIAZUJACA"
     assert harmonize_status("UMOWA O PRZYŁĄCZENIE - obiekt przyłączony") == "PRZYLACZONY"
 
 
-def test_slownik_szablonu_odwzorowany_w_calosci():
-    """Każda wartość listy rozwijanej szablonu musi dać znany token, nie NIEOKRESLONY."""
+def test_the_template_vocabulary_is_mapped_in_full():
+    """Every value of the template drop-down list must yield a known token, not NIEOKRESLONY."""
     statusy = [
         "WNIOSEK w weryfikacji", "WNIOSEK kompletny - w trakcie analizy technicznej i ekonomicznej",
         "WNIOSEK niekompletny", "WNIOSEK wycofany", "WARUNKI PRZYŁĄCZENIA wydane",
@@ -101,14 +101,14 @@ def test_slownik_szablonu_odwzorowany_w_calosci():
                "ODB", "OSD", "OSDn", "EW", "SG", "OGW", "JS", "MIX"]
     for r in rodzaje:
         assert harmonize_klasa(r) != "NIEOKRESLONA", r
-    # szablon deklaruje BG jako BLOK GAZOWY, nie biogaz -- wbrew intuicji nazwy
+    # the template declares BG as BLOK GAZOWY, a gas unit, not biogas, against the intuition of the name
     assert harmonize_klasa("BG") == "GAZ"
 
 
-# --- testy na dokumentach źródłowych ------------------------------------
+# --- tests against the source documents ----------------------------------
 
-@pytest.mark.skipif(not _ma("pse_art7_8l_20260831.xlsx"), reason="brak dokumentu PSE")
-def test_pse_pelny_przebieg():
+@pytest.mark.skipif(not _ma("pse_art7_8l_20260831.xlsx"), reason="PSE document not present")
+def test_pse_full_run():
     r = get_adapter("pl_pse").parse([
         os.path.join(DANE, "pse_art7_8l_20260831.xlsx"),
         os.path.join(DANE, "pse_lista_rozdzielni_brak_mozliwosci_20260204.xlsx"),
@@ -116,16 +116,16 @@ def test_pse_pelny_przebieg():
     f = r.frame
     assert (f["_encja"] == "WNIOSEK").sum() == 876
     assert (f["_encja"] == "WEZEL").sum() == 69
-    # odnośniki przypisów odcięte od treści, nie wklejone w nią
+    # footnote markers cut off from the content, not pasted into it
     assert not f["lokalizacja_tekst"].astype(str).str.fullmatch(r"WYPM|CPKK").any()
     assert f["_przypisy"].notna().sum() == 69
-    # PSE ujawnia pkt 2) jako LICZBĘ MIEJSC, nie moc -- pole mocy zostaje puste
+    # PSE discloses point 2) as a NUMBER OF SLOTS, not a capacity, so the capacity field stays empty
     assert f.loc[f["_encja"] == "WEZEL", "moc_dostepna"].isna().all()
     assert f.loc[f["_encja"] == "WEZEL", "_liczba_dostepnych_miejsc"].notna().any()
 
 
-@pytest.mark.skipif(not _ma("energa_wnioski_odmowy_20260831.pdf"), reason="brak dokumentu Energi")
-def test_energa_pelny_przebieg():
+@pytest.mark.skipif(not _ma("energa_wnioski_odmowy_20260831.pdf"), reason="Energa document not present")
+def test_energa_full_run():
     r = get_adapter("pl_energa").parse([
         os.path.join(DANE, "energa_wnioski_odmowy_20260831.pdf"),
         os.path.join(DANE, "energa_moc_dostepna_odbiorcza_20260831.pdf"),
@@ -134,14 +134,14 @@ def test_energa_pelny_przebieg():
     f = r.frame
     wnioski = f[f["_encja"] == "WNIOSEK"]
     assert len(wnioski) == 5286
-    # liczby porządkowe dokumentu odtworzone bez luk i bez powtórzeń
+    # the ordinal numbers of the document reconstructed with no gaps and no repetitions
     lp = pd.to_numeric(wnioski["_lp_dokumentu"].str.rstrip("."), errors="coerce")
     assert lp.notna().all()
     assert sorted(lp.astype(int)) == list(range(1, 5287))
-    # Energa jest pierwszym źródłem w panelu wypełniającym moc_dostepna
+    # Energa is the first source in the panel that fills moc_dostepna
     wezly = f[f["_encja"] == "WEZEL"]
     assert len(wezly) == 96
     assert wezly["moc_dostepna"].notna().all()
     assert set(wezly["_kierunek"]) == {"odbiorcza", "wytworcza"}
-    # data publikacji z DOKUMENTU, nie z nazwy pliku
+    # publication date from the DOCUMENT, not from the file name
     assert (wnioski["data_publikacji"] == "2026-06-30").all()

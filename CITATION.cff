@@ -1,11 +1,11 @@
 cff-version: 1.2.0
-message: "Jeśli używasz tego oprogramowania, zacytuj je według poniższych metadanych."
+message: "If you use this software, please cite it using the metadata below."
 title: "gridqueue"
 abstract: >-
-  Harmonizator ustawowych ujawnień przyłączeniowych do sieci elektroenergetycznej.
-  Przekształca dokumenty publikowane na mocy art. 7 ust. 8l polskiego Prawa energetycznego
-  oraz odpowiadające im rejestry z innych jurysdykcji w jeden zbiór wierszy w 21-polowym
-  schemacie wyprowadzonym ze struktury obowiązku prawnego.
+  Harmonizer of statutory grid-connection disclosures for the electricity network.
+  Turns the documents published under Article 7(8l) of the Polish Energy Law
+  and the corresponding registers from other jurisdictions into a single set of rows in a 21-field
+  schema derived from the structure of the legal obligation.
 type: software
 version: "1.2.1"
 date-released: "2026-10-04"
@@ -13,14 +13,14 @@ license: Apache-2.0
 repository-code: "https://github.com/s-matysik/gridqueue"
 url: "https://s-matysik.github.io/gridqueue/"
 keywords:
-  - przyłączenie do sieci
-  - ujawnienia ustawowe
-  - harmonizacja danych
-  - wydobycie z dokumentów
-  - otwarte dane energetyczne
+  - grid connection
+  - statutory disclosures
+  - data harmonization
+  - document extraction
+  - open energy data
 authors:
   - name: "gridqueue contributors"
-# UWAGA DLA ZESPOŁU: powyższy wpis autorski jest zbiorczy i wystarcza, aby plik był poprawny
-# według specyfikacji CFF 1.2.0. Przed zgłoszeniem artykułu należy go zastąpić listą autorów
-# osobowych (given-names / family-names / orcid / affiliation) zgodną z listą autorów manuskryptu,
-# a po zdeponowaniu wydania dopisać pole `doi`.
+# NOTE FOR THE TEAM: the author entry above is collective and is enough for the file to be valid
+# under the CFF 1.2.0 specification. Before the paper is submitted it has to be replaced with a list
+# of individual authors (given-names / family-names / orcid / affiliation) matching the author list
+# of the manuscript, and once the release has been deposited, a `doi` field has to be added.

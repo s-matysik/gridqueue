@@ -1,19 +1,20 @@
-"""Odtworzenie figur, które zależą wyłącznie od panelu.
+"""Reproduction of the figures that depend on the panel alone.
 
-Zakres
-------
-Odtwarzane są trzy figury wyliczane z panelu: pokrycie pól schematu, naruszenia
-reguł kontroli jakości oraz wynik rozstrzygania lokalizacji.
+Scope
+-----
+Three figures computed from the panel are reproduced: coverage of the schema
+fields, violations of the quality control rules, and the outcome of location
+resolution.
 
-Dwóch figur ten skrypt NIE odtwarza i jest to zamierzone:
+Two figures this script does NOT reproduce, and that is deliberate:
 
-* figura architektury jest schematem rysowanym ręcznie, bez danych wejściowych;
-* figura walidacji zależy od **zbioru odniesienia odczytanego wzrokowo przez
-  człowieka**, publikowanego jako osobny artefakt, a nie wyliczanego przez kod.
+* the architecture figure is a hand-drawn diagram with no input data;
+* the validation figure depends on **a reference set read visually by a human**,
+  published as a separate artefact rather than computed by code.
 
-Uruchomienie::
+Running::
 
-    python reproducibility/run_figures.py <panel.parquet> [katalog_wyjściowy]
+    python reproducibility/run_figures.py <panel.parquet> [output_directory]
 """
 
 from __future__ import annotations
@@ -78,7 +79,7 @@ def fig_pokrycie(panel: pd.DataFrame, plik: Path) -> None:
     for i in range(len(pola)):
         for j in range(len(publ)):
             v = Z[i, j]
-            txt = "\u2014" if v == 0 else ("<1" if v < 0.005 else
+            txt = "-" if v == 0 else ("<1" if v < 0.005 else
                                            ("100" if v >= 0.995 else f"{v*100:.0f}"))
             ax.text(j, i, txt, ha="center", va="center", fontsize=5.4,
                     color="#ffffff" if v > 0.62 else ("#999999" if v == 0 else "#222222"))
@@ -90,12 +91,12 @@ def fig_pokrycie(panel: pd.DataFrame, plik: Path) -> None:
     for s in ax.spines.values():
         s.set_visible(False)
     niepokryte = [f for i, f in enumerate(pola) if Z[i].max() == 0]
-    tytul = (f"Każde z {len(pola)} pól schematu jest wypełnione przez co najmniej "
-             "jednego publikującego" if not niepokryte else
-             f"Pola niepokryte w panelu: {', '.join(niepokryte)}")
+    tytul = (f"Every one of the {len(pola)} schema fields is filled in by at least "
+             "one publisher" if not niepokryte else
+             f"Fields not covered in the panel: {', '.join(niepokryte)}")
     ax.set_title(tytul, fontsize=8, pad=22)
-    ax.text(0, -1.35, "pokrycie pola, % wierszy danego publikującego   "
-            "\u2022 = pole rdzenia bezwarunkowego   \u2014 = pole nieujawniane",
+    ax.text(0, -1.35, "field coverage, % of the rows of a given publisher   "
+            "\u2022 = unconditional core field   - = field not disclosed",
             fontsize=6, color=SZARY, transform=ax.transData)
     fig.tight_layout()
     fig.savefig(plik, dpi=300, bbox_inches="tight")
@@ -131,7 +132,7 @@ def fig_jakosc(panel: pd.DataFrame, plik: Path) -> None:
     for yy, tot in zip(y, piv["razem"].values):
         if tot == 0:
             ax.plot([0], [yy], "o", ms=3.2, color="#444444", zorder=3)
-            ax.text(szer * 0.012, yy, "0 naruszeń", va="center", fontsize=6, color=SZARY)
+            ax.text(szer * 0.012, yy, "0 violations", va="center", fontsize=6, color=SZARY)
         else:
             ax.text(tot + szer * 0.012, yy,
                     f"{_th(tot)}  ({tot / n * 100:.3f} %)".replace(".", ","),
@@ -139,9 +140,9 @@ def fig_jakosc(panel: pd.DataFrame, plik: Path) -> None:
     ax.set_yticks(y)
     ax.set_yticklabels([f"{k}  {nm}" for k, nm in zip(piv["kod"], piv["nazwa"])], fontsize=6.5)
     ax.set_xlim(0, szer * 1.45)
-    ax.set_xlabel(f"wiersze naruszające regułę (panel {_th(n)} wierszy)", fontsize=7)
-    ax.set_title("Reguły wykrywają jakość źródła, nie błąd narzędzia, "
-                 "i wskazują, który publikujący ją obniża", fontsize=8, loc="left")
+    ax.set_xlabel(f"rows violating the rule (panel of {_th(n)} rows)", fontsize=7)
+    ax.set_title("The rules detect the quality of the source, not an error of the tool, "
+                 "and show which publisher lowers it", fontsize=8, loc="left")
     ax.legend(loc="lower right", fontsize=6, ncol=2, frameon=False,
               handlelength=1.1, columnspacing=1.0)
     ax.margins(y=0.06)
@@ -152,33 +153,33 @@ def fig_jakosc(panel: pd.DataFrame, plik: Path) -> None:
 def fig_lokalizacja(panel: pd.DataFrame, plik: Path) -> None:
     def kat(wsp, powod):
         if pd.notna(wsp):
-            return "rozwiązane"
+            return "resolved"
         s = str(powod)
         if "kod_stacji" in s:
-            return "kod stacji bez słownika"
+            return "station code with no gazetteer"
         if "brak_deklaracji_miejscowosci" in s:
-            return "brak deklaracji miejscowości"
+            return "no locality declared"
         if "pusty_opis" in s:
-            return "pusty opis"
+            return "empty description"
         if "poza_gazeterem" in s:
-            return "miejscowość poza gazeterem"
+            return "locality outside the gazetteer"
         if "wiele_kandydatow" in s or "niejednoznaczna" in s:
-            return "wiele kandydatów"
-        return "inne"
+            return "several candidates"
+        return "other"
 
     d = panel.copy()
     d["pub"] = d["publikujacy"].map(lambda p: SKROT.get(p, p))
     d["_kat"] = [kat(w, r) for w, r in zip(d["wspolrzedne"], d.get("_geo_powod", pd.Series([None] * len(d))))]
-    KAT = ["rozwiązane", "kod stacji bez słownika", "brak deklaracji miejscowości",
-           "pusty opis", "miejscowość poza gazeterem", "wiele kandydatów", "inne"]
-    KK = {"rozwiązane": "#2e8b78", "kod stacji bez słownika": "#1b5e8c",
-          "brak deklaracji miejscowości": "#8fb4cc", "pusty opis": "#cfd8dd",
-          "miejscowość poza gazeterem": "#c77a1e", "wiele kandydatów": "#7a4b9c",
-          "inne": "#aaaaaa"}
+    KAT = ["resolved", "station code with no gazetteer", "no locality declared",
+           "empty description", "locality outside the gazetteer", "several candidates", "other"]
+    KK = {"resolved": "#2e8b78", "station code with no gazetteer": "#1b5e8c",
+          "no locality declared": "#8fb4cc", "empty description": "#cfd8dd",
+          "locality outside the gazetteer": "#c77a1e", "several candidates": "#7a4b9c",
+          "other": "#aaaaaa"}
     CT = (d.groupby(["pub", "_kat"]).size().unstack(fill_value=0)
            .reindex(columns=[k for k in KAT if k in d["_kat"].unique()], fill_value=0))
     CT = CT.reindex([p for p in BARWY if p in CT.index])
-    assert int(CT.values.sum()) == len(d), "kategorie nie pokrywają wszystkich wierszy"
+    assert int(CT.values.sum()) == len(d), "the categories do not cover all rows"
 
     fig = plt.figure(figsize=(7.1, 2.85))
     gs = fig.add_gridspec(1, 2, width_ratios=[1.6, 1.0], wspace=0.45)
@@ -190,23 +191,23 @@ def fig_lokalizacja(panel: pd.DataFrame, plik: Path) -> None:
         ax.barh(ypos, frac[k].values, left=left, height=0.62, color=KK[k], label=k, zorder=2)
         left += frac[k].values
     for yy, p in zip(ypos, CT.index):
-        r = int(CT.loc[p, "rozwiązane"]) if "rozwiązane" in CT.columns else 0
+        r = int(CT.loc[p, "resolved"]) if "resolved" in CT.columns else 0
         ax.text(101.5, yy, f"{_th(r)} / {_th(int(CT.loc[p].sum()))}", va="center", fontsize=6)
     ax.set_yticks(ypos)
     ax.set_yticklabels(CT.index, fontsize=6.5)
     ax.set_xlim(0, 118)
     ax.set_xticks([0, 25, 50, 75, 100])
-    ax.set_xlabel("udział wierszy publikującego, %", fontsize=7)
-    ax.set_title("Żaden publikujący nie ujawnia współrzędnych;\n"
-                 "brak jest zwracany z przyczyną, nie zgadywany", fontsize=8, loc="left", pad=8)
+    ax.set_xlabel("share of the publisher's rows, %", fontsize=7)
+    ax.set_title("No publisher discloses coordinates;\n"
+                 "a gap is returned with a reason, not guessed", fontsize=8, loc="left", pad=8)
     ax.legend(loc="upper center", bbox_to_anchor=(0.46, -0.30), ncol=3, fontsize=5.7,
               frameon=False, handlelength=1.0, columnspacing=0.9, handletextpad=0.4)
 
     ax2 = fig.add_subplot(gs[1])
     pw = d.loc[d["wspolrzedne"].notna(), "_geo_pewnosc"].value_counts()
-    opis = {"EXACT": "dokładne", "UNIQUE_TOKEN": "unikalny człon",
-            "SKRZYZOWANIE": "skrzyżowanie", "REVERSED": "odwrócona kolejność",
-            "TOKEN_SUBSET": "podzbiór członów"}
+    opis = {"EXACT": "exact", "UNIQUE_TOKEN": "unique member",
+            "SKRZYZOWANIE": "intersection", "REVERSED": "reversed order",
+            "TOKEN_SUBSET": "subset of members"}
     klucze = [k for k in opis if k in pw.index]
     vv = [int(pw[k]) for k in klucze]
     yb = np.arange(len(klucze))[::-1]
@@ -217,9 +218,9 @@ def fig_lokalizacja(panel: pd.DataFrame, plik: Path) -> None:
     ax2.set_yticks(yb)
     ax2.set_yticklabels([opis[k] for k in klucze], fontsize=6)
     ax2.set_xlim(0, max(vv) * 1.40)
-    ax2.set_xlabel("wiersze", fontsize=7)
-    ax2.set_title(f"Poziom pewności {_th(sum(vv))} rozwiązań:\n"
-                  f"{vv[0] / sum(vv) * 100:.1f} % to dopasowanie dokładne".replace(".", ","),
+    ax2.set_xlabel("rows", fontsize=7)
+    ax2.set_title(f"Confidence level of {_th(sum(vv))} resolutions:\n"
+                  f"{vv[0] / sum(vv) * 100:.1f} % are exact matches".replace(".", ","),
                   fontsize=8, loc="left", pad=8)
     fig.savefig(plik, dpi=300, bbox_inches="tight")
     plt.close(fig)
@@ -227,7 +228,7 @@ def fig_lokalizacja(panel: pd.DataFrame, plik: Path) -> None:
 
 def main(argv: list[str]) -> int:
     if len(argv) < 2:
-        print("użycie: python reproducibility/run_figures.py <panel.parquet> [katalog]",
+        print("usage: python reproducibility/run_figures.py <panel.parquet> [directory]",
               file=sys.stderr)
         return 2
     p = Path(argv[1])
@@ -238,9 +239,9 @@ def main(argv: list[str]) -> int:
     fig_pokrycie(panel, out / "rys_pokrycie.png")
     fig_jakosc(panel, out / "rys_jakosc.png")
     fig_lokalizacja(panel, out / "rys_lokalizacja.png")
-    print(f"schemat {SCHEMA_VERSION}; rdzeń bezwarunkowy: {', '.join(CORE_FIELDS)}")
-    print(f"pól schematu: {len(FIELDS)}; wierszy panelu: {_th(len(panel))}")
-    print(f"zapisano trzy figury do: {out}")
+    print(f"schema {SCHEMA_VERSION}; unconditional core: {', '.join(CORE_FIELDS)}")
+    print(f"schema fields: {len(FIELDS)}; panel rows: {_th(len(panel))}")
+    print(f"saved three figures to: {out}")
     return 0
 
 

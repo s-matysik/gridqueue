@@ -1,14 +1,14 @@
 ---
-title: Adaptery
+title: Adapters
 ---
 
-# Adaptery
+# Adapters
 
-Każdy adapter realizuje ten sam interfejs i **deklaruje**, które pola schematu wypełnia oraz jakie
-rozszerzenia wnosi. Deklaracja jest częścią wyniku, nie dokumentacji, dzięki temu pokrycie pól
-nie jest twierdzeniem, a wartością odczytywalną z kodu.
+Every adapter implements the same interface and **declares** which schema fields it populates and
+which extensions it contributes. The declaration is part of the result rather than of the
+documentation; thanks to that, field coverage is not an assertion but a value readable from the code.
 
-| klucz | publikujący | jurysdykcja | pól schematu | rozszerzeń |
+| key | publisher | jurisdiction | schema fields | extensions |
 |---|---|---|---:|---:|
 | `pl_tauron` | TAURON Dystrybucja S.A. | PL | 15 | 9 |
 | `pl_energa` | ENERGA-OPERATOR S.A. | PL | 17 | 25 |
@@ -17,11 +17,12 @@ nie jest twierdzeniem, a wartością odczytywalną z kodu.
 | `pl_boryszew` | Boryszew Green Energy&Gas Sp. z o.o. | PL | 10 | 6 |
 | `uk_nationalgrid` | National Grid Electricity Distribution | UK | 10 | 9 |
 
-Adaptery `pl_pse` i `pl_energa` dzielą moduł `adapters/_ptpiree.py`, bo oba publikujące wypełniają
-ten sam uzgodniony wzorzec sprawozdawczy, jeden wydaje go jako arkusz, drugi jako dokument do
-druku. To nie jest zbieg okoliczności implementacyjny, lecz odwzorowanie praktyki sektora.
+The `pl_pse` and `pl_energa` adapters share the module `adapters/_ptpiree.py`, because both
+publishers fill in the same agreed reporting template, one issuing it as a spreadsheet, the other as a
+document meant for printing. This is not an implementation coincidence but a reflection of sector
+practice.
 
-## Dodanie publikującego
+## Adding a publisher
 
 ```python
 from gridqueue.adapters.base import Adapter, ParseResult
@@ -30,72 +31,72 @@ class MojAdapter(Adapter):
     klucz = "pl_moj_operator"
     publikujacy = "Nazwa Operatora S.A."
     jurysdykcja = "PL"
-    detekcja = [r"moj_operator", r"nazwa_operatora"]   # wzorce nazwy pliku
+    detekcja = [r"moj_operator", r"nazwa_operatora"]   # file name patterns
 
     def parse(self, source) -> ParseResult:
-        ...   # zwróć ramkę w schemacie + raport
+        ...   # return a frame in the schema + a report
 ```
 
-Rejestracja: dopisanie klasy do `REGISTRY` w `gridqueue/registry.py`. Rdzeń pozostaje nietknięty.
+Registration: adding the class to `REGISTRY` in `gridqueue/registry.py`. The core stays untouched.
 
 ```bash
-gridqueue adapters          # deklaracje wszystkich publikujących
+gridqueue adapters          # declarations of all publishers
 ```
 
-## Wykrywanie publikującego
+## Detecting the publisher
 
 ```python
 from gridqueue import detect_publisher
 detect_publisher("tauron_informacja_2026_06_30.pdf")   # 'pl_tauron'
 ```
 
-Kolejność jest celowa: nazwa pliku jest tania i zwykle wystarcza, treść pierwszej strony
-rozstrzyga resztę. Gdy nie rozstrzyga żadna z nich, zwracane jest `None`, bez zgadywania.
+The order is deliberate: the file name is cheap and usually sufficient, the content of the first page
+settles the rest. When neither settles it, `None` is returned, with no guessing.
 
-## E-REDES (Portugalia), `pt_eredes`
+## E-REDES (Portugal), `pt_eredes`
 
-Trzecia jurysdykcja w panelu i trzeci tryb wydania: **zbiór na portalu otwartych
-danych z interfejsem REST**, publikowany kwartalnie. Jednostką wiersza jest
-podstacja albo punkt cięcia sieci wysokiego napięcia; wierszy jest 469 i wszystkie
-należą do encji WĘZEŁ.
+The third jurisdiction in the panel and the third mode of issue: **a dataset on an open
+data portal with a REST interface**, published quarterly. The unit of a row is a
+substation or a cut point of the high voltage network; there are 469 rows and all of them
+belong to the WĘZEŁ entity.
 
-Co ten adapter wnosi, czego nie było: **pierwsze zagraniczne źródło encji WĘZEŁ**.
-Dotąd wiersze węzłowe pochodziły wyłącznie od dwóch publikujących polskich, więc
-kryterium „dostępna moc przyłączeniowa" dawało się policzyć w jednej jurysdykcji.
-Źródło portugalskie podaje ponadto **skład grupy podstacji**, dokładnie tę
-informację, która w panelu polskim umożliwia przypisanie wniosków do węzła.
+What this adapter contributes that was not there before: **the first foreign source of the WĘZEŁ
+entity**. Until now the node rows came only from two Polish publishers, so the
+criterion "available connection capacity" could be computed in one jurisdiction.
+The Portuguese source additionally reports the **composition of the substation group**, exactly the
+information which, in the Polish panel, makes it possible to assign applications to a node.
 
-### Rozstrzygnięcie o jednostkach
+### The settlement on units
 
-Publikujący podaje zdolność przyjęcia i moce przyłączone w **MVA**, czyli w mocy
-pozornej. Jednostką kanoniczną schematu jest **kW mocy czynnej**. Są to różne
-wielkości fizyczne, a przeliczenie jednej na drugą wymaga współczynnika mocy,
-którego publikujący nie podaje.
+The publisher reports the reception capability and the connected capacities in **MVA**, that is in
+apparent power. The canonical unit of the schema is **kW of active power**. These are different
+physical quantities, and converting one into the other requires a power factor,
+which the publisher does not report.
 
-Dlatego `moc_dostepna` pozostaje **puste**, a wartości w MVA trafiają do pól
-rozszerzenia wraz z jawnie zapisaną jednostką źródłową:
+That is why `moc_dostepna` remains **empty**, and the values in MVA go into the
+extension fields together with the source unit recorded explicitly:
 
-| pole rozszerzenia | znaczenie |
+| extension field | meaning |
 |---|---|
 | `_jednostka_mocy_zrodlowa` | `MVA` |
-| `_moc_dostepna_mva` | zdolność przyjęcia SN+WN |
-| `_moc_przylaczona_mva` | moc już przyłączona |
-| `_moc_zakontraktowana_mva` | moc zakontraktowana |
-| `_moc_w_potwierdzaniu_mva` | moc w trakcie potwierdzania |
+| `_moc_dostepna_mva` | MV+HV reception capability |
+| `_moc_przylaczona_mva` | capacity already connected |
+| `_moc_zakontraktowana_mva` | contracted capacity |
+| `_moc_w_potwierdzaniu_mva` | capacity under confirmation |
 
-Jest to ta sama zasada, którą zastosowano wobec publikującego podającego liczbę
-wolnych miejsc przyłączeniowych zamiast mocy: wpisanie liczby w pole o innej
-jednostce byłoby fabrykacją, nie harmonizacją.
+This is the same principle that was applied to the publisher reporting a count of
+free connection slots instead of a capacity: entering a count of slots into a field with a different
+unit would be fabrication, not harmonization.
 
-Rdzeń encji WĘZEŁ jest mimo to spełniony, bo realizuje go drugi człon alternatywy -
-`ograniczenie_flaga`, ustawiana na podstawie zerowej zdolności przyjęcia. Zero jest
-wartością **ujawnioną** i oznacza ograniczenie; pusta komórka oznacza nieujawnienie
-i flagi nie ustawia. Dotyczy to 222 z 469 węzłów.
+The core of the WĘZEŁ entity is nevertheless satisfied, because it is discharged by the second member of
+the alternative, `ograniczenie_flaga`, set on the basis of a zero reception capability. Zero is
+a **disclosed** value and means a constraint; an empty cell means non-disclosure
+and does not set the flag. This concerns 222 of 469 nodes.
 
-To rozstrzygnięcie jest zarazem wynikiem obserwacyjnym: **obie jurysdykcje spełniają
-rdzeń encji WĘZEŁ różnymi członami tej samej alternatywy**, Polska mocą dostępną,
-Portugalia flagą ograniczenia. Warunkowy rdzeń, wprowadzony w wersji 1.0 dla
-polskiego błędu kategorialnego, okazał się warunkiem wchłonięcia obcej jurysdykcji.
+That settlement is at the same time an observational finding: **both jurisdictions satisfy
+the core of the WĘZEŁ entity through different members of the same alternative**, Poland with available
+capacity, Portugal with the constraint flag. The conditional core, introduced in version 1.0 for
+a Polish category error, turned out to be the condition for absorbing a foreign jurisdiction.
 
 ```python
 from gridqueue import get_adapter
@@ -104,65 +105,66 @@ r.frame[["id_wezla", "nazwa_wezla", "lokalizacja_tekst", "ograniczenie_flaga"]]
 r.report["uwaga_jednostki"]
 ```
 
-## e-Distribución (Hiszpania), `es_edistribucion`
+## e-Distribución (Spain), `es_edistribucion`
 
-**Pierwsze zagraniczne źródło wydawane jako dokument do druku.** Dotąd oba adaptery
-zagraniczne czytały dane już tabelaryczne, więc przenoszalność była wykazana na przypadku
-łatwiejszym niż polski; to źródło ten brak zamyka. Publikujący wydaje **PDF miesięczny**
-w serii obejmującej lata 2023-2025, na podstawie art. 33 ust. 9 ustawy 24/2013,
-art. 5 ust. 4 dekretu 1183/2020 i art. 12 okólnika 1/2021 regulatora CNMC, czyli
-w konstrukcji prawnej takiej samej jak polska: obowiązek ustawowy, stała częstość, format
-pozostawiony publikującemu.
+**The first foreign source issued as a document meant for printing.** Until now both foreign
+adapters read data that was already tabular, so transferability had been shown on a case
+easier than the Polish one; this source closes that gap. The publisher issues a **monthly PDF**
+in a series covering the years 2023-2025, under Article 33(9) of Law 24/2013,
+Article 5(4) of Decree 1183/2020 and Article 12 of Circular 1/2021 of the regulator CNMC, that is
+in a legal construction identical to the Polish one: a statutory duty, a fixed frequency, the format
+left to the publisher.
 
-Wydanie z 1 sierpnia 2025: 28 stron, **1 838 wierszy encji WĘZEŁ**, wszystkie pola
-zadeklarowane wypełnione w 100 %, w tym **współrzędne geograficzne każdej podstacji** -
-czego nie robi żaden publikujący polski. Moce są w **MW mocy czynnej**, więc przeliczenie
-na kanoniczne kW jest zwykłą zmianą rzędu wielkości.
+The issue of 1 August 2025: 28 pages, **1 838 rows of the WĘZEŁ entity**, all declared fields
+populated at 100 %, including **the geographic coordinates of every substation**,
+which no Polish publisher does. The capacities are in **MW of active power**, so conversion
+to the canonical kW is an ordinary change of order of magnitude.
 
-### Semantyka kolumn ustalona arytmetyką, nie nagłówkiem
+### Column semantics established by arithmetic, not by the header
 
-Nagłówek ma komórki scalone w dwóch poziomach i sugeruje, że kolumny „Con permiso de AyC"
-oraz „En trámite con capacidad" należą do grupy mocy **przyjętej i nierozstrzygniętej**.
-Rozstrzyga arytmetyka dokumentu. Jedenaście podkolumn, dziewięć pozycji stacji plus te dwie -
-sumuje się do mocy **zajętej**, dokładnie w **1 838 z 1 838 wierszy, w obu sprawdzonych
-wydaniach**; rozbicie technologiczne sumuje się do mocy przyjętej i nierozstrzygniętej we
-wszystkich wierszach o niezerowej wartości. Obie grupy są więc **składnikami**, a nie
-alternatywnymi rozbiciami. Przyjęcie nagłówka na wiarę dałoby ciche przestawienie dwóch pól mocy.
+The header has cells merged at two levels and suggests that the columns "Con permiso de AyC"
+and "En trámite con capacidad" belong to the group of **accepted and unsettled** capacity.
+The arithmetic of the document settles it. Eleven subcolumns, nine substation items plus those two,
+sum to the **occupied** capacity, in exactly **1 838 of 1 838 rows, in both editions
+checked**; the technology breakdown sums to the accepted and unsettled capacity in
+all rows with a non-zero value. Both groups are therefore **components** rather than
+alternative breakdowns. Taking the header on trust would have given a silent transposition of two
+capacity fields.
 
-### Domknięcie sumy zamiast zbioru odniesienia
+### Arithmetic closure instead of a reference set
 
-Dla tego publikującego **nie ma wzorca odczytanego niezależnie od parsera**, więc dokładności
-wydobycia nie da się zmierzyć tak, jak zmierzono ją dla publikujących polskich. Domknięcie sumy
-jest zastępczym świadectwem: aby suma jedenastu komórek zgadzała się z dwunastą, wszystkie
-dwanaście musi być odczytane poprawnie. Na dwóch wydaniach daje to **3 676 niezależnych
-sprawdzeń, wszystkie domknięte**. Jest to świadectwo **spójności odczytu, nie pomiar dokładności**
-- słabsze niż wzorzec, ale sprawdzalne na każdym nowym wydaniu, bez pracy anotatora.
-Raport adaptera podaje je w polu `tozsamosc_sumy_mocy_zajetej`.
+For this publisher there is **no reference set read independently of the parser**, so the extraction
+accuracy cannot be measured the way it was measured for the Polish publishers. Arithmetic closure
+is a substitute piece of evidence: for the sum of eleven cells to agree with the twelfth, all
+twelve have to be read correctly. Across two editions that gives **3 676 independent
+checks, all of them closed**. This is evidence of **consistency of reading, not a measurement of
+accuracy**, weaker than a reference set, but checkable on every new edition, without an annotator's
+work. The adapter report gives it in the field `tozsamosc_sumy_mocy_zajetej`.
 
-## ESB Networks (Irlandia), `ie_esbnetworks`
+## ESB Networks (Ireland), `ie_esbnetworks`
 
-Najliczniejsze źródło w panelu: **46 527 wierszy**, jedyne schodzące poniżej poziomu stacji
-wysokiego napięcia aż do stacji SN/nn. Jednostką wiersza jest grupa transformatorów w stacji.
-Współrzędne są w 46 525 wierszach.
+The largest source in the panel: **46 527 rows**, the only one going below the level of high
+voltage substations all the way down to MV/LV substations. The unit of a row is a group of
+transformers at a substation. Coordinates are present in 46 525 rows.
 
-### Dwie jednostki w jednym pliku
+### Two units in one file
 
-Publikujący podaje stronę **odbiorczą w MVA** (moc pozorna), a **wytwórczą w MW** (moc czynna).
-Pole `moc_dostepna` niesie zatem dostępną moc **wytwórczą trwałą**, przeliczoną z MW na kW,
-a strona odbiorcza zostaje w rozszerzeniach z jednostką w nazwie pola. Zsumowanie MW z MVA
-dałoby liczbę bez sensu fizycznego, a wybór jednej strony bez powiedzenia tego wprost byłby
-ukryciem decyzji.
+The publisher reports the **offtake side in MVA** (apparent power) and the **generating side in MW**
+(active power). The `moc_dostepna` field therefore carries the available **firm generating**
+capacity, converted from MW to kW, while the offtake side stays in the extensions with the unit in the
+field name. Summing MW with MVA would give a figure with no physical sense, and choosing one side
+without saying so openly would be hiding a decision.
 
-### Jedna interpretacja, zapisana jawnie
+### One interpretation, recorded explicitly
 
-Kolumny ograniczenia niosą frazę `Constrained, otherwise capacity available = X kVA` albo są
-puste. Przyjmujemy, że **pusta komórka oznacza brak ograniczenia**, a nie brak deklaracji:
-kolumna jest wskaźnikiem binarnym, w którym wartość dodatnia niesie objaśnienie, a ujemna jest
-wyrażona pustką. Publikujący tej konwencji nigdzie nie opisuje, więc jest to **interpretacja,
-nie treść źródła**, surowa fraza zostaje w rozszerzeniu, liczba z niej jest wydobywana
-osobno i **nie jest przeliczana**, bo jest w kVA. Decyzja jest odnotowana w raporcie adaptera
-i przypięta testem, żeby jej zmiana była widoczna.
+The constraint columns carry the phrase `Constrained, otherwise capacity available = X kVA` or are
+empty. We assume that **an empty cell means no constraint** rather than no declaration:
+the column is a binary indicator in which the positive value carries an explanation and the negative
+one is expressed by emptiness. The publisher nowhere describes this convention, so it is **an
+interpretation, not the content of the source**; the raw phrase stays in an extension, the figure in
+it is extracted separately and **is not converted**, because it is in kVA. The decision is recorded in
+the adapter report and pinned by a test, so that a change to it would be visible.
 
-Dwie flagi źródłowe (odbiorcza i wytwórcza) wchodzą do jednego pola schematu jako
-**alternatywa zachowująca nieokreśloność**: `None` w połączeniu z `False` daje `None`,
-a nie `False`.
+The two source flags (offtake and generating) enter one schema field as an
+**alternative that preserves indeterminacy**: `None` combined with `False` gives `None`,
+not `False`.

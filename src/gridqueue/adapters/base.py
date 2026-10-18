@@ -1,14 +1,15 @@
-"""Wspólny interfejs adapterów publikujących.
+"""Common interface for publishing adapters.
 
-Adapter jest jedynym miejscem, w którym wolno wiedzieć cokolwiek o układzie
-konkretnego dokumentu.  Na zewnątrz każdy adapter wygląda tak samo:
+The adapter is the only place that is allowed to know anything about the layout
+of a specific document.  From the outside, every adapter looks the same:
 
     adapter.parse(source) -> ParseResult(frame, report)
 
-``frame`` jest w schemacie (moduł ``schema``), ``report`` jest raportem jakości
-wydobycia -- liczbami, nie wyjątkami.  Adapter DEKLARUJE, które pola opcjonalne
-wypełnia i jakie rozszerzenia poza 21-polowym schematem wnosi; deklaracja jest
-częścią kontraktu, bo pokrycie pól jest tu wynikiem pomiaru, a nie założeniem.
+``frame`` is in the schema (``schema`` module), ``report`` is a quality report of
+the extraction: numbers, not exceptions.  The adapter DECLARES which optional fields
+it fills in and what extensions beyond the 21-field schema it contributes; the declaration
+is part of the contract, because field coverage here is the result of measurement, not
+an assumption.
 """
 
 from __future__ import annotations
@@ -25,28 +26,28 @@ __all__ = ["Adapter", "ParseResult", "harmonize_klasa", "harmonize_status", "nor
 
 @dataclass
 class ParseResult:
-    frame: Any                      # pandas.DataFrame w schemacie
+    frame: Any                      # pandas.DataFrame in the schema
     report: dict[str, Any] = field(default_factory=dict)
 
 
 class Adapter:
-    """Klasa bazowa adaptera."""
+    """Base adapter class."""
 
-    #: identyfikator publikującego
+    #: publisher identifier
     publisher: str = ""
-    #: jurysdykcja (kod kraju)
+    #: jurisdiction (country code)
     jurisdiction: str = ""
-    #: pola schematu, które ten publikujący ujawnia (deklaracja, weryfikowana pomiarem)
+    #: schema fields that this publisher discloses (declaration, verified by measurement)
     declared_fields: tuple[str, ...] = ()
-    #: rozszerzenia poza 21-polowym schematem -> opis; w ramce z przedrostkiem "_"
+    #: extensions beyond the 21-field schema -> description; in the frame with a "_" prefix
     declared_extensions: dict[str, str] = {}
-    #: wzorce nazw plików / treści, po których wykrywamy publikującego
+    #: filename / content patterns used to detect the publisher
     detect_patterns: tuple[str, ...] = ()
 
-    def parse(self, source) -> ParseResult:  # pragma: no cover - interfejs
+    def parse(self, source) -> ParseResult:  # pragma: no cover - interface
         raise NotImplementedError
 
-    # -- pomoc wspólna -----------------------------------------------------
+    # -- shared helpers -----------------------------------------------------
 
     def blank_frame(self, n: int):
         import pandas as pd
@@ -56,7 +57,7 @@ class Adapter:
         )
 
     def finalize(self, df, *, document: str = ""):
-        """Domknij ramkę: kolejność kolumn, metadane, typy kanoniczne."""
+        """Close out the frame: column order, metadata, canonical types."""
         import pandas as pd
 
         for c in FIELDS + META_COLUMNS:
@@ -80,7 +81,7 @@ class Adapter:
 
 
 # --------------------------------------------------------------------------
-# harmonizacja słowników kontrolowanych
+# harmonization of controlled vocabularies
 # --------------------------------------------------------------------------
 
 
@@ -91,22 +92,22 @@ def norm_text(s: Any) -> str:
     if s is None:
         return ""
     s = str(s).replace("\n", " ")
-    # znaki z kreska nie rozkladaja sie przez NFKD (l/L, d/D, o/O) -- mapujemy wprost
+    # characters with a stroke do not decompose via NFKD (l/L, d/D, o/O): we map them directly
     s = s.translate(_STROKE)
     s = unicodedata.normalize("NFKD", s)
     s = "".join(ch for ch in s if not unicodedata.combining(ch))
     return re.sub(r"\s+", " ", s).strip().lower()
 
 
-#: mapowanie oznaczeń rodzaju instalacji na słownik kontrolowany.
-#: Skróty TAURONA pochodzą z legendy na ostatniej stronie jego dokumentu.
+#: mapping of installation type designations to the controlled vocabulary.
+#: TAURON's abbreviations come from the legend on the last page of its document.
 _KLASA_MAP: tuple[tuple[str, str], ...] = (
     (r"^pv$|fotowolta|^solar$", "PV"),
     (r"^fw$|^mfw$|farma wiatrow|^wind$", "FW"),
     (r"^ew$|elektrownia wodn|^hydro$", "EW"),
     (r"biogaz|biomas|^jbm$", "BIOGAZ"),
-    # legenda TAURONA (ostatnia strona dokumentu): BG blok gazowy, BGP blok
-    # gazowo-parowy, SG silnik gazowy -- to sa jednostki GAZOWE, nie biogazowe
+    # TAURON legend (last page of the document): BG gas block, BGP gas-steam
+    # block, SG gas engine: these are GAS units, not biogas ones
     (r"^bg$|^bgp$|^sg$|blok gazow|silnik gazow", "GAZ"),
     (r"^jw$|jednostka weglow", "WEGIEL"),
     (r"^mee|magazyn energii|^bess$|^battery", "BESS"),
@@ -123,11 +124,12 @@ _STATUS_MAP: tuple[tuple[str, str], ...] = (
     (r"wniosek wycofan|wycofan", "WNIOSEK_WYCOFANY"),
     (r"utracil\w* waznosc|utrata waznosci|wygasl", "WARUNKI_WYGASLE"),
     (r"odmow|refus", "ODMOWA"),
-    # "rozwiazan" bez dookreslenia: lista rozwijana wspolnego szablonu PTPiREE/PSE
-    # deklaruje status "UMOWA O PRZYŁĄCZENIE rozwiązana", ktorego nie lapaly ani
-    # "umowa rozwiazan" (brak przyleglosci), ani "rozwiazanie umowy".  Bez tej
-    # poprawki rozwiazana umowa spadala na regule "umowa o przylaczenie" i byla
-    # raportowana jako UMOWA_OBOWIAZUJACA -- czyli status odwrotny do prawdziwego.
+    # "rozwiazan" without further determination: the drop-down list of the common
+    # PTPiREE/PSE template declares the status "UMOWA O PRZYŁĄCZENIE rozwiązana",
+    # which was not caught by either "umowa rozwiazan" (lacking adjacency), or
+    # "rozwiazanie umowy".  Without this fix, a terminated agreement fell under
+    # the "umowa o przylaczenie" rule and was reported as UMOWA_OBOWIAZUJACA:
+    # i.e., the opposite status of the true one.
     (r"rozwiazan", "UMOWA_ROZWIAZANA"),
     (r"obiekt przylaczony|recently connected|^connected$|przylaczon", "PRZYLACZONY"),
     (r"umowa o przylaczenie|umowa obowiazuj|accepted not yet connected|^accepted", "UMOWA_OBOWIAZUJACA"),

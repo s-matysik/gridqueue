@@ -1,28 +1,28 @@
-"""Porównanie dwóch edycji tego samego rejestru.
+"""Comparison of two editions of the same register.
 
-Dlaczego to nie jest zwykłe złączenie po identyfikatorze
---------------------------------------------------------
-Rejestry ustawowe **nie publikują trwałego identyfikatora wniosku**. U części
-publikujących pole identyfikatora jest puste w niemal każdym wierszu, a pakiet
-wstawia wtedy zastępnik oparty na liczbie porządkowej w dokumencie. Taki
-zastępnik jest stabilny w obrębie jednej edycji i **bezwartościowy między
-edycjami**: wiersz numer 869 w jednej edycji nie jest tym samym wnioskiem co
-wiersz 869 w następnej, bo pozycje się przesuwają.
+Why this is not an ordinary join by identifier
+----------------------------------------------
+Statutory registers **do not publish a persistent application identifier**. For some
+publishers the identifier field is empty in almost every row, and the package
+then inserts a surrogate based on the ordinal number in the document. Such
+a surrogate is stable within a single edition and **worthless between
+editions**: row number 869 in one edition is not the same application as
+row 869 in the next, because positions shift.
 
-Śledzenie wniosku w czasie wymaga więc klucza zastępczego zbudowanego z treści.
-Nie jest to obejście, lecz właściwość ujawnienia, którą trzeba zadeklarować:
-klucz treściowy rozjeżdża się, gdy publikujący skoryguje którekolwiek z pól
-wchodzących w jego skład, i wtedy ten sam wniosek wygląda jak zniknięcie
-w parze z pojawieniem.
+Tracking an application over time therefore requires a surrogate key built from content.
+This is not a workaround but a property of the disclosure that has to be declared:
+the content key drifts apart when the publisher corrects any of the fields
+that make it up, and then the same application looks like a disappearance
+paired with an appearance.
 
-Walidacja dopasowania
----------------------
-Macierz przejść statusu daje na to niezależny test. Jeśli klucz dopasowuje
-właściwe wiersze, przejścia powinny biec **zgodnie z kierunkiem postępowania
-administracyjnego** (złożony → w analizie → warunki wydane → umowa). Jeśli
-dopasowuje losowo, przejścia będą rozłożone bez tego porządku. Własność
-``udzial_przejsc_w_przod`` zwraca tę miarę, żeby nie trzeba jej było liczyć
-ręcznie.
+Linkage validation
+------------------
+The status-transition matrix gives an independent test for this. If the key matches
+the correct rows, transitions should proceed **in the direction of the administrative
+proceeding** (filed → under review → conditions issued → agreement). If
+it matches at random, transitions will be scattered without this order. The property
+``udzial_przejsc_w_przod`` returns this measure, so that it does not need to be computed
+by hand.
 """
 
 from __future__ import annotations
@@ -52,8 +52,8 @@ __all__ = [
     "linkage_recall",
 ]
 
-#: Pola domyślnego klucza treściowego. Celowo BEZ dat i bez statusu: daty bywają
-#: uzupełniane między edycjami, a status jest właśnie tym, czego zmianę mierzymy.
+#: Fields of the default content key. Deliberately WITHOUT dates and without status: dates are
+#: sometimes filled in between editions, and status is exactly what we are measuring the change of.
 DEFAULT_KEY_FIELDS: tuple[str, ...] = (
     "publikujacy",
     "lokalizacja_tekst",
@@ -64,23 +64,23 @@ DEFAULT_KEY_FIELDS: tuple[str, ...] = (
 )
 
 
-#: Klucz dla wierszy encji WEZEL. Domyślny `DEFAULT_KEY_FIELDS` jest zbudowany
-#: dla encji WNIOSEK i na wierszach węzłowych ROZPADA SIĘ: pola `klasa_zasobu`,
-#: `moc_wprowadzana` i `moc_pobierana` są tam puste, więc klucz traci
-#: rozróżnialność. Zmierzone na parze wydań publikującego hiszpańskiego:
-#: kluczem domyślnym 916 z 1838 wierszy wpada w kolizję i 660 zostaje
-#: odrzuconych jako niejednoznaczne, a kluczem poniżej kolizji jest ZERO,
-#: wszystkie 1838 par dopasowuje się jednoznacznie, przy precyzji i czułości
-#: równych 1,000.
+#: Key for rows of the NODE entity. The default `DEFAULT_KEY_FIELDS` is built
+#: for the APPLICATION entity and on node rows it FALLS APART: the fields `klasa_zasobu`,
+#: `moc_wprowadzana` and `moc_pobierana` are empty there, so the key loses
+#: distinguishability. Measured on a pair of editions of the Spanish publisher:
+#: with the default key, 916 out of 1838 rows collide and 660 are
+#: rejected as ambiguous, while with the key below the collision count is ZERO,
+#: all 1838 pairs match unambiguously, with precision and recall
+#: equal to 1,000.
 #:
-#: Wniosek ogólniejszy: klucz treściowy musi być dobrany do ENCJI, tak samo jak
-#: rdzeń schematu. Użycie klucza wnioskowego do wierszy węzłowych nie zgłasza
-#: błędu, po cichu produkuje kolizje, które w dalszej analizie wyglądają jak
-#: zdarzenia w rejestrze.
+#: More general conclusion: the content key must be matched to the ENTITY, just like
+#: the schema core. Using the application key for node rows does not raise
+#: an error, it silently produces collisions that in further analysis look like
+#: events in the register.
 NODE_KEY_FIELDS: tuple = ("publikujacy", "id_wezla")
 
-#: Porządek etapów postępowania. Służy wyłącznie do oceny, czy przejścia biegną
-#: w przód, nie jest słownikiem kontrolowanym schematu.
+#: Order of the proceeding stages. Used solely to assess whether transitions proceed
+#: forward, it is not a controlled vocabulary of the schema.
 STATUS_ORDER: dict[str, int] = {
     "WNIOSEK_ZLOZONY": 0,
     "WNIOSEK_NIEKOMPLETNY": 1,
@@ -90,14 +90,14 @@ STATUS_ORDER: dict[str, int] = {
     "PRZYLACZONY": 5,
 }
 
-#: Stany kończące postępowanie bez przyłączenia.
+#: States ending the proceeding without connection.
 TERMINAL_NEGATIVE: frozenset = frozenset(
     {"ODMOWA", "WNIOSEK_WYCOFANY", "WARUNKI_WYGASLE"}
 )
 
 
 def _jako_tekst(v) -> str:
-    """Wartosc jako lancuch; brak jako lancuch pusty, niezaleznie od wersji pandas."""
+    """Value as a string; missing value as empty string, regardless of pandas version."""
     if v is None:
         return ""
     if isinstance(v, float) and v != v:
@@ -106,7 +106,7 @@ def _jako_tekst(v) -> str:
 
 
 def _jako_tekst_zero_jak_brak(v) -> str:
-    """Jak `_jako_tekst`, ale wartość liczbowa równa zeru daje łańcuch pusty."""
+    """Like `_jako_tekst`, but a numeric value equal to zero yields an empty string."""
     s = _jako_tekst(v)
     if s == "":
         return ""
@@ -121,23 +121,23 @@ def surrogate_key(
     fields: Sequence[str] = DEFAULT_KEY_FIELDS,
     zero_jako_brak: bool = False,
 ) -> pd.Series:
-    """Klucz treściowy wiersza, do dopasowania między edycjami.
+    """Content key of the row, for matching between editions.
 
-    `zero_jako_brak` zrównuje wartość 0 z brakiem wartości. Publikujący bywa
-    niekonsekwentny: tę samą nieujawnioną moc zapisuje raz jako pustą komórkę,
-    raz jako zero, i wtedy klucz rozpada parę, która dotyczy jednego wniosku.
-    Na parze edycji operatora przesyłowego włączenie tej opcji odzyskuje
-    12 z 51 par traconych przez klucz. Domyślnie WYŁĄCZONE, bo zero jest
-    wartością ujawnioną, a brak jej nieujawnieniem, zrównanie ich jest
-    decyzją analityka, nie własnością danych, i musi być widoczne w kodzie.
+    `zero_jako_brak` equates the value 0 with the absence of a value. The publisher is sometimes
+    inconsistent: it records the same undisclosed capacity once as an empty cell,
+    once as zero, and then the key splits apart a pair that concerns one application.
+    On a pair of editions of the transmission operator, enabling this option recovers
+    12 out of 51 pairs lost by the key. Disabled by default, because zero is
+    a disclosed value, and its absence is non-disclosure; equating them is
+    an analyst's decision, not a property of the data, and it must be visible in the code.
     """
     uzyte = [f for f in fields if f in df.columns]
     if not uzyte:
-        raise ValueError(f"żadne z pól klucza nie występuje w ramce: {list(fields)}")
-    # Konwersja wprost, zamiast .astype(str): w pandas 2 brak stawal sie lancuchem
-    # "nan", a w pandas 3 pozostaje wartoscia brakujaca i zlaczenie rzuca TypeError.
-    # Jawna konwersja daje ten sam klucz w obu wersjach i czyni regule "brak jest
-    # wartoscia" wlasnoscia kodu, a nie ubocznym skutkiem rzutowania typu.
+        raise ValueError(f"none of the key fields occurs in the dataframe: {list(fields)}")
+    # Explicit conversion, instead of .astype(str): in pandas 2 a missing value became the string
+    # "nan", while in pandas 3 it remains a missing value and concatenation raises TypeError.
+    # An explicit conversion gives the same key in both versions and makes the rule "missing is
+    # a value" a property of the code, rather than a side effect of type casting.
     konw = _jako_tekst_zero_jak_brak if zero_jako_brak else _jako_tekst
     kolumny = [df[c].map(konw) for c in uzyte]
     return reduce(lambda a, b: a + "|" + b, kolumny)
@@ -145,7 +145,7 @@ def surrogate_key(
 
 @dataclass
 class EditionDelta:
-    """Wynik porównania dwóch edycji."""
+    """Result of comparing two editions."""
 
     edycja_a: str
     edycja_b: str
@@ -166,11 +166,11 @@ class EditionDelta:
 
     @property
     def udzial_przejsc_w_przod(self) -> Optional[float]:
-        """Udział przejść biegnących zgodnie z porządkiem postępowania.
+        """Share of transitions proceeding in accordance with the order of the proceeding.
 
-        Wysoka wartość jest dowodem, że klucz treściowy dopasowuje właściwe
-        wiersze; niska oznacza dopasowanie losowe i unieważnia porównanie.
-        Zwraca ``None``, gdy nie ma ani jednego uporządkowanego przejścia.
+        A high value is evidence that the content key matches the correct
+        rows; a low one indicates random matching and invalidates the comparison.
+        Returns ``None`` when there is not a single ordered transition.
         """
         w_przod = uporzadkowanych = 0
         for a in self.przejscia.index:
@@ -218,11 +218,11 @@ def compare_editions(
     edycja_b: str = "B",
     fields: Sequence[str] = DEFAULT_KEY_FIELDS,
 ) -> EditionDelta:
-    """Porównaj dwie edycje rejestru i zwróć przepływy oraz przejścia statusu.
+    """Compare two editions of the register and return the flows and status transitions.
 
-    Wiersze o powtarzającym się kluczu są odrzucane przed dopasowaniem (pierwszy
-    zachowany), bo dla nich przypisanie jest niejednoznaczne; liczba kluczy
-    unikalnych wobec liczby wierszy pokazuje, ile wiersze na tym tracą.
+    Rows with a repeating key are discarded before matching (the first is
+    kept), because for them the assignment is ambiguous; the number of unique
+    keys against the number of rows shows how much the rows lose by this.
     """
     a = a.copy()
     b = b.copy()
@@ -267,8 +267,8 @@ def compare_editions(
     )
 
 
-#: Pola, których NIE ma w kluczu i które służą do niezależnej oceny dopasowania.
-#: Jeśli para jest fałszywa, te pola się rozjadą, klucz ich nie wymusza.
+#: Fields that are NOT in the key and that serve for an independent assessment of the match.
+#: If the pair is false, these fields will diverge, the key does not enforce them.
 HELD_OUT_FIELDS: tuple = (
     "_podmiot",
     "_nazwa_obiektu",
@@ -295,23 +295,23 @@ def _norm_txt(v) -> str:
 
 
 def _rdzen_nazwy(v) -> str:
-    """Nazwa sprowadzona do rdzenia: bez formy prawnej, interpunkcji i spacji.
+    """Name reduced to its core: without legal form, punctuation and spaces.
 
-    Bez tego „Stigma sp.z o.o." i „Stigma Sp. z o.o." byłyby różnymi podmiotami,
-    a publikujący zmienia zapis formy prawnej między edycjami.
+    Without this, „Stigma sp.z o.o." and „Stigma Sp. z o.o." would be different entities,
+    and the publisher changes the notation of the legal form between editions.
     """
     return _NIEALFANUM.sub("", _FORMA_PRAWNA.sub("", _norm_txt(v)))
 
 
 @dataclass
 class LinkageAudit:
-    """Ocena dopasowania par na polach WYŁĄCZONYCH z klucza.
+    """Assessment of pair matching on fields EXCLUDED from the key.
 
-    Nie jest to walidacja wobec prawdy zewnętrznej, bo takiej dla tego rejestru
-    nie ma, jest to test wewnętrznej spójności: klucz nie wymusza zgodności
-    tych pól, więc ich zgodność jest niezależnym świadectwem, że para dotyczy
-    tego samego wniosku. Zgłaszamy obie granice, bo przypadki niepewne nie
-    rozstrzygają się same.
+    This is not a validation against an external ground truth, because there is none
+    for this register, it is a test of internal consistency: the key does not enforce agreement
+    of these fields, so their agreement is independent evidence that the pair concerns
+    the same application. We report both bounds, because uncertain cases do not
+    resolve themselves.
     """
 
     par: int
@@ -322,12 +322,12 @@ class LinkageAudit:
 
     @property
     def precyzja_dolna(self) -> float:
-        """Niepewne liczone jako błędne."""
+        """Uncertain counted as incorrect."""
         return self.potwierdzonych / self.par if self.par else float("nan")
 
     @property
     def precyzja_gorna(self) -> float:
-        """Niepewne liczone jako trafne."""
+        """Uncertain counted as correct."""
         return (self.par - self.falszywych) / self.par if self.par else float("nan")
 
     def as_dict(self) -> dict:
@@ -347,19 +347,19 @@ def linkage_audit(
     fields: Sequence[str] = DEFAULT_KEY_FIELDS,
     held_out: Sequence[str] = HELD_OUT_FIELDS,
 ) -> LinkageAudit:
-    """Oceń dopasowanie kluczem treściowym na polach z klucza wyłączonych.
+    """Assess the matching done with the content key on fields excluded from the key.
 
-    Para jest klasyfikowana jako:
+    A pair is classified as:
 
-    * **fałszywa**, rdzeń nazwy podmiotu ORAZ rdzeń nazwy obiektu są rozbieżne
-      i żaden nie zawiera się w drugim; to dwa różne wnioski, które przypadkiem
-      dzielą lokalizację, napięcie, klasę i obie moce;
-    * **niepewna**, rozbieżny jest dokładnie jeden z tych dwóch;
-    * **potwierdzona**, oba zgodne albo nieobecne.
+    * **false**, the core of the entity name AND the core of the object name are divergent
+      and neither is contained in the other; these are two different applications that by chance
+      share the location, voltage, class and both capacities;
+    * **uncertain**, exactly one of these two is divergent;
+    * **confirmed**, both agree or are absent.
 
-    Pola uzupełnione jednostronnie (puste w jednej edycji, wypełnione w drugiej)
-    nie są liczone jako rozbieżność, bo publikujący uzupełnia rekordy między
-    edycjami i jest to zmiana TEGO SAMEGO wniosku, nie świadectwo innego.
+    Fields filled in on one side only (empty in one edition, filled in the other)
+    are not counted as a divergence, because the publisher fills in records between
+    editions and this is a change of THE SAME application, not evidence of a different one.
     """
     a = a.copy()
     b = b.copy()
@@ -412,22 +412,22 @@ def linkage_audit(
     )
 
 
-#: Pola tożsamości używane do odzyskania par, których klucz treściowy nie połączył.
-#: Muszą być ROZŁĄCZNE z polami klucza. Pole wspólne z kluczem nie wykryje pary
-#: rozerwanej zmianą właśnie tego pola, bo sama tożsamość też się wtedy rozjedzie:
-#: dołożenie lokalizacji do tego zestawu obniża zmierzoną czułość z 0,9652 do
-#: 0,9757, co wygląda na poprawę, a jest przeoczeniem dziesięciu par.
+#: Identity fields used to recover pairs that the content key did not link.
+#: They must be DISJOINT from the key fields. A field shared with the key will not detect a pair
+#: broken by a change of that very field, because the identity itself would then also drift apart:
+#: adding the location to this set lowers the measured recall from 0,9652 to
+#: 0,9757, which looks like an improvement, but is an oversight of ten pairs.
 RECALL_FIELDS: tuple = ("_podmiot", "_nazwa_obiektu")
 
 
 @dataclass
 class LinkageRecall:
-    """Czułość dopasowania: ile par klucz treściowy POMINĄŁ.
+    """Recall of the matching: how many pairs the content key SKIPPED.
 
-    `linkage_audit` mierzy precyzję, czy połączone pary są tą samą sprawą.
-    Nie mówi nic o parach, których klucz nie połączył, a te są groźniejsze:
-    rozerwana para pojawia się jako jeden wiersz „ubyły" i jeden „nowy",
-    więc wygląda jak zdarzenie w rejestrze, a jest artefaktem dopasowania.
+    `linkage_audit` measures precision, whether the linked pairs are the same case.
+    It says nothing about pairs that the key did not link, and these are more dangerous:
+    a broken pair appears as one "departed" row and one "new" row,
+    so it looks like an event in the register, when it is an artifact of the matching.
     """
 
     kluczy_a: int
@@ -438,7 +438,7 @@ class LinkageRecall:
 
     @property
     def czulosc_klucza(self) -> float:
-        """Udział par faktycznie połączonych wśród par możliwych do połączenia."""
+        """Share of pairs actually linked among the pairs that could be linked."""
         mozliwe = self.dopasowanych + self.odzyskanych
         return self.dopasowanych / mozliwe if mozliwe else float("nan")
 
@@ -454,16 +454,16 @@ def linkage_recall(
     fields: Sequence[str] = DEFAULT_KEY_FIELDS,
     pola_tozsamosci: Sequence[str] = RECALL_FIELDS,
 ) -> LinkageRecall:
-    """Szuka par pominiętych przez klucz treściowy, po polach tożsamości.
+    """Looks for pairs skipped by the content key, using identity fields.
 
-    Bierze wiersze NIEDOPASOWANE kluczem i próbuje je połączyć po polach, które
-    do klucza nie wchodzą, nazwie podmiotu, nazwie obiektu i lokalizacji.
-    Para odzyskana tą drogą dotyczy tego samego wniosku, któremu zmieniono
-    którąś z wartości wchodzących do klucza; zwracana ramka podaje, które
-    pole klucza się różni, więc wynik jest sprawdzalny, a nie deklarowany.
+    Takes rows UNMATCHED by the key and tries to link them by fields that
+    do not enter the key: entity name, object name and location.
+    A pair recovered this way concerns the same application for which one of
+    the values entering the key has been changed; the returned frame states which
+    key field differs, so the result is checkable, not merely declared.
 
-    Odzyskiwane są wyłącznie dopasowania JEDNOZNACZNE: jeśli ta sama tożsamość
-    występuje po którejkolwiek stronie więcej niż raz, para nie jest liczona.
+    Only UNAMBIGUOUS matches are recovered: if the same identity
+    occurs more than once on either side, the pair is not counted.
     """
     aa, bb = a.copy(), b.copy()
     aa["_klucz"] = surrogate_key(aa, fields)

@@ -1,32 +1,33 @@
 ---
-title: Wiersz poleceń
+title: Command line
 ---
 
-# Wiersz poleceń
+# Command line
 
 ```bash
-gridqueue schema                                   # specyfikacja 21 pól
-gridqueue adapters                                 # deklaracje publikujących
+gridqueue schema                                   # specification of the 21 fields
+gridqueue adapters                                 # publisher declarations
 gridqueue parse tauron.pdf --out tauron.parquet --report tauron.json
-gridqueue parse --adapter uk_nationalgrid --out uk.parquet   # pobiera z katalogu CKAN
+gridqueue parse --adapter uk_nationalgrid --out uk.parquet   # downloads from the CKAN catalogue
 gridqueue validate tauron.parquet --out walidacja.json
 gridqueue export tauron.parquet stoen.parquet --out panel.parquet --only-schema
 ```
 
-`parse` rozpoznaje publikującego z nazwy pliku, a gdy to nie wystarcza, z treści pierwszej
-strony. `--adapter` wymusza wybór. `--report` zapisuje raport wydobycia: liczbę wierszy, strategię,
-odtworzone numery porządkowe, pola wypełnione i napotkane anomalie.
+`parse` recognizes the publisher from the file name and, where that is not enough, from the content
+of the first page. `--adapter` forces the choice. `--report` writes the extraction report: the row
+count, the strategy, the reconstructed ordinal numbers, the fields populated and the anomalies
+encountered.
 
-`validate` uruchamia osiem reguł kontroli jakości oraz audyt przesunięcia kolumn i zapisuje
-naruszenia wraz z wierszami, które je powodują, naruszenie nie przerywa przebiegu.
+`validate` runs the eight quality rules together with the column-shift audit and writes the
+violations along with the rows that cause them; a violation does not abort the run.
 
-`export` scala wyniki wielu adapterów w jeden panel. `--only-schema` pomija kolumny rozszerzeń
-z przedrostkiem `_`.
+`export` merges the results of several adapters into one panel. `--only-schema` omits the extension
+columns carrying the `_` prefix.
 
-## Pochodzenie wyniku
+## Provenance of the result
 
-Każdy wiersz niesie rekord pochodzenia: dokument źródłowy, stronę, wersję adaptera i wersję
-gazetera użytego przy rozwiązywaniu lokalizacji. Ustawa wymaga kwartalnej wymiany dokumentów,
-więc osoba odtwarzająca pracę na dokumentach z późniejszego kwartału pobierze inne dokumenty
-i **powinna oczekiwać innych liczb wierszy**, dlatego edycja rejestru jest odnotowywana
-w każdym wyniku, a nie zakładana.
+Every row carries a provenance record: the source document, the page, the adapter version and the
+version of the gazetteer used when the location was resolved. The statute requires the documents to
+be replaced quarterly, so anyone reproducing the work on documents from a later quarter will
+download different documents and **should expect different row counts**; this is why the register
+edition is recorded in every result rather than assumed.

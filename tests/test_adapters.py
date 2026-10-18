@@ -11,27 +11,27 @@ from gridqueue.registry import REGISTRY, declarations, get_adapter
 from gridqueue.schema import FIELDS, META_COLUMNS
 
 
-def test_rejestr_ma_dziewiec_adapterow_w_pieciu_jurysdykcjach():
+def test_the_registry_has_nine_adapters_in_five_jurisdictions():
     assert set(REGISTRY) == {"pl_tauron", "pl_stoen", "pl_boryszew", "pl_pse", "pl_energa",
                              "uk_nationalgrid", "pt_eredes", "es_edistribucion",
                              "ie_esbnetworks"}
     assert {get_adapter(k).jurisdiction for k in REGISTRY} == {"PL", "UK", "PT", "ES", "IE"}
 
 
-def test_deklaracje_pol_sa_podzbiorem_schematu():
+def test_field_declarations_are_a_subset_of_the_schema():
     for d in declarations():
         assert set(d["pola_deklarowane"]) <= set(FIELDS), d["publikujacy"]
         assert all(k.startswith("_") for k in d["rozszerzenia"]), d["publikujacy"]
 
 
-def test_kazdy_adapter_deklaruje_rdzen_SWOJEJ_encji():
-    """Rdzeń jest warunkowy per encja, więc i ta kontrola musi być.
+def test_every_adapter_declares_the_core_of_ITS_OWN_entity():
+    """The core is conditional per entity, so this check has to be conditional too.
 
-    Poprzednia wersja wymagała od KAŻDEGO adaptera rdzenia encji WNIOSEK.
-    Jest to ten sam błąd kategorialny, który naprawiono w regule R7: publikujący
-    realizujący wyłącznie punkt 2 obowiązku ujawnia węzły, a nie wnioski, więc
-    nie ma ani identyfikatora wniosku, ani jego mocy. Adapter portugalski
-    pokazał, że test niósł nieaktualny kontrakt.
+    The previous version required the core of the WNIOSEK entity from EVERY
+    adapter. This is the same category error that was fixed in rule R7: a
+    publisher carrying out point 2 of the duty alone discloses nodes, not
+    applications, so it has neither an application identifier nor its capacity.
+    The Portuguese adapter showed that the test carried an outdated contract.
     """
     rdzen_wniosku = {"id_wniosku", "lokalizacja_tekst", "klasa_zasobu", "status_procesu"}
     rdzen_wezla = {"id_wezla"}
@@ -42,7 +42,7 @@ def test_kazdy_adapter_deklaruje_rdzen_SWOJEJ_encji():
         assert wniosek or wezel, key
 
 
-def test_get_adapter_odrzuca_nieznany_klucz():
+def test_get_adapter_rejects_an_unknown_key():
     with pytest.raises(KeyError):
         get_adapter("pl_nieistniejacy")
 
@@ -73,7 +73,7 @@ def test_harmonize_status(raw, expected):
     assert harmonize_status(raw) == expected
 
 
-def test_norm_text_usuwa_diakrytyki():
+def test_norm_text_strips_diacritics():
     assert norm_text("Świętego  Wincentego\n") == "swietego wincentego"
 
 
@@ -84,7 +84,7 @@ def test_detect_layout_stoen():
     assert detect_layout("cokolwiek innego") is None
 
 
-def test_finalize_ustawia_kolejnosc_i_metadane():
+def test_finalize_sets_the_column_order_and_the_metadata():
     a = get_adapter("pl_tauron")
     df = a.finalize(pd.DataFrame({"id_wniosku": ["x"], "_extra": [1]}), document="d.pdf")
     assert list(df.columns)[:21] == list(FIELDS)
@@ -99,7 +99,7 @@ def test_as_bool():
     assert _as_bool(None) is None and _as_bool("maybe") is None
 
 
-def test_nationalgrid_mapuje_ramke_bez_sieci():
+def test_nationalgrid_maps_a_frame_with_no_network_access():
     raw = pd.DataFrame({
         "Licence Area": ["South Wales"], "GSP": ["Aberthaw Power Station"],
         "TANM": [False], "DANM": [True], "Status": ["Accepted not yet Connected"],
@@ -122,12 +122,12 @@ def test_nationalgrid_mapuje_ramke_bez_sieci():
     assert r["jurysdykcja"] == "UK"
 
 
-def test_adapter_bazowy_nie_implementuje_parse():
+def test_the_base_adapter_does_not_implement_parse():
     with pytest.raises(NotImplementedError):
         Adapter().parse("x")
 
 
-def test_cli_schema_i_adapters(capsys, tmp_path):
+def test_cli_schema_and_adapters(capsys, tmp_path):
     assert main(["schema", "--out", str(tmp_path / "s.csv")]) == 0
     assert len(pd.read_csv(tmp_path / "s.csv")) == 21
     capsys.readouterr()
@@ -135,7 +135,7 @@ def test_cli_schema_i_adapters(capsys, tmp_path):
     assert len(json.loads(capsys.readouterr().out)) == len(REGISTRY)
 
 
-def test_cli_validate_i_export(tmp_path, capsys):
+def test_cli_validate_and_export(tmp_path, capsys):
     p = tmp_path / "a.csv"
     pd.DataFrame({
         "id_wniosku": ["a", "b"], "lokalizacja_tekst": ["x", "y"],
@@ -151,6 +151,6 @@ def test_cli_validate_i_export(tmp_path, capsys):
     assert len(pd.read_parquet(out)) == 4
 
 
-def test_cli_parser_wymaga_podkomendy():
+def test_the_cli_parser_requires_a_subcommand():
     with pytest.raises(SystemExit):
         build_parser().parse_args([])

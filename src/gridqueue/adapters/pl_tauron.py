@@ -1,18 +1,18 @@
 """Adapter: TAURON Dystrybucja S.A. (PL).
 
-Dokument: "Informacja o przyłączanych obiektach i wydanych odmowach", PDF ~99 stron,
-tabela z pełną siatką liniową, 27 kolumn, nagłówek tylko na pierwszej stronie,
-legenda rodzajów instalacji na stronie ostatniej.
+Document: "Informacja o przyłączanych obiektach i wydanych odmowach", PDF ~99 pages,
+table with a full ruled line grid, 27 columns, header only on the first page,
+legend of installation types on the last page.
 
-Kluczowa własność: daty SĄ w dokumencie rozdzielone na osobne kolumny (złożenie,
-zaliczka, warunki, odmowa, utrata ważności, umowa, energizacja, rozwiązanie,
-wygaśnięcie).  Poprzedni parser regexowy zlewał je w jedno pole zbiorcze -- nie
-dlatego, że dokument ich nie rozdziela, tylko dlatego, że spłaszczony tekst gubi
-granice pustych komórek.  Wydobycie po siatce odzyskuje je wprost.
+Key property: dates ARE separated in the document into separate columns (submission,
+advance payment, conditions, refusal, expiry, agreement, energization, termination,
+expiration).  The previous regex-based parser merged them into one aggregate field,
+not because the document does not separate them, but because the flattened text loses
+the boundaries of empty cells.  Grid-based extraction recovers them directly.
 
-Lokalizacja jest podawana jako WEWNĘTRZNY KOD STACJI (np. "SKB3", "RCB4").
-Słownika kodów TAURON nie publikuje, więc rozwiązywacz lokalizacji zwraca dla
-tego publikującego brak z jawnym powodem -- nie zgadujemy.
+The location is given as an INTERNAL STATION CODE (e.g. "SKB3", "RCB4").
+TAURON does not publish a dictionary of the codes, so the location resolver returns,
+for this publisher, a lack of result with an explicit reason: we do not guess.
 """
 
 from __future__ import annotations
@@ -24,7 +24,7 @@ from ..layout import ColumnGeometry, detect_ruled_columns, extract_ruled_page
 from ..schema import canonical_date, canonical_power_kw
 from .base import Adapter, ParseResult, harmonize_klasa, harmonize_status, norm_text
 
-#: kolejność kolumn w dokumencie TAURONA (indeks -> znaczenie źródłowe)
+#: column order in the TAURON document (index -> source meaning)
 COLUMNS = (
     "lp", "id_obiektu", "nazwa_osd", "rodzaj_podmiotu", "lokalizacja_stacja",
     "poziom_napiecia", "wiele_miejsc", "rodzaj_instalacji",
@@ -49,15 +49,15 @@ class TauronAdapter(Adapter):
         "data_umowy", "data_energizacji", "data_publikacji",
     )
     declared_extensions = {
-        "_data_zaliczki": "data wpłaty zaliczki na poczet opłaty za przyłączenie",
-        "_data_utraty_waznosci": "data utraty ważności lub rezygnacji z warunków",
-        "_data_rozwiazania": "data rozwiązania/wypowiedzenia/odstąpienia od umowy",
-        "_data_wygasniecia": "data wygaśnięcia umowy z mocy prawa",
-        "_wiele_miejsc": "wniosek obejmuje wiele miejsc przyłączenia lub poziomów napięcia",
-        "_rodzaj_podmiotu": "osoba prawna / osoba fizyczna",
-        "_moc_zainstalowana_kw": "moc zainstalowana w rozbiciu na technologie (suma)",
-        "_rodzaj_instalacji_raw": "oznaczenie rodzaju instalacji tak, jak w dokumencie",
-        "_status_raw": "status etapu projektu tak, jak w dokumencie",
+        "_data_zaliczki": "date of payment of the advance toward the connection fee",
+        "_data_utraty_waznosci": "date of expiry or withdrawal from the conditions",
+        "_data_rozwiazania": "date of termination/notice/withdrawal from the agreement",
+        "_data_wygasniecia": "date of expiration of the agreement by operation of law",
+        "_wiele_miejsc": "the application covers multiple connection points or voltage levels",
+        "_rodzaj_podmiotu": "legal person / natural person",
+        "_moc_zainstalowana_kw": "installed capacity broken down by technology (sum)",
+        "_rodzaj_instalacji_raw": "installation type designation as given in the document",
+        "_status_raw": "project stage status as given in the document",
     }
     detect_patterns = (r"tauron", r"TAURON Dystrybucja")
 
@@ -118,7 +118,7 @@ class TauronAdapter(Adapter):
         out["powod_odmowy"] = raw["uzasadnienie_odmowy"].replace("", None)
         out["data_publikacji"] = self.data_publikacji
 
-        # rozszerzenia deklarowane
+        # declared extensions
         out["_data_zaliczki"] = raw["data_zaliczki"].map(canonical_date)
         out["_data_utraty_waznosci"] = raw["data_utraty_waznosci"].map(canonical_date)
         out["_data_rozwiazania"] = raw["data_rozwiazania"].map(canonical_date)
@@ -135,7 +135,7 @@ class TauronAdapter(Adapter):
 
         report = {
             "publikujacy": self.publisher,
-            "strategia_wydobycia": "ruled (siatka wektorowa)",
+            "strategia_wydobycia": "ruled (vector grid)",
             "strony": stats["strony"],
             "strony_bez_siatki": stats["strony_bez_siatki"],
             "n_geometrii_kolumn": len(stats["geometrie"]),

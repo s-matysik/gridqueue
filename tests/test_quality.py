@@ -3,17 +3,17 @@ import pandas as pd
 from gridqueue.quality import RULES, run_quality
 
 
-def test_jest_osiem_regul_i_kazda_ma_podstawe():
+def test_there_are_eight_rules_and_each_has_a_basis():
     assert len(RULES) == 8
     assert {r.kod for r in RULES} == {f"R{i}" for i in range(1, 9)}
     for r in RULES:
         assert r.podstawa
 
 
-def test_r1_monotonicznosc_dat():
+def test_r1_date_monotonicity():
     df = pd.DataFrame({
         "data_wniosku": ["2026-01-01", "2026-05-01"],
-        "data_warunkow": ["2026-02-01", "2026-04-01"],   # drugi wiersz odwrócony
+        "data_warunkow": ["2026-02-01", "2026-04-01"],   # second row reversed
         "data_umowy": ["2026-03-01", None],
         "data_energizacji": [None, None],
     })
@@ -22,10 +22,10 @@ def test_r1_monotonicznosc_dat():
     assert rep["reguly"][0]["szczegoly"]["pary"]["data_wniosku>data_warunkow"] == 1
 
 
-def test_r2_dwuletnia_waznosc_warunkow():
+def test_r2_two_year_validity_of_the_conditions():
     df = pd.DataFrame({
         "data_warunkow": ["2022-01-01", "2024-01-01"],
-        "_data_utraty_waznosci": ["2025-06-01", "2026-01-01"],  # pierwszy > 2 lata
+        "_data_utraty_waznosci": ["2025-06-01", "2026-01-01"],  # the first one is more than 2 years
         "data_umowy": [None, None],
     })
     rep = run_quality(df, tuple(r for r in RULES if r.kod == "R2")).as_dict()
@@ -34,7 +34,7 @@ def test_r2_dwuletnia_waznosc_warunkow():
     assert d["sprawdzonych_dat_utraty"] == 2
 
 
-def test_r3_status_wobec_dat():
+def test_r3_status_against_the_dates():
     df = pd.DataFrame({
         "status_procesu": ["ODMOWA", "ODMOWA", "PRZYLACZONY"],
         "data_odmowy": ["2026-01-01", None, None],
@@ -45,21 +45,21 @@ def test_r3_status_wobec_dat():
     assert rep["reguly"][0]["naruszenia"] == 1
 
 
-def test_r4_spojnosc_jednostek_wykrywa_mw_zamiast_kw():
+def test_r4_unit_consistency_detects_mw_instead_of_kw():
     df = pd.DataFrame({"moc_pobierana": [700.0, 0.7, 0.0, None]})
     rep = run_quality(df, tuple(r for r in RULES if r.kod == "R4")).as_dict()
     assert rep["reguly"][0]["naruszenia"] == 1
     assert rep["reguly"][0]["szczegoly"]["per_pole"]["moc_pobierana"] == 1
 
 
-def test_r5_zakresy_wartosci():
+def test_r5_value_ranges():
     df = pd.DataFrame({"data_wniosku": ["1900-01-01", "2026-01-01"],
                        "moc_pobierana": [-5.0, 10.0]})
     rep = run_quality(df, tuple(r for r in RULES if r.kod == "R5")).as_dict()
     assert rep["reguly"][0]["naruszenia"] == 1
 
 
-def test_r6_duplikaty():
+def test_r6_duplicates():
     df = pd.DataFrame({"id_wniosku": ["a", "a", "a", "b"]})
     rep = run_quality(df, tuple(r for r in RULES if r.kod == "R6")).as_dict()
     assert rep["reguly"][0]["naruszenia"] == 2
@@ -67,7 +67,7 @@ def test_r6_duplikaty():
     assert rep["reguly"][0]["szczegoly"]["max_krotnosc"] == 3
 
 
-def test_r7_kompletnosc_rdzenia():
+def test_r7_core_completeness():
     df = pd.DataFrame({
         "id_wniosku": ["a", "b"], "lokalizacja_tekst": ["x", None],
         "klasa_zasobu": ["PV", "PV"], "moc_pobierana": [1.0, 2.0],
@@ -77,24 +77,24 @@ def test_r7_kompletnosc_rdzenia():
     assert rep["reguly"][0]["naruszenia"] == 1
 
 
-def test_r8_slownik_kontrolowany():
+def test_r8_controlled_vocabulary():
     df = pd.DataFrame({"klasa_zasobu": ["PV", "PANELE"], "status_procesu": ["ODMOWA", "ODMOWA"]})
     rep = run_quality(df, tuple(r for r in RULES if r.kod == "R8")).as_dict()
     assert rep["reguly"][0]["naruszenia"] == 1
 
 
-def test_reguly_nie_rzucaja_na_pustej_ramce():
+def test_the_rules_do_not_raise_on_an_empty_frame():
     rep = run_quality(pd.DataFrame()).as_dict()
     assert rep["n_wierszy"] == 0
     assert all(r["naruszenia"] >= 0 for r in rep["reguly"])
 
 
-def test_r7_nie_karze_wniosku_wytworczego_za_brak_mocy_pobieranej():
-    """R7 mierzy braki ujawnienia, nie własność schematu.
+def test_r7_does_not_penalise_a_generating_application_for_missing_import_capacity():
+    """R7 measures gaps in disclosure, not a property of the schema.
 
-    Przed wersją 1.0 rdzeń wymagał `moc_pobierana` bezwarunkowo, więc każdy
-    wniosek czysto wytwórczy był liczony jako naruszenie. Tu pinujemy nowy
-    kontrakt: naruszeniem jest brak JAKIEJKOLWIEK mocy.
+    Before version 1.0 the core required `moc_pobierana` unconditionally, so every
+    purely generating application was counted as a violation. Here we pin the new
+    contract: the violation is the absence of ANY capacity.
     """
     import pandas as pd
 
@@ -106,11 +106,11 @@ def test_r7_nie_karze_wniosku_wytworczego_za_brak_mocy_pobieranej():
     ])
     r7 = [x for x in run_quality(df).as_dict()["reguly"] if x["kod"] == "R7"][0]
     assert r7["naruszenia"] == 1
-    klucz = "WNIOSEK/co najmniej jedno z: moc_pobierana, moc_wprowadzana"
+    klucz = "WNIOSEK/at least one of: moc_pobierana, moc_wprowadzana"
     assert r7["szczegoly"]["per_pole"][klucz] == 1
 
 
-def test_r7_ocenia_wezel_wymaganiami_wezla():
+def test_r7_judges_a_node_by_the_node_requirements():
     import pandas as pd
 
     from gridqueue.schema import ENTITY_COLUMN
@@ -124,11 +124,11 @@ def test_r7_ocenia_wezel_wymaganiami_wezla():
     assert r7["szczegoly"]["wierszy_encji"] == {"WEZEL": 2}
 
 
-def test_as_frame_zwraca_wiersz_na_regule():
-    """Dokumentacja obiecywala te metode, a pakiet jej nie mial.
+def test_as_frame_returns_one_row_per_rule():
+    """The documentation promised this method and the package did not have it.
 
-    Defekt wyszedl dopiero przy uruchomieniu notatnika Colab, ktory korzystal
-    z publicznego API tak, jak opisuje je dokumentacja.
+    The defect only came out when the Colab notebook was run, because the
+    notebook used the public API exactly as the documentation describes it.
     """
     import pandas as pd
 
@@ -143,14 +143,14 @@ def test_as_frame_zwraca_wiersz_na_regule():
     assert ramka["udzial"].between(0, 1).all()
 
 
-def test_r3_nie_wywraca_sie_na_pustym_publikujacym():
-    """R3 musi dzialac, gdy kolumna publikujacego jest obecna, ale pusta.
+def test_r3_does_not_fall_over_on_an_empty_publisher():
+    """R3 has to work when the publisher column is present but empty.
 
-    `groupby` pomija grupe o wartosci pustej, wiec wiersz bez tej adnotacji nie
-    ma wlasnego wpisu w slowniku pol ujawnianych.  Przed poprawka odwolanie po
-    kluczu rzucalo `KeyError`, regula zwracala -1, a suma naruszen calego
-    raportu stawala sie ujemna -- defekt niemy, wykryty dopiero uruchomieniem
-    pakietu na ramce zbudowanej recznie.
+    `groupby` skips a group whose value is empty, so a row without that
+    annotation has no entry of its own in the dictionary of disclosed fields.
+    Before the fix, the lookup by key raised `KeyError`, the rule returned -1,
+    and the total number of violations in the whole report became negative: a
+    silent defect, found only by running the package on a hand-built frame.
     """
     import pandas as pd
 

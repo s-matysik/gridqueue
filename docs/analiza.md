@@ -1,65 +1,65 @@
 ---
-title: Warstwa analityczna
+title: Analytical layer
 ---
 
-# Warstwa analityczna
+# Analytical layer
 
-Adaptery są specyficzne dla publikującego. Wszystko powyżej schematu już nie -
-i o to w całym pakiecie chodzi. Ta strona opisuje dwie analizy, które stają się
-możliwe dopiero po harmonizacji.
+Adapters are specific to the publisher. Everything above the schema is not,
+and that is the whole point of the package. This page describes two analyses that
+become possible only after harmonization.
 
-## Obciążenie węzła, czyli kryterium „dostępna moc przyłączeniowa"
+## Node loading, that is the criterion "available connection capacity"
 
-Przeglądy literatury o lokalizowaniu infrastruktury sieciowej wymieniają
-dostępną moc przyłączeniową jako kryterium częste i zarazem niemierzalne -
-z powodu braku danych w źródłach otwartych. Jest mierzalne, o ile publikujący
-ujawnia jednocześnie moc dostępną w węźle **i** skład stacji wchodzących do
-węzła. W panelu robi to jeden publikujący.
+Literature reviews on siting network infrastructure list available connection
+capacity as a criterion that is frequent and at the same time unmeasurable,
+because of the absence of the data in open sources. It is measurable, provided the
+publisher discloses both the available capacity at the node **and** the composition
+of the substations belonging to the node. In the panel, one publisher does so.
 
 ```python
 from gridqueue import station_node_map, assign_to_nodes, node_loading
 
-mapa = station_node_map(panel)              # stacja -> grupa stacji
-panel = assign_to_nodes(panel, mapa)        # przypisanie wniosków do grup
+mapa = station_node_map(panel)              # station -> group of stations
+panel = assign_to_nodes(panel, mapa)        # assignment of applications to groups
 L = node_loading(panel, pole_mocy="moc_wprowadzana")
 L[["nazwa_wezla", "wnioskow", "moc_wnioskowana", "moc_dostepna", "obciazenie"]]
 ```
 
-**Kluczem jest grupa stacji, nie wiersz węzłowy.** Publikujący wystawia tę samą
-grupę dwa razy, osobno dla kierunku wytwórczego i odbiorczego, więc
-odwzorowanie po identyfikatorze wiersza czyniłoby każdą stację dwuznaczną.
-Byłby to artefakt układu dokumentu, a nie własność sieci.
+**The key is the group of stations, not the node row.** The publisher lists the same
+group twice, separately for the generating and the consuming direction, so a mapping
+based on the row identifier would make every substation ambiguous.
+That would be an artefact of the document layout, not a property of the network.
 
-**Przypisanie jest nazwowe, nie topologiczne.** Opiera się na zgodności nazw
-ujawnionych przez publikującego, nie na modelu sieci, a jego trafności nie
-walidowano wobec wzorca zewnętrznego, bo taki nie istnieje. Status dopasowania
-jest zwracany jawnie i rozróżnia pięć przypadków:
+**The assignment is by name, not topological.** It rests on the agreement of the names
+disclosed by the publisher, not on a model of the network, and its correctness was not
+validated against an external reference set, because none exists. The matching status
+is returned explicitly and distinguishes five cases:
 
-| status | znaczenie |
+| status | meaning |
 |---|---|
-| `EXACT` | nazwa stacji równa lokalizacji po normalizacji |
-| `EXTENDED` | lokalizacja zawiera nazwę stacji jako ciągły podciąg tokenów |
-| `LINE` | obiekt planowany **na linii** między stacjami, nie w węźle |
-| `AMBIGUOUS` | pasuje więcej niż jedna grupa |
-| `NONE` | brak trafienia albo brak lokalizacji |
+| `EXACT` | substation name equal to the location after normalization |
+| `EXTENDED` | the location contains the substation name as a contiguous subsequence of tokens |
+| `LINE` | an object planned **on a line** between substations, not at a node |
+| `AMBIGUOUS` | more than one group matches |
+| `NONE` | no hit or no location |
 
-Kategoria `LINE` istnieje, bo wpisy w rodzaju „planowany RS w linii 110 kV
-relacji A, B" opisują obiekt leżący **między** węzłami. Dopasowanie po nazwie
-przypisałoby im pełną moc do tego końca linii, który akurat występuje w wykazie
-stacji, co jest arbitralne. Takie wnioski zostają nieprzypisane i policzone
-osobno.
+The `LINE` category exists because entries of the kind "planowany RS w linii 110 kV
+relacji A, B" describe an object lying **between** nodes. Matching by name
+would assign their full capacity to whichever end of the line happens to appear in the
+list of substations, which is arbitrary. Such applications are left unassigned and
+counted separately.
 
-Węzeł o zerowej ujawnionej mocy dostępnej dostaje iloraz `NaN`, nie
-nieskończoność: iloraz jest tam **nieokreślony**, a uśrednianie go byłoby
-błędem. Moc wnioskowana jest przy nim mimo to zachowana, bo kolejka do węzła
-bez wolnej mocy jest informacją, nie brakiem danych.
+A node with zero disclosed available capacity gets a quotient of `NaN`, not
+infinity: the quotient there is **undefined**, and averaging it would be an
+error. The applied capacity is nevertheless retained for it, because a queue to a node
+with no free capacity is information, not missing data.
 
-## Czas rozpatrywania z cenzurowaniem
+## Processing time with censoring
 
-Wniosek bez daty rozstrzygnięcia **nie jest brakiem danych**: jest obserwacją
-uciętą na dacie publikacji edycji. Liczenie mediany wyłącznie na przypadkach
-kompletnych zaniża ją, i to tym silniej, im dłuższy jest rzeczywisty czas
-rozpatrywania, czyli najmocniej tam, gdzie zależy nam na wyniku.
+An application with no settlement date **is not missing data**: it is an observation
+truncated at the publication date of the edition. Computing the median only on complete
+cases understates it, and the more strongly the longer the real processing
+time is, that is most strongly exactly where the result matters to us.
 
 ```python
 from gridqueue import processing_time, kaplan_meier
@@ -69,17 +69,18 @@ km = kaplan_meier(d["czas_dni"], d["zdarzenie"])
 km.as_dict()["mediana"], km.as_dict()["udzial_cenzurowanych"]
 ```
 
-Estymator Kaplana-Meiera zaimplementowano wprost, z wariancją Greenwooda, żeby
-nie wprowadzać zależności od biblioteki analizy przeżycia dla jednego
-estymatora. Przedział dla mediany wyznaczany jest przez odwrócenie pasa ufności
-krzywej.
+The Kaplan-Meier estimator was implemented directly, with Greenwood variance, so as
+not to introduce a dependency on a survival analysis library for the sake of one
+estimator. The interval for the median is determined by inverting the confidence band
+of the curve.
 
-## Czułość dopasowania wzdłużnego
+## Recall of the longitudinal linkage
 
-`linkage_audit` mierzy **precyzję**: czy połączone pary dotyczą tej samej
-sprawy. `linkage_recall` mierzy **czułość**: ile par klucz pominął. Te drugie
-są groźniejsze, bo rozerwana para pojawia się jako jeden wiersz „ubyły" i jeden
-„nowy", więc wygląda jak zdarzenie w rejestrze, a jest artefaktem dopasowania.
+`linkage_audit` measures **precision**: whether the linked pairs concern the same
+case. `linkage_recall` measures **recall**: how many pairs the key missed. The latter
+are the more dangerous, because a broken pair appears as one "departed" row and one
+"new" one, so it looks like an event in the register when it is an artefact of the
+linkage.
 
 ```python
 from gridqueue import linkage_recall
@@ -89,8 +90,8 @@ r.as_dict()["czulosc_klucza"]
 r.odzyskane["pola_klucza_rozne"].value_counts()
 ```
 
-Pola tożsamości użyte do odzyskania muszą być **rozłączne z kluczem**. Pole
-wspólne z kluczem nie wykryje pary rozerwanej zmianą właśnie tego pola, bo
-tożsamość rozjedzie się razem z kluczem. Zmierzone na parze edycji operatora
-przesyłowego: dołożenie lokalizacji do zestawu tożsamości podnosi pozorną
-czułość z 0,9652 do 0,9757, a w rzeczywistości ukrywa dziesięć par.
+The identity fields used for recovery have to be **disjoint from the key**. A field
+shared with the key will not detect a pair broken by a change in exactly that field,
+because the identity diverges together with the key. Measured on a pair of editions of the
+transmission operator: adding the location to the set of identity fields raises the apparent
+recall from 0,9652 to 0,9757, and in reality hides ten pairs.

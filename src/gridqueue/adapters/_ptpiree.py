@@ -1,27 +1,26 @@
-"""Wspólny szablon PTPiREE/PSE dla ujawnień z art. 7 ust. 8l pkt 1), 3) i 4).
+"""Shared PTPiREE/PSE template for statutory disclosures under art. 7 ust. 8l pkt 1), 3) i 4).
 
-Odkrycie, które to uzasadnia: arkusz PSE ``Informacje_publikowane_zgodnie_z_Art_7_
-ust_8l_ustawy_PE`` ma zakładkę "Listy rozwijane", a w niej listę wartości pola
+The discovery that justifies this: the PSE spreadsheet ``Informacje_publikowane_zgodnie_z_Art_7_
+ust_8l_ustawy_PE`` has a tab "Listy rozwijane", and on it a list of values for the field
 "OSD/OSP": Energa-Operator S.A., ENEA Operator Sp. z o.o., TAURON Dystrybucja S.A.,
-PGE Dystrybucja S.A., Stoen Operator Sp. z o.o., PSE S.A.  Szablon nie jest więc
-formularzem jednego przedsiębiorstwa, tylko UZGODNIONYM WZORCEM BRANŻOWYM dla
-sześciu największych operatorów.  Publikacja Energa-Operatora (PDF) realizuje ten
-sam wzorzec, co arkusz PSE (XLSX) -- różni się nośnikiem i dwiema kolumnami
-brzegowymi, nie treścią.
+PGE Dystrybucja S.A., Stoen Operator Sp. z o.o., PSE S.A.  The template is therefore not
+a form for a single company, but an AGREED INDUSTRY TEMPLATE for the six largest
+operators.  The Energa-Operator publication (PDF) implements the same template as the PSE
+spreadsheet (XLSX): it differs in medium and two boundary columns, not in content.
 
-Kolumny logiczne poniżej są tym wzorcem.  Adapter konkretnego publikującego ma
-jedno zadanie: powiedzieć, która kolumna FIZYCZNA jego dokumentu odpowiada której
-kolumnie logicznej.  Odwzorowanie na 21-polowy schemat jest wspólne, więc różnica
-między publikującymi zostaje tam, gdzie jest naprawdę -- w układzie dokumentu.
+The logical columns below are this template.  The adapter for a given publisher has
+one task: to say which PHYSICAL column of its document corresponds to which logical
+column.  The mapping onto the 21-field schema is shared, so the difference
+between publishers stays where it really is: in the document layout.
 
-Zmierzone układy fizyczne (odczytane z nagłówków, nie założone):
+Measured physical layouts (read from headers, not assumed):
 
   PSE  (XLSX, 27 kolumn):  id_obiektu, nazwa_obiektu, osd_osp, podmiot, ...
   ENERGA (PDF, 28 kolumn): lp, id_obiektu, osd_osp, podmiot, ...,  uwagi
 
-Od kolumny "osd_osp" obie numeracje się pokrywają: PSE ma z przodu dwie kolumny
-tożsamości (ID + nazwa obiektu), Energa jedną (ID) poprzedzoną liczbą porządkową,
-a na końcu dokłada kolumnę "UWAGI".
+From the "osd_osp" column onward both numberings coincide: PSE has two identity
+columns at the front (ID + object name), Energa one (ID) preceded by a sequence
+number, and at the end adds the "UWAGI" column.
 """
 
 from __future__ import annotations
@@ -33,16 +32,16 @@ from ..schema import canonical_date, canonical_power_kw
 from .base import harmonize_klasa, harmonize_status
 
 
-#: Rozdzielacze wielu miejsc przyłączenia w jednej komórce mocy.
+#: Separators for multiple connection points within a single capacity cell.
 _ROZDZ_MOC = re.compile(r"[\n\r;]+")
 
 
 def _rozbij_moc(value: Any) -> list[str]:
-    """Rozbij komórkę mocy na składowe dla wielu miejsc przyłączenia.
+    """Split a capacity cell into components for multiple connection points.
 
-    Liczba zwykła zwracana jest jako jedna składowa. Łańcuch rozdzielany jest po
-    złamaniu linii i średniku, i NIE po spacji, bo spacja jest u publikujących
-    separatorem tysięcznym.
+    A plain number is returned as a single component. A string is split on
+    line breaks and semicolons, and NOT on spaces, because publishers use the
+    space as the thousands separator.
     """
     if value is None:
         return []
@@ -53,7 +52,7 @@ def _rozbij_moc(value: Any) -> list[str]:
 
 __all__ = ["LOGICAL", "PSE_XLSX_LAYOUT", "ENERGA_PDF_LAYOUT", "to_schema", "stan_na"]
 
-#: kolumny logiczne wzorca PTPiREE/PSE
+#: logical columns of the PTPiREE/PSE template
 LOGICAL: tuple[str, ...] = (
     "lp",
     "id_obiektu",
@@ -86,7 +85,7 @@ LOGICAL: tuple[str, ...] = (
     "uwagi",
 )
 
-#: fizyczny indeks kolumny -> kolumna logiczna.  Arkusz PSE, 27 kolumn.
+#: physical column index -> logical column.  PSE spreadsheet, 27 columns.
 PSE_XLSX_LAYOUT: dict[int, str] = {
     0: "id_obiektu", 1: "nazwa_obiektu", 2: "osd_osp", 3: "podmiot",
     4: "lokalizacja", 5: "poziom_napiecia", 6: "wiele_miejsc", 7: "rodzaj",
@@ -99,7 +98,7 @@ PSE_XLSX_LAYOUT: dict[int, str] = {
     26: "data_wygasniecia_umowy",
 }
 
-#: fizyczny indeks kolumny -> kolumna logiczna.  PDF Energa-Operatora, 28 kolumn.
+#: physical column index -> logical column.  Energa-Operator PDF, 28 columns.
 ENERGA_PDF_LAYOUT: dict[int, str] = {
     0: "lp", 1: "id_obiektu", 2: "osd_osp", 3: "podmiot",
     4: "lokalizacja", 5: "poziom_napiecia", 6: "wiele_miejsc", 7: "rodzaj",
@@ -112,7 +111,7 @@ ENERGA_PDF_LAYOUT: dict[int, str] = {
     26: "data_wygasniecia_umowy", 27: "uwagi",
 }
 
-#: pola opcjonalne schematu, które wzorzec wypełnia u KAŻDEGO publikującego
+#: optional schema fields that the template populates for EVERY publisher
 DECLARED_FIELDS: tuple[str, ...] = (
     "id_wniosku", "lokalizacja_tekst", "poziom_napiecia", "klasa_zasobu",
     "moc_wprowadzana", "moc_pobierana", "status_procesu", "data_wniosku",
@@ -120,34 +119,34 @@ DECLARED_FIELDS: tuple[str, ...] = (
     "data_energizacji", "data_publikacji",
 )
 
-#: rozszerzenia poza 21-polowym schematem, wspólne dla wzorca
+#: extensions beyond the 21-field schema, shared by the template
 DECLARED_EXTENSIONS: dict[str, str] = {
-    "_podmiot": "nazwa podmiotu ubiegającego się o przyłączenie",
-    "_osd_osp": "operator wskazany w dokumencie (pole wzorca)",
-    "_nazwa_obiektu": "nazwa własna obiektu (tylko PSE)",
-    "_wiele_miejsc": "czy wniosek dotyczy wielu miejsc przyłączenia / poziomów napięć",
-    "_rodzaj_raw": "rodzaj instalacji tak, jak w dokumencie",
-    "_status_raw": "status etapu projektu tak, jak w dokumencie",
-    "_data_zaliczki": "data wpłaty zaliczki",
-    "_data_utraty_waznosci": "data utraty ważności / rezygnacji z warunków",
-    "_data_rozwiazania_umowy": "data rozwiązania/wypowiedzenia/odstąpienia od umowy",
-    "_data_wygasniecia_umowy": "data wygaśnięcia umowy z mocy prawa",
-    "_mz_pv": "moc zainstalowana PV [kW]",
-    "_mz_fw": "moc zainstalowana FW [kW]",
-    "_mz_mee_rozladowania": "moc zainstalowana magazynu -- rozładowanie [kW]",
-    "_mz_mee_ladowania": "moc zainstalowana magazynu -- ładowanie [kW]",
-    "_mz_odb": "moc zainstalowana odbioru [kW]",
-    "_mz_inne": "moc zainstalowana pozostałych źródeł [kW]",
-    "_uwagi": "kolumna UWAGI (tylko Energa)",
-    "_lp_dokumentu": "liczba porządkowa w dokumencie źródłowym",
-    "_encja": "WNIOSEK albo WEZEL -- którą encję obowiązku realizuje wiersz",
+    "_podmiot": "name of the entity applying for connection",
+    "_osd_osp": "operator indicated in the document (template field)",
+    "_nazwa_obiektu": "proper name of the object (PSE only)",
+    "_wiele_miejsc": "whether the application concerns multiple connection points / voltage levels",
+    "_rodzaj_raw": "installation type as given in the document",
+    "_status_raw": "project stage status as given in the document",
+    "_data_zaliczki": "date the deposit was paid",
+    "_data_utraty_waznosci": "date the connection conditions expired / were withdrawn",
+    "_data_rozwiazania_umowy": "date the agreement was terminated / cancelled / withdrawn from",
+    "_data_wygasniecia_umowy": "date the agreement expired by operation of law",
+    "_mz_pv": "installed PV capacity [kW]",
+    "_mz_fw": "installed FW capacity [kW]",
+    "_mz_mee_rozladowania": "installed storage capacity: discharge [kW]",
+    "_mz_mee_ladowania": "installed storage capacity: charge [kW]",
+    "_mz_odb": "installed consumption capacity [kW]",
+    "_mz_inne": "installed capacity of other sources [kW]",
+    "_uwagi": "UWAGI column (Energa only)",
+    "_lp_dokumentu": "sequence number in the source document",
+    "_encja": "WNIOSEK or WEZEL: which entity of the duty the row implements",
 }
 
 _NULLISH = {"", "-", "--", "---", "nan", "none", "brak", "nie dotyczy", "n/d"}
 
 
 def _blank(v: Any) -> bool:
-    """Czy wartość jest pusta.  ``nan`` jest prawdziwe, więc ``if v`` nie wystarcza."""
+    """Whether the value is blank.  ``nan`` is truthy, so ``if v`` is not enough."""
     if v is None:
         return True
     if isinstance(v, float) and v != v:
@@ -165,19 +164,20 @@ def _clean(v: Any) -> Optional[str]:
 
 
 def _volt(v: Any) -> Optional[str]:
-    """Poziom napięcia w postaci kanonicznej "<wartość> kV".
+    """Voltage level in canonical form "<value> kV".
 
-    Wzorzec dopuszcza WIELOKROTNOŚĆ ("110; 220; 400") -- tak stanowi lista
-    rozwijana arkusza PSE.  Zapisujemy pełną treść, bo wybranie jednej wartości
-    byłoby utratą danej; konsekwencją jest to, że detektor sprzeczności typu
-    (``looks_like_voltage``) oznacza takie wiersze -- i tak ma być, bo miara
-    ma pozostać PORÓWNYWALNA z wcześniejszymi pomiarami, a nie wygodna.
+    The template allows MULTIPLICITY ("110; 220; 400"): that is what the drop-down
+    list of the PSE spreadsheet provides for.  We record the full content, because
+    choosing a single value would lose data; the consequence is that the
+    contradiction detector of type (``looks_like_voltage``) flags such rows; and
+    that is how it should be, because the metric must remain COMPARABLE with
+    earlier measurements, not convenient.
 
-    Wartości KLASOWE ("SN", "nn", "WN") nie są liczbami kilowoltów i nie wolno
-    dopisywać im jednostki: "SN kV" nie znaczy nic.  Panel czterech dotychczasowych
-    publikujących zapisuje je jako samo "SN", więc trzymamy tę samą konwencję --
-    inaczej ten sam poziom napięcia miałby dwie różne postaci w jednym panelu
-    i pole przestałoby być porównywalne między publikującymi.
+    CLASS values ("SN", "nn", "WN") are not numbers of kilovolts and must not have
+    a unit appended to them: "SN kV" means nothing.  The panel of the four
+    publishers so far records them as plain "SN", so we keep the same convention;
+    otherwise the same voltage level would have two different forms within a single
+    panel and the field would stop being comparable between publishers.
     """
     s = _clean(v)
     if s is None:
@@ -190,18 +190,17 @@ def _volt(v: Any) -> Optional[str]:
     s = re.sub(r"\s+", " ", s).strip(" ;")
     if not s:
         return None
-    # liczby całkowite bez ".0" po przejściu przez pandas/openpyxl
+    # integers without ".0" after going through pandas/openpyxl
     s = re.sub(r"\b(\d+)\.0\b", r"\1", s)
     return f"{s} kV"
 
 
 def stan_na(text: str) -> Optional[str]:
-    """Data, na którą publikujący sporządził ujawnienie.
+    """The date as of which the publisher prepared the disclosure.
 
-    Postać bywa różna nawet u jednego publikującego: "Stan na 30.06.2026 r."
-    w zestawieniu wniosków i "(STAN NA DZIEŃ 31.08.2026 ROKU)" wersalikami na
-    stronie tytułowej ujawnienia węzłowego -- stąd dopasowanie bez rozróżniania
-    wielkości liter.
+    The form varies even within a single publisher: "Stan na 30.06.2026 r."
+    in the list of applications and "(STAN NA DZIEŃ 31.08.2026 ROKU)" in capitals on
+    the title page of the node disclosure: hence the case-insensitive match.
     """
     m = re.search(r"stan\s+na\s+(?:dzie[nń]\s+)?(\d{1,2}\.\d{1,2}\.\d{4})",
                   text or "", re.IGNORECASE)
@@ -209,10 +208,10 @@ def stan_na(text: str) -> Optional[str]:
 
 
 def to_schema(raw, *, publisher_key: str, data_publikacji: Optional[str]):
-    """Odwzoruj ramkę w kolumnach logicznych wzorca na 21-polowy schemat.
+    """Map a frame in the template's logical columns onto the 21-field schema.
 
-    ``raw`` ma kolumny z ``LOGICAL`` (brakujące mogą nie występować).  Jednostka
-    mocy we wzorcu to MW -- sprowadzamy do kanonicznych kW.
+    ``raw`` has columns from ``LOGICAL`` (missing ones may not be present).  The
+    capacity unit in the template is MW: we convert to canonical kW.
     """
     import pandas as pd
 
@@ -222,21 +221,23 @@ def to_schema(raw, *, publisher_key: str, data_publikacji: Optional[str]):
         return pd.Series([None] * len(raw), index=raw.index, dtype="object")
 
     def mw(name: str):
-        """Moc z kolumny SUROWEJ, z obsługą wielu miejsc przyłączenia.
+        """Capacity from the RAW column, with support for multiple connection points.
 
-        Pułapka, która zawyżyła jeden wiersz o trzy rzędy wielkości: gdy wniosek
-        dotyczy kilku miejsc przyłączenia (kolumna "Wiele miejsc przyłączenia"
-        = TAK), publikujący wpisuje do jednej komórki kilka wartości rozdzielonych
-        ZŁAMANIEM LINII, czasem dodatkowo średnikiem. ``_clean`` zamieniał złamanie
-        linii na spację, a ``canonical_power_kw`` traktuje spację jako separator
-        tysięczny, więc "129⏎240" (129 MW + 240 MW) stawało się 129 240 MW.
-        W edycji, w której publikujący dopisał średniki, ta sama komórka nie
-        konwertowała się wcale i pole zostawało puste, czyli ten sam defekt
-        dawał raz absurd, raz milczący brak.
+        The trap that inflated one row by three orders of magnitude: when an
+        application concerns several connection points (column "Wiele miejsc
+        przyłączenia" = TAK), the publisher enters into a single cell several
+        values separated by a LINE BREAK, sometimes additionally by a semicolon.
+        ``_clean`` turned the line break into a space, and ``canonical_power_kw``
+        treats a space as the thousands separator, so "129⏎240" (129 MW + 240 MW)
+        became 129 240 MW.  In the edition where the publisher added semicolons,
+        the same cell did not convert at all and the field stayed blank, meaning
+        the same defect produced an absurdity in one case, and a silent gap in the
+        other.
 
-        Zwracamy SUMĘ składowych, bo pole schematu opisuje moc wniosku, a wniosek
-        jest jeden. Składowe zachowujemy w rozszerzeniu, żeby nie zgubić podziału
-        na miejsca przyłączenia.
+        We return the SUM of the components, because the schema field describes
+        the capacity of the application, and there is one application. We keep the
+        components in the extension, so as not to lose the breakdown by
+        connection point.
         """
         if name not in raw.columns:
             return (pd.Series([None] * len(raw), index=raw.index, dtype="object"),
@@ -259,17 +260,17 @@ def to_schema(raw, *, publisher_key: str, data_publikacji: Optional[str]):
                 pd.Series(skladowe, index=raw.index, dtype="object"))
 
     def dcol(name: str):
-        """Data z kolumny SUROWEJ, bez przejścia przez ``_clean``.
+        """Date from the RAW column, without going through ``_clean``.
 
-        Pułapka, która kosztowała wszystkie daty PSE: nośnikiem PSE jest XLSX,
-        a openpyxl zwraca komórki daty jako ``Timestamp``.  ``_clean`` robi na
-        wartości ``str()``, więc Timestamp zamieniał się w "2023-08-07 00:00:00",
-        a ``canonical_date`` ma wzorce ZAKOTWICZONE i takiego łańcucha nie
-        dopasowuje -- zwracał None.  Efekt: pola ``data_*`` pustoszały dla całego
-        publikującego, a reguły jakości R1 i R2 (monotoniczność dat, dwuletnia
-        ważność warunków) nie miały na czym pracować i pokazywały zero naruszeń.
-        ``canonical_date`` sam obsługuje ``datetime``/``date``, więc wystarczy
-        podać mu wartość nietkniętą.
+        The trap that cost all the PSE dates: the PSE medium is XLSX, and
+        openpyxl returns date cells as ``Timestamp``.  ``_clean`` calls ``str()``
+        on the value, so a Timestamp turned into "2023-08-07 00:00:00", and
+        ``canonical_date`` has ANCHORED patterns and does not match such a string:
+        it returned None.  Effect: the ``data_*`` fields went empty for the entire
+        publisher, and quality rules R1 and R2 (date monotonicity, the two-year
+        validity of conditions) had nothing to work on and showed zero violations.
+        ``canonical_date`` itself handles ``datetime``/``date``, so it is enough to
+        pass it the untouched value.
         """
         if name not in raw.columns:
             return pd.Series([None] * len(raw), index=raw.index, dtype="object")
@@ -278,10 +279,10 @@ def to_schema(raw, *, publisher_key: str, data_publikacji: Optional[str]):
     out = pd.DataFrame(index=raw.index)
     ident = col("id_obiektu")
     lp = col("lp")
-    # Uwaga na pułapkę: ``Series.map`` zamienia zwrócone ``None`` na ``nan``,
-    # a ``nan`` jest w Pythonie PRAWDZIWE.  Test pustości musi być jawny, inaczej
-    # zastępnik identyfikatora nigdy się nie uruchomi, a 866 z 876 wierszy PSE
-    # (te z "-" w polu ID Obiektu) zostaje bez identyfikatora.
+    # Watch out for the trap: ``Series.map`` turns a returned ``None`` into ``nan``,
+    # and ``nan`` is TRUTHY in Python.  The emptiness test must be explicit, otherwise
+    # the identifier fallback never runs, and 866 of 876 PSE rows
+    # (those with "-" in the ID Obiektu field) are left without an identifier.
     out["id_wniosku"] = [
         i if not _blank(i)
         else f"{publisher_key}:poz:{(str(l).rstrip('.') if not _blank(l) else str(k + 1))}"
@@ -298,11 +299,11 @@ def to_schema(raw, *, publisher_key: str, data_publikacji: Optional[str]):
     out["data_odmowy"] = dcol("data_odmowy")
     out["powod_odmowy"] = col("uzasadnienie_odmowy")
     out["data_umowy"] = dcol("data_umowy")
-    # Energa zapisuje planowaną energizację NIERÓWNOŚCIĄ ("po 30.06.2026"), a nie
-    # datą.  ``canonical_date`` jest zakotwiczony na początku łańcucha, więc słusznie
-    # zwraca None -- zapisanie 2026-06-30 gubiłoby słowo "po" i zamieniało termin
-    # dolny na termin dokładny.  Żeby jednak nie utracić danej, surowy tekst idzie
-    # do rozszerzenia, a pole schematu zostaje puste.
+    # Energa records the planned energization as an INEQUALITY ("po 30.06.2026"),
+    # not a date.  ``canonical_date`` is anchored at the start of the string, so it
+    # rightly returns None: recording 2026-06-30 would lose the word "po" and turn
+    # a lower bound into an exact date.  However, to avoid losing the data, the raw
+    # text goes into the extension, and the schema field remains blank.
     _energ = col("data_energizacji")
     out["data_energizacji"] = dcol("data_energizacji")
     out["_energizacja_tekst"] = [

@@ -1,243 +1,243 @@
-# Historia zmian
+# Change history
 
-Format oparty na [Keep a Changelog](https://keepachangelog.com/pl/1.1.0/);
-wersjonowanie semantyczne. Wersja schematu danych jest odrębna od wersji pakietu
-i podawana jako `SCHEMA_VERSION`.
+Format based on [Keep a Changelog](https://keepachangelog.com/pl/1.1.0/);
+semantic versioning. The version of the data schema is separate from the version of the package
+and is reported as `SCHEMA_VERSION`.
 
 ## 1.5.2 (2026-10-17)
 
-### Dodane
-- **Uruchamianie w przegladarce** (`docs/app/`): strona wczytujaca ten sam pakiet
-  do interpretera WebAssembly i uruchamiajaca go lokalnie. Dokument nie jest
-  nigdzie wysylany, bo nie ma serwera, ktory moglby go przyjac. Wynik jest z
-  konstrukcji identyczny z wynikiem wiersza polecen, bo to ten sam kod i ta sama
-  wersja. Strona wykrywa publikujacego, wydobywa wiersze schematu, uruchamia osiem
-  regul jakosci i pozwala pobrac tabele jako CSV oraz raport walidacji jako JSON.
+### Added
+- **Running in the browser** (`docs/app/`): a page that loads this same package
+  into a WebAssembly interpreter and runs it locally. The document is not
+  sent anywhere, because there is no server that could receive it. The result is by
+  construction identical with the result of the command line, because it is the same code and the same
+  version. The page detects the publisher, extracts the schema rows, runs the eight
+  quality rules and allows the table to be downloaded as CSV and the validation report as JSON.
 
-### Naprawione
-- **Regula R3 zwracala -1 zamiast liczby naruszen**, gdy kolumna `publikujacy`
-  byla obecna, lecz pusta: `groupby` pomija grupe o wartosci pustej, wiec wiersz
-  bez tej adnotacji nie mial wpisu w slowniku pol ujawnianych i odwolanie po
-  kluczu rzucalo `KeyError`. Blad byl przechwytywany, regula raportowala -1,
-  a suma naruszen calego raportu stawala sie ujemna. Defekt niemy, wykryty
-  uruchomieniem pakietu na ramce zbudowanej recznie przy budowie strony
-  przegladarkowej. Dodano test regresyjny.
+### Fixed
+- **Rule R3 returned -1 instead of a count of violations** when the `publikujacy` column
+  was present but empty: `groupby` omits a group with an empty value, so a row
+  without that annotation had no entry in the dictionary of disclosed fields and a lookup by
+  key raised `KeyError`. The error was caught, the rule reported -1,
+  and the total number of violations in the whole report became negative. A silent defect, detected
+  by running the package on a frame built by hand while the browser
+  page was being built. A regression test was added.
 
-### Zmienione
-- Z prozy repozytorium usunieto pauze i poltpauze. Jedyne pozostale wystapienie
-  jest w wyrazeniu regularnym adaptera TAURONA i jest noszne: dopasowuje znak
-  wystepujacy w dokumencie zrodlowym.
+### Changed
+- The em dash and en dash were removed from the prose of the repository. The only remaining occurrence
+  is in the regular expression of the TAURON adapter and is load-bearing: it matches a character
+  occurring in the source document.
 
 ## 1.5.1 (2026-10-08)
 
-### Poprawione
-- **Tożsamość arytmetyczna dokumentu hiszpańskiego opisana poprawnie.** Wersja 1.5.0
-  podawała, że kolumny „z pozwoleniem" i „w toku" odtwarzają moc zajętą w 395 z 767
-  wierszy. Było to **opisem niepełnej tożsamości**: obie grupy są SKŁADNIKAMI, a nie
-  alternatywnymi rozbiciami. Jedenaście podkolumn, dziewięć pozycji stacji plus te
-  dwie, sumuje się do mocy zajętej **dokładnie w 1 838 z 1 838 wierszy, w obu
-  sprawdzonych wydaniach**. Poprzednia liczba była prawdziwa, ale mierzyła wycinek.
+### Corrected
+- **The arithmetic identity of the Spanish document described correctly.** Version 1.5.0
+  stated that the columns "with permission" and "in progress" reconstruct the occupied capacity in 395 of 767
+  rows. That was **a description of an incomplete identity**: both groups are COMPONENTS, not
+  alternative breakdowns. Eleven subcolumns, nine substation items plus those
+  two, sum to the occupied capacity **in exactly 1 838 of 1 838 rows, in both
+  editions checked**. The previous figure was true, but it measured a fragment.
 
-### Dodane
-- `suma_skladnikow_mocy_zajetej` oraz pole `tozsamosc_sumy_mocy_zajetej` w raporcie
-  adaptera hiszpańskiego. Dla tego publikującego **nie ma zbioru odniesienia** odczytanego
-  niezależnie od parsera, więc dokładności wydobycia nie da się zmierzyć wobec wzorca.
-  Domknięcie sumy jest świadectwem **spójności odczytu**: aby suma jedenastu komórek
-  zgadzała się z dwunastą, wszystkie dwanaście musi być odczytane poprawnie. Na dwóch
-  wydaniach daje to 3 676 niezależnych sprawdzeń, wszystkie domknięte. Jest to
-  świadectwo słabsze niż wzorzec i tak jest opisane.
-- `NODE_KEY_FIELDS`, klucz treściowy dla wierszy encji WĘZEŁ. Domyślny klucz jest
-  zbudowany dla encji WNIOSEK i na wierszach węzłowych **rozpada się**, bo pola wniosku
-  są tam puste. Zmierzone na parze wydań hiszpańskich: kluczem domyślnym 916 z 1 838
-  wierszy wpada w kolizję i 660 zostaje odrzuconych jako niejednoznaczne; kluczem
-  węzłowym kolizji jest **zero**, wszystkie 1 838 par dopasowuje się jednoznacznie,
-  przy precyzji i czułości **1,000**. Wniosek ogólniejszy: klucz treściowy musi być
-  dobrany do encji tak samo jak rdzeń schematu, a jego niedopasowanie **nie zgłasza
-  błędu**, po cichu produkuje kolizje wyglądające jak zdarzenia w rejestrze.
+### Added
+- `suma_skladnikow_mocy_zajetej` and the field `tozsamosc_sumy_mocy_zajetej` in the report of the
+  Spanish adapter. For this publisher **there is no reference set** read
+  independently of the parser, so the extraction accuracy cannot be measured against a reference set.
+  Arithmetic closure is evidence of **consistency of reading**: for the sum of eleven cells
+  to agree with the twelfth, all twelve have to be read correctly. Across two
+  editions that gives 3 676 independent checks, all of them closed. This is
+  evidence weaker than a reference set and it is described as such.
+- `NODE_KEY_FIELDS`, a content key for rows of the WĘZEŁ entity. The default key is
+  built for the WNIOSEK entity and on node rows it **falls apart**, because the application fields
+  are empty there. Measured on a pair of Spanish issues: with the default key 916 of 1 838
+  rows fall into a collision and 660 are rejected as ambiguous; with the node
+  key the collisions number **zero**, all 1 838 pairs are linked unambiguously,
+  at a precision and recall of **1,000**. The more general conclusion: a content key has to be
+  matched to the entity just as the schema core is, and a mismatch **does not report
+  an error**, it quietly produces collisions that look like events in the register.
 
 ## 1.5.0 (2026-10-08)
 
-### Dodane
-- Adapter `es_edistribucion`, **pierwsze zagraniczne źródło wydawane jako dokument
-  do druku**, co zamyka najmocniejszy brakujący test przenoszalności. Wydanie miesięczne,
-  28 stron, 1 838 wierszy encji WĘZEŁ, wszystkie pola zadeklarowane wypełnione
-  w 100 %, w tym współrzędne geograficzne każdej podstacji. Moce w MW mocy czynnej.
-- Adapter `ie_esbnetworks`, najliczniejsze źródło w panelu, 46 527 wierszy, jedyne
-  schodzące poniżej stacji wysokiego napięcia. Współrzędne w 46 525 wierszach.
-- Panel wzorcowy: **68 054 wiersze, dziewięciu publikujących, pięć jurysdykcji**
-  (PL, GB, PT, ES, IE). Encja WĘZEŁ rośnie z 634 do 48 999 wierszy, a pokrycie pola
-  współrzędnych z 6,2 % do 72,9 % panelu.
+### Added
+- The `es_edistribucion` adapter, **the first foreign source issued as a document
+  meant for printing**, which closes the strongest missing test of transferability. A monthly issue,
+  28 pages, 1 838 rows of the WĘZEŁ entity, all declared fields populated
+  at 100 %, including the geographic coordinates of every substation. Capacities in MW of active power.
+- The `ie_esbnetworks` adapter, the largest source in the panel, 46 527 rows, the only one
+  going below high voltage substations. Coordinates in 46 525 rows.
+- Reference panel: **68 054 rows, nine publishers, five jurisdictions**
+  (PL, GB, PT, ES, IE). The WĘZEŁ entity grows from 634 to 48 999 rows, and the coverage of the
+  coordinate field from 6,2 % to 72,9 % of the panel.
 
-### Rozstrzygnięte
-- **Jednostki, po raz drugi i trzeci.** Źródło irlandzkie miesza w jednym pliku moc
-  pozorną po stronie odbiorczej z czynną po wytwórczej; pole mocy niesie stronę wytwórczą
-  przeliczoną z MW, a odbiorcza zostaje w rozszerzeniach z jednostką w nazwie. Źródło
-  hiszpańskie podaje MW mocy czynnej, więc przelicza się bez założeń. Trzy jurysdykcje
-  pokazują trzy różne praktyki jednostkowe w jednym polu schematu.
-- **Semantyka kolumn hiszpańskich ustalona arytmetyką, nie nagłówkiem.** Nagłówek
-  z komórkami scalonymi sugerował przypisanie dwóch kolumn do mocy nierozstrzygniętej;
-  sumy pokazały, że należą do mocy zajętej. Przyjęcie nagłówka na wiarę dałoby ciche
-  przestawienie dwóch pól mocy. **Uściślone w 1.5.1**, patrz niżej.
-- **Pusta komórka ograniczenia w źródle irlandzkim** czytana jest jako brak ograniczenia.
-  Publikujący tej konwencji nie opisuje, więc jest to interpretacja, nie treść źródła:
-  surowa fraza zostaje w rozszerzeniu, a decyzja jest przypięta testem.
+### Settled
+- **Units, for the second and third time.** The Irish source mixes, in one file, apparent power
+  on the offtake side with active power on the generating side; the capacity field carries the generating side
+  converted from MW, and the offtake side stays in the extensions with the unit in the name. The Spanish
+  source reports MW of active power, so it converts without assumptions. Three jurisdictions
+  show three different unit practices in one schema field.
+- **The semantics of the Spanish columns established by arithmetic, not by the header.** A header
+  with merged cells suggested that two columns belonged to the unsettled capacity;
+  the sums showed that they belong to the occupied capacity. Taking the header on trust would have given a silent
+  transposition of two capacity fields. **Made precise in 1.5.1**, see below.
+- **An empty constraint cell in the Irish source** is read as no constraint.
+  The publisher does not describe this convention, so it is an interpretation, not the content of the source:
+  the raw phrase stays in an extension, and the decision is pinned by a test.
 
-### Zmienione
-- Test rejestru obejmuje dziewięć adapterów w pięciu jurysdykcjach.
-- `reproducibility/manifest.csv` liczy 16 pozycji.
+### Changed
+- The registry test covers nine adapters in five jurisdictions.
+- `reproducibility/manifest.csv` counts 16 entries.
 
 ## 1.4.0 (2026-10-07)
 
-### Dodane
-- Adapter `pt_eredes`, zdolność przyjęcia krajowej sieci dystrybucyjnej Portugalii,
-  469 wierszy encji WĘZEŁ, publikacja kwartalna. **Trzecia jurysdykcja w panelu
-  i trzeci tryb wydania**: nie dokument do druku i nie plik na stronie, lecz zbiór
-  na portalu otwartych danych z interfejsem REST.
-- Pierwsze zagraniczne źródło encji WĘZEŁ. Encja ta rośnie w panelu ze 165 wierszy
-  do 634, a obie jurysdykcje spełniają jej rdzeń **różnymi członami tej samej
-  alternatywy**: Polska mocą dostępną (58 % wierszy węzłowych), Portugalia flagą
-  ograniczenia (100 %). Warunkowy rdzeń wprowadzony w wersji 1.0 dla polskiego
-  błędu kategorialnego okazał się warunkiem wchłonięcia obcej jurysdykcji.
+### Added
+- The `pt_eredes` adapter, the reception capability of the national distribution network of Portugal,
+  469 rows of the WĘZEŁ entity, published quarterly. **The third jurisdiction in the panel
+  and the third mode of issue**: not a document meant for printing and not a file on a page, but a dataset
+  on an open data portal with a REST interface.
+- The first foreign source of the WĘZEŁ entity. That entity grows in the panel from 165 rows
+  to 634, and both jurisdictions satisfy its core **through different members of the same
+  alternative**: Poland with available capacity (58 % of the node rows), Portugal with the
+  constraint flag (100 %). The conditional core introduced in version 1.0 for a Polish
+  category error turned out to be the condition for absorbing a foreign jurisdiction.
 
-### Rozstrzygnięte
-- **Jednostki.** Publikujący portugalski podaje moce w MVA, czyli w mocy pozornej,
-  a jednostką kanoniczną schematu jest kW mocy czynnej. Przeliczenie wymagałoby
-  nieujawnionego współczynnika mocy, więc `moc_dostepna` pozostaje puste, a wartości
-  źródłowe trafiają do pól rozszerzenia z jawnie zapisaną jednostką. Jest to ta sama
-  zasada, którą zastosowano wobec publikującego podającego liczbę wolnych miejsc
-  przyłączeniowych zamiast mocy.
+### Settled
+- **Units.** The Portuguese publisher reports capacities in MVA, that is in apparent power,
+  whereas the canonical unit of the schema is kW of active power. Conversion would require
+  an undisclosed power factor, so `moc_dostepna` remains empty, and the source
+  values go into the extension fields with the unit recorded explicitly. This is the same
+  principle that was applied to the publisher reporting a count of free connection
+  slots instead of a capacity.
 
-### Naprawione
-- **Test deklaracji adapterów niósł nieaktualny kontrakt rdzenia.** Wymagał od
-  każdego adaptera rdzenia encji WNIOSEK, czyli powielał błąd kategorialny naprawiony
-  w regule R7 w wersji 1.0: publikujący realizujący wyłącznie punkt 2 obowiązku
-  ujawnia węzły, a nie wnioski, więc nie ma ani identyfikatora wniosku, ani jego mocy.
-  Defekt ujawnił dopiero adapter portugalski. Test sprawdza teraz rdzeń **właściwej
-  dla adaptera encji**.
+### Fixed
+- **The adapter declaration test carried an out-of-date core contract.** It required
+  the core of the WNIOSEK entity from every adapter, that is it repeated the category error fixed
+  in rule R7 in version 1.0: a publisher discharging only point 2 of the duty
+  discloses nodes rather than applications, so it has neither an application identifier nor an application capacity.
+  The defect was revealed only by the Portuguese adapter. The test now checks the core **appropriate
+  to the adapter's entity**.
 
-### Zmienione
-- `reproducibility/manifest.csv` obejmuje eksport portugalski z sumą kontrolną.
-- Panel wzorcowy liczy 19 689 wierszy od siedmiu publikujących w trzech jurysdykcjach.
+### Changed
+- `reproducibility/manifest.csv` covers the Portuguese export with a checksum.
+- The reference panel counts 19 689 rows from seven publishers in three jurisdictions.
 
 
 ## 1.3.0 (2026-10-07)
 
-### Dodane
-- Moduł `analysis` z warstwą badawczą nad schematem: `station_node_map`,
+### Added
+- The `analysis` module with a research layer above the schema: `station_node_map`,
   `assign_to_nodes`, `node_loading`, `processing_time`, `kaplan_meier`.
-  Pozwala policzyć **obciążenie węzła**, stosunek mocy czynnej kolejki do
-  ujawnionej mocy dostępnej, czyli kryterium, które przeglądy literatury
-  opisują jako niemierzalne z powodu braku danych.
-- `linkage_recall`, **czułość** dopasowania wzdłużnego, obok mierzonej dotąd
-  precyzji. Na parze edycji operatora przesyłowego czułość klucza wynosi
-  0,9652: z 29 pominiętych par 10 rozrywa zapis lokalizacji, 15 zmiana mocy,
-  4 zmiana napięcia.
-- `surrogate_key(..., zero_jako_brak=True)`, opcja zrównująca zero z brakiem
-  wartości. Odzyskuje 12 z 51 par traconych przez klucz. **Domyślnie
-  wyłączona**: zero jest wartością ujawnioną, a brak jej nieujawnieniem, więc
-  zrównanie ich jest decyzją analityka i ma być widoczne w kodzie.
-- `schema_table()` zwraca kolumny `encja` oraz `status_rdzenia`, rdzeń jest
-  warunkowy per encja, czego dwuwartościowa kolumna `rdzen` nie oddawała.
-- `reproducibility/fetch_sources.py`, pobiera dokumenty źródłowe z manifestu
-  i weryfikuje sumy SHA-256. Obsługuje własny pakiet zaufanych wystawców przez
-  `GRIDQUEUE_CA_BUNDLE`, bez wyłączania weryfikacji.
+  It makes it possible to compute **node loading**, the ratio of the active capacity of the queue to
+  the disclosed available capacity, that is the criterion which literature reviews
+  describe as unmeasurable because of the absence of the data.
+- `linkage_recall`, the **recall** of the longitudinal linkage, alongside the precision
+  measured so far. On a pair of editions of the transmission operator the recall of the key is
+  0,9652: of the 29 missed pairs, 10 are broken by the notation of the location, 15 by a change of capacity,
+  4 by a change of voltage.
+- `surrogate_key(..., zero_jako_brak=True)`, an option equating zero with a missing
+  value. It recovers 12 of the 51 pairs lost by the key. **Disabled
+  by default**: zero is a disclosed value and a gap is a non-disclosure of it, so
+  equating them is a decision of the analyst and is meant to be visible in the code.
+- `schema_table()` returns the columns `encja` and `status_rdzenia`; the core is
+  conditional per entity, which the two-valued `rdzen` column did not convey.
+- `reproducibility/fetch_sources.py`, downloads the source documents from the manifest
+  and verifies the SHA-256 checksums. It supports a custom bundle of trusted issuers through
+  `GRIDQUEUE_CA_BUNDLE`, without disabling verification.
 
-### Naprawione
-- **Normalizacja nazw rozcinała wyrazy z literą `ł`.** Rozkład kanoniczny
-  Unicode nie oddziela od niej znaku diakrytycznego, bo jest to osobna litera,
-  więc czyszczenie znaków zamieniało ją na spację i „Białogard" stawał się
-  „bia ogard". Dotyczy też `đ`, `ø`, `ß`, `æ`, `œ`. Jest to drugie wystąpienie
-  tej samej pułapki w projekcie, pierwsze dotyczyło harmonizacji statusów.
-- **Obiekty planowane na linii były arbitralnie przypisywane do węzła.** Wpis
-  „planowany RS w linii relacji A, B" opisuje obiekt leżący między węzłami;
-  dopasowanie po nazwie przypisywało mu pełną moc do tego końca, który akurat
-  występował w wykazie stacji. Takie wnioski mają teraz własny status `LINE`
-  i nie są przypisywane. Na danych jednego publikującego dotyczy to 63 wniosków.
+### Fixed
+- **Name normalization split words containing the letter `ł`.** The canonical Unicode
+  decomposition does not separate the diacritic from it, because it is a separate letter,
+  so cleaning the characters turned it into a space and "Białogard" became
+  "bia ogard". This also concerns `đ`, `ø`, `ß`, `æ`, `œ`. It is the second occurrence
+  of the same trap in the project; the first concerned the harmonization of statuses.
+- **Objects planned on a line were arbitrarily assigned to a node.** The entry
+  "planowany RS w linii relacji A, B" describes an object lying between nodes;
+  matching by name assigned its full capacity to whichever end happened
+  to appear in the list of substations. Such applications now have their own status `LINE`
+  and are not assigned. On the data of one publisher this concerns 63 applications.
 
-### Zmienione
-- `reproducibility/manifest.csv` obejmuje edycję lipcową ujawnienia operatora
-  przesyłowego, używaną w analizie wzdłużnej.
-- `DATA_LICENSE.md` wyjaśnia, dlaczego dokumenty nie są redystrybuowane,
-  i odnotowuje, że odsyłacz jednego z publikujących przestał prowadzić do pliku
-, co skrypt pobierający rozpoznaje po sygnaturze pliku i zgłasza osobno.
+### Changed
+- `reproducibility/manifest.csv` covers the July edition of the disclosure of the transmission
+  operator, used in the longitudinal analysis.
+- `DATA_LICENSE.md` explains why the documents are not redistributed,
+  and records that the link of one of the publishers stopped leading to the file
+, which the download script recognizes by the signature of the file and reports separately.
 
 
 ## 1.2.1 (2026-10-04)
 
-### Dodane
-- `notebooks/gridqueue_colab.ipynb`, pełny przebieg badawczy w przeglądarce, bez instalacji:
-  pobranie dwóch edycji wprost od publikującego, wydobycie, kontrola jakości, przepływy w kolejce
-  z precyzją dopasowania oraz **asercja zgodności z liczbami opublikowanymi w artykule**.
-  Dokumentacja: `docs/colab.md`.
-- `QualityReport.as_frame()`, metoda **obiecywana przez dokumentację, lecz nieobecna w kodzie**.
-  Defekt ujawnił się dopiero przy uruchomieniu notatnika, który korzystał z publicznego API
-  tak, jak opisuje je dokumentacja.
-- Dwa zadania ciągłej integracji: przebieg na `pandas>=3.0` oraz kontrola notatnika
-  (poprawność składniowa komórek i istnienie w API każdej nazwy z niego importowanej).
+### Added
+- `notebooks/gridqueue_colab.ipynb`, a full research run in the browser, with no installation:
+  downloading two editions directly from the publisher, extraction, quality control, queue flows
+  with the linkage precision, and **an assertion of agreement with the figures published in the paper**.
+  Documentation: `docs/colab.md`.
+- `QualityReport.as_frame()`, a method **promised by the documentation but absent from the code**.
+  The defect came to light only when the notebook was run, since it used the public API
+  the way the documentation describes it.
+- Two continuous integration jobs: a run on `pandas>=3.0` and a check of the notebook
+  (syntactic correctness of the cells and the existence in the API of every name imported from it).
 
-### Naprawione
-- **Niezgodność z pandas 3.** Klucz wzdłużny budowano przez `.astype(str)`, co w pandas 2
-  zamieniało brak na łańcuch `"nan"`, a w pandas 3 zachowuje wartość brakującą, złączenie
-  składowych rzucało `TypeError` i cała analiza wzdłużna była na tej wersji niewykonalna.
-  Klucz buduje się teraz jawną konwersją, identycznie w obu wersjach; **wszystkie opublikowane
-  liczby pozostają bez zmian**, co sprawdzono porównaniem. Ta sama poprawka czyni regułę
-  „brak jest wartością" własnością kodu, a nie ubocznym skutkiem rzutowania typu.
-  Analogiczne założenie usunięto z adaptera operatora przesyłowego.
+### Fixed
+- **Incompatibility with pandas 3.** The longitudinal key was built using `.astype(str)`, which in pandas 2
+  turned a gap into the string `"nan"`, whereas in pandas 3 it preserves the missing value; concatenating
+  the components raised `TypeError` and the whole longitudinal analysis was impossible on that version.
+  The key is now built by an explicit conversion, identically in both versions; **all the published
+  figures remain unchanged**, which was checked by comparison. The same fix makes the rule
+  "a gap is a value" a property of the code rather than a side effect of a type cast.
+  An analogous assumption was removed from the adapter of the transmission operator.
 
-### Zmienione
-- Macierz CI testowała wersje Pythona, lecz nie wersje bibliotek, stąd defekt przeszedł.
-  Zadanie `pandas3` zamyka tę lukę.
+### Changed
+- The CI matrix tested Python versions but not library versions, which is how the defect got through.
+  The `pandas3` job closes that gap.
 
 ## 1.2.0 (2026-10-04)
 
-### Dodane
-- `linkage_audit`, ocena precyzji dopasowania wzdłużnego na dziewięciu polach
-  **wyłączonych z klucza** (nazwa podmiotu, nazwa obiektu, data wniosku, sześć pól
-  rozbicia mocy). Klucz nie wymusza zgodności tych pól, więc ich zgodność jest
-  niezależnym świadectwem. Na parze edycji PSE precyzja wynosi 98,88-99,63 %
-  na wszystkich 804 parach.
-- `EditionDelta` raportuje teraz kolizje klucza i liczbę wierszy odrzuconych
-  z dopasowania jako niejednoznaczne.
-- `DATA_LICENSE.md`, rozdzielenie licencji kodu od statusu danych wejściowych
-  i wyjściowych, w tym obowiązków wynikających z ODbL dla gazetera.
+### Added
+- `linkage_audit`, an assessment of the precision of the longitudinal linkage on nine fields
+  **excluded from the key** (entity name, object name, application date, six fields of the
+  capacity breakdown). The key does not enforce the agreement of these fields, so their agreement is
+  independent evidence. On the pair of PSE editions the precision is 98,88-99,63 %
+  across all 804 pairs.
+- `EditionDelta` now reports key collisions and the number of rows rejected
+  from the linkage as ambiguous.
+- `DATA_LICENSE.md`, separating the licence of the code from the status of the input
+  and output data, including the duties following from ODbL for the gazetteer.
 - `CHANGELOG.md`.
-- Odznaki stanu w `README.md`.
-- `reproducibility/expected/`, oczekiwane wyniki wraz z asercjami w skryptach
-  odtwarzających; rozbieżność kończy przebieg kodem niezerowym.
+- Status badges in `README.md`.
+- `reproducibility/expected/`, the expected results together with assertions in the reproducing
+  scripts; a divergence ends the run with a non-zero code.
 
-### Zmienione
-- Dokumentacja analizy wzdłużnej podaje pełną specyfikację algorytmu dopasowania:
-  zachowanie przy braku wartości, wymóg unikalności, obsługę kolizji, brak tolerancji
-  na mocach.
-- Przykład wzdłużny wypisuje precyzję dopasowania i liczby kolizji.
+### Changed
+- The documentation of the longitudinal analysis gives the full specification of the linkage algorithm:
+  behaviour on a missing value, the uniqueness requirement, the handling of collisions, the absence of tolerance
+  on the capacities.
+- The longitudinal example prints the linkage precision and the collision counts.
 
 ## 1.1.0 (2026-10-03)
 
-### Dodane
-- Moduł `longitudinal`: `compare_editions`, `surrogate_key`, `EditionDelta`.
-  Rejestr nie publikuje trwałego identyfikatora wniosku, więc dopasowanie między
-  edycjami idzie po kluczu treściowym.
-- `examples/longitudinal_use_case.py` i `docs/wzdluzna.md`.
+### Added
+- The `longitudinal` module: `compare_editions`, `surrogate_key`, `EditionDelta`.
+  The register does not publish a persistent application identifier, so linkage between
+  editions goes by a content key.
+- `examples/longitudinal_use_case.py` and `docs/wzdluzna.md`.
 
-### Naprawione
-- **Wielokrotne komórki mocy.** Gdy wniosek dotyczy kilku miejsc przyłączenia,
-  publikujący wpisuje do jednej komórki kilka wartości rozdzielonych złamaniem linii.
-  Normalizacja białych znaków zamieniała złamanie linii na spację, a konwersja mocy
-  traktuje spację jako separator tysięczny, więc „129⏎240" (129 MW + 240 MW) stawało się
-  129 240 MW. W edycji ze średnikami ta sama komórka nie konwertowała się wcale.
-  Moc jest teraz rozbijana po złamaniu linii i średniku, i celowo nie po spacji -
-  składowe sumowane, a podział zachowany w rozszerzeniach.
+### Fixed
+- **Multiple capacity cells.** When an application concerns several connection points,
+  the publisher enters several values into one cell, separated by a line break.
+  Whitespace normalization turned the line break into a space, and the capacity conversion
+  treats a space as a thousands separator, so "129⏎240" (129 MW + 240 MW) became
+  129 240 MW. In the edition with semicolons the same cell did not convert at all.
+  The capacity is now split on the line break and on the semicolon, and deliberately not on the space;
+  the components are summed and the split is preserved in the extensions.
 
 ## 1.0.0 (2026-10-03)
 
-### Zmienione
-- **Rdzeń schematu jest warunkowy i osobny dla każdej encji.** Reguła kompletności
-  rdzenia wymagała bezwarunkowo pola `moc_pobierana` i stosowała wymagania encji
-  WNIOSEK także do wierszy encji WĘZEŁ. Obie decyzje zamieniały własność schematu
-  w pozorne naruszenie ujawnienia. Naruszeń reguły R7 jest 771 (4,011 %) zamiast
+### Changed
+- **The schema core is conditional and separate for each entity.** The core completeness
+  rule required the `moc_pobierana` field unconditionally and applied the requirements of the
+  WNIOSEK entity to rows of the WĘZEŁ entity as well. Both decisions turned a property of the schema
+  into an apparent violation of the disclosure. Violations of rule R7 number 771 (4,011 %) instead of
   5 390 (28,044 %).
-- Wprowadzono `SCHEMA_VERSION`, wystawiany w raporcie walidacji i w publicznym API.
+- `SCHEMA_VERSION` was introduced, exposed in the validation report and in the public API.
 
-### Dodane
-- `examples/research_use_case.py`, katalog `reproducibility/`, `CITATION.cff`,
-  przepływ ciągłej integracji na trzech systemach i czterech wersjach Pythona.
+### Added
+- `examples/research_use_case.py`, the `reproducibility/` directory, `CITATION.cff`,
+  a continuous integration workflow on three systems and four Python versions.

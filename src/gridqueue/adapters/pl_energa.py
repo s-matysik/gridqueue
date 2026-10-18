@@ -1,36 +1,40 @@
-"""Adapter: ENERGA-OPERATOR S.A. (PL, OSD, sześć oddziałów, obszar północny).
+"""Adapter: ENERGA-OPERATOR S.A. (PL, DSO, six branches, northern area).
 
-Energa jest jedynym z dotychczas zmierzonych publikujących, który realizuje OBA
-punkty obowiązku w rozłącznych dokumentach i w obu podaje dane w postaci tabelarycznej:
+Energa is the only one, among those measured so far, of the publishers that
+implements BOTH points of the duty in separate documents, and in both provides
+data in tabular form:
 
-  pkt 1), 3), 4) -- "Informacje publikowane zgodnie z Art. 7 ust. 8l pkt 1), 3)
-                    i 4) ustawy Prawo energetyczne", PDF, 37 stron, 28 kolumn.
-                    To jest ten sam wzorzec PTPiREE/PSE co arkusz PSE (moduł
-                    ``_ptpiree``), przeniesiony do PDF-a.  Encja WNIOSEK.
-  pkt 2)         -- dwa dokumenty "Informacja o wartości łącznej dostępnej
-                    {odbiorczej|wytwórczej} mocy przyłączeniowej [MW]".  Encja WĘZEŁ.
-                    TO JEST PIERWSZE ŹRÓDŁO W PANELU, KTÓRE WYPEŁNIA ``moc_dostepna``.
+  pt. 1), 3), 4): "Information published pursuant to Art. 7(8l) pt. 1), 3)
+                   and 4) of the Energy Law act", PDF, 37 pages, 28 columns.
+                   This is the same PTPiREE/PSE pattern as the PSE sheet (module
+                   ``_ptpiree``), moved into a PDF.  APPLICATION entity.
+  pt. 2)         : two documents "Information on the total value of available
+                   {off-take|generation} connection capacity [MW]".  NODE entity.
+                   THIS IS THE FIRST SOURCE IN THE PANEL THAT FILLS ``moc_dostepna``.
 
-Geometria pkt 1/3/4: dokument nie ma obiektów ``line``, ma natomiast 176 cienkich
-prostokątów pełniących rolę linii siatki; pdfplumber wystawia je jako krawędzie, więc
-strategia ``ruled`` działa bez zmian.  Nagłówek szczegółowy jest złożony z bardzo
-wąskich kolumn ze zawijanym tekstem -- płaski ``extract_text`` przeplata go między
-kolumnami i jest bezużyteczny, dlatego układ odczytujemy przez przypisanie słów
-nagłówka do kolumn geometrią, a nie z tekstu strony.
+Geometry for pt. 1/3/4: the document has no ``line`` objects, but instead has 176
+thin rectangles acting as grid lines; pdfplumber reports them as edges, so the
+``ruled`` strategy works without changes.  The detailed header is composed of very
+narrow columns with wrapped text; flat ``extract_text`` interleaves it between
+columns and is useless, which is why we read the layout by assigning header words
+to columns via geometry, rather than from the page text.
 
-Geometria pkt 2: tabele 2.1 (skład grup węzłów koherentnych), 2.2 (słownik skrótów
-stacji) i 2.3/2.4 (wartości mocy) też mają siatkę wektorową.
+Geometry for pt. 2: tables 2.1 (composition of coherent node groups), 2.2
+(dictionary of station abbreviations) and 2.3/2.4 (capacity values) also have a
+vector grid.
 
-Rozstrzygnięcie merytoryczne przy dokumencie wytwórczym: są w nim DWIE tabele
-wartości.  Tabela 2.3 jest ujawnieniem ustawowym; tabela 2.4 jest -- słowami samego
-dokumentu -- podana "dodatkowo", dla podejścia analitycznego jak w ekspertyzach wg
-ustawy o morskich farmach wiatrowych.  Do ``moc_dostepna`` bierzemy 2.3; 2.4 trafia
-do rozszerzenia.  Odwrotny wybór zawyżałby ujawnioną moc bez podstawy w dokumencie.
+Substantive resolution for the generation document: it contains TWO value tables.
+Table 2.3 is the statutory disclosure; table 2.4 is, in the words of the document
+itself, provided "additionally", for the analytical approach as in the expert
+opinions under the Act on Offshore Wind Farms.  For ``moc_dostepna`` we take 2.3;
+2.4 goes into the extension.  The opposite choice would overstate the disclosed
+capacity without basis in the document.
 
-Rozbieżność dat, którą trzeba zgłosić, a nie wygładzić: plik pkt 1/3/4 nazywa się
-``2026_08_31_pusop_wnioski_i_odmowy_eop.pdf`` i wisi w cyklu sierpniowym, ale jego
-własny nagłówek deklaruje "Stan na 30.06.2026 r.".  ``data_publikacji`` bierzemy
-z DOKUMENTU (30.06.2026), bo to on jest ujawnieniem, a nie nazwa pliku.
+Date discrepancy that must be reported, not smoothed over: the file for pt. 1/3/4
+is named ``2026_08_31_pusop_wnioski_i_odmowy_eop.pdf`` and sits in the August
+cycle, but its own header declares "Stan na 30.06.2026 r.".  We take
+``data_publikacji`` FROM THE DOCUMENT (30.06.2026), because it is the document
+that is the disclosure, not the file name.
 """
 
 from __future__ import annotations
@@ -55,16 +59,16 @@ class EnergaAdapter(Adapter):
     declared_fields = T.DECLARED_FIELDS + ("id_wezla", "nazwa_wezla", "moc_dostepna")
     declared_extensions = dict(
         T.DECLARED_EXTENSIONS,
-        _kierunek="kierunek mocy dostępnej: odbiorcza albo wytwórcza",
-        _nr_grupy="numer grupy węzłów koherentnych w dokumencie",
-        _stacje_grupy="stacje wchodzące w skład grupy (model sieci na rok bazowy)",
-        _zmiany_w_latach="zmiany składu grupy w kolejnych latach (kolumna uwag)",
-        _oddzial="oddział ENERGA-OPERATOR, w którego obszarze leży grupa",
-        _moc_dostepna_analityczna="wartość z tabeli 2.4 (podejście analityczne), rok bazowy [kW]",
+        _kierunek="direction of available capacity: off-take or generation",
+        _nr_grupy="number of the coherent node group in the document",
+        _stacje_grupy="stations forming the group (network model for the base year)",
+        _zmiany_w_latach="changes in group composition in subsequent years (remarks column)",
+        _oddzial="ENERGA-OPERATOR branch in whose area the group lies",
+        _moc_dostepna_analityczna="value from table 2.4 (analytical approach), base year [kW]",
     )
     detect_patterns = (r"energa", r"eop")
 
-    #: lata horyzontu ujawnienia pkt 2
+    #: years of the disclosure horizon for pt. 2
     HORYZONT = ("2026", "2027", "2028", "2029", "2030", "2031", "2035")
 
     def __init__(self, data_publikacji: Optional[str] = None, rok_bazowy: str = "2026"):
@@ -88,8 +92,8 @@ class EnergaAdapter(Adapter):
         df = pd.concat(frames, ignore_index=True) if frames else self.blank_frame(0)
         report = {
             "publikujacy": self.publisher,
-            "strategia_wydobycia": "ruled (siatka z cienkich prostokątów), nagłówek odczytany geometrią",
-            "wzorzec": "PTPiREE/PSE dla pkt 1/3/4; autorski układ IEn dla pkt 2",
+            "strategia_wydobycia": "ruled (grid of thin rectangles), header read via geometry",
+            "wzorzec": "PTPiREE/PSE for pt. 1/3/4; IEn's own custom layout for pt. 2",
             "dokumenty": reports,
             "n_wierszy": int(len(df)),
             "data_publikacji": self.data_publikacji,
@@ -111,7 +115,7 @@ class EnergaAdapter(Adapter):
 
     # ------------------------------------------------------------------
     def _parse_wnioski(self, src):
-        """pkt 1/3/4 -- wzorzec PTPiREE w PDF-ie z siatką wektorową."""
+        """pt. 1/3/4: PTPiREE pattern in a PDF with a vector grid."""
         import pandas as pd
         import pdfplumber
 
@@ -148,19 +152,19 @@ class EnergaAdapter(Adapter):
             "n_kolumn_zrodlowych": sorted(n_cols_seen),
             "n_wierszy": int(len(out)),
             "stan_na": stan,
-            "uwaga_data": "nazwa pliku wskazuje cykl 31.08.2026, dokument deklaruje "
-                          f"stan na {stan}; przyjęto deklarację dokumentu",
+            "uwaga_data": "the file name indicates the 31.08.2026 cycle, the document declares "
+                          f"as of {stan}; the document's declaration was adopted",
         }
 
     # ------------------------------------------------------------------
     def _parse_wezly(self, src, *, kierunek: str):
-        """pkt 2 -- wartości łącznej dostępnej mocy przyłączeniowej per grupa węzłów."""
+        """pt. 2: values of the total available connection capacity per node group."""
         import pandas as pd
         import pdfplumber
 
-        grupy: dict[str, dict] = {}       # nr grupy -> skład
-        wartosci: dict[str, dict] = {}    # nr grupy -> {rok: MW} z tabeli 2.3
-        analit: dict[str, dict] = {}      # nr grupy -> {rok: MW} z tabeli 2.4
+        grupy: dict[str, dict] = {}       # group no. -> composition
+        wartosci: dict[str, dict] = {}    # group no. -> {year: MW} from table 2.3
+        analit: dict[str, dict] = {}      # group no. -> {year: MW} from table 2.4
         oddzial_biezacy = None
         stan = None
         n_pages = 0
@@ -199,9 +203,10 @@ class EnergaAdapter(Adapter):
             gi.get("stacje") or wartosci[n].get("_nazwa") for n, gi in zip(nry, g)
         ]
         out["poziom_napiecia"] = "110 kV"
-        # Kierunek mocy nie jest rodzajem instalacji: ujawnienie pkt 2 dotyczy
-        # WĘZŁA, nie zasobu.  Dla mocy odbiorczej klasa jest jednoznaczna (ODB),
-        # dla wytwórczej dokument nie wskazuje technologii -- i tak zostaje.
+        # The capacity direction is not a kind of installation: the pt. 2 disclosure
+        # concerns the NODE, not the resource.  For off-take capacity the class is
+        # unambiguous (ODB); for generation, the document does not indicate the
+        # technology, so it remains as is.
         out["klasa_zasobu"] = "ODB" if kierunek == "odbiorcza" else "NIEOKRESLONA"
         out["status_procesu"] = "NIEOKRESLONY"
         out["moc_dostepna"] = [
@@ -223,7 +228,7 @@ class EnergaAdapter(Adapter):
         ]
         for rok in self.HORYZONT:
             self.declared_extensions[f"_moc_dostepna_{rok}"] = (
-                f"dostępna moc przyłączeniowa w horyzoncie {rok} [kW]"
+                f"available connection capacity in the {rok} horizon [kW]"
             )
         return out, {
             "plik": str(src),

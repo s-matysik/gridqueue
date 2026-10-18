@@ -1,5 +1,5 @@
 title: gridqueue
-description: Harmonizator ustawowych ujawnień przyłączeniowych do sieci elektroenergetycznej
+description: Harmonizer of statutory grid-connection disclosures for the electricity network
 theme: jekyll-theme-primer
-lang: pl
+lang: en
 exclude: [Gemfile, Gemfile.lock]

@@ -1,52 +1,52 @@
-"""Adapter: e-Distribución Redes Digitales (ES), zdolność przyłączeniowa węzłów.
+"""Adapter: e-Distribución Redes Digitales (ES), connection capacity of nodes.
 
-Dlaczego to źródło jest dla pakietu ważniejsze niż kolejny plik tabelaryczny
---------------------------------------------------------------------------
-Manuskrypt wskazywał jako najmocniejszy brakujący test **drugą jurysdykcję
-publikującą dokumenty przeznaczone do druku**: dotąd oba źródła zagraniczne
-wydawały dane już tabelaryczne, więc przenoszalność wykazano na przypadku
-łatwiejszym niż polski. To źródło ten brak zamyka. Publikujący wydaje **PDF
-miesięczny**, w serii obejmującej lata 2023-2025, na podstawie art. 33 ust. 9
-ustawy 24/2013, art. 5 ust. 4 dekretu 1183/2020 oraz art. 12 okólnika 1/2021
-regulatora CNMC, konstrukcja prawna jest więc taka sama jak polska: obowiązek
-ustawowy, stała częstość, format pozostawiony publikującemu.
+Why this source matters more to the package than another tabular file
+---------------------------------------------------------------------
+The manuscript identified as the strongest missing test **a second jurisdiction
+publishing documents intended for print**: so far both foreign sources
+published data that was already tabular, so portability was demonstrated on a case
+easier than the Polish one. This source closes that gap. The publisher issues a **monthly
+PDF**, in a series covering the years 2023-2025, pursuant to Art. 33(9)
+of Act 24/2013, Art. 5(4) of Decree 1183/2020, and Art. 12 of CNMC Circular 1/2021,
+so the legal construction is the same as in Poland: a statutory
+duty, fixed frequency, format left to the publisher.
 
-Układ strony niesie linie wektorowe tabeli, więc wydobycie opiera się na nich,
-a nie na odstępach między słowami.
+The page layout carries the vector lines of the table, so extraction relies on them,
+not on the spacing between words.
 
-Semantyka kolumn ustalona arytmetyką, nie nagłówkiem
-----------------------------------------------------
-Nagłówek ma komórki scalone w dwóch poziomach i sugeruje, że kolumny „Con
-permiso de AyC" oraz „En trámite con capacidad" należą do grupy mocy przyjętej
-i nierozstrzygniętej. **Jest to mylące.** Rozstrzyga arytmetyka dokumentu:
+Column semantics fixed by arithmetic, not by the header
+---------------------------------------------------------
+The header has cells merged across two levels and suggests that the columns „Con
+permiso de AyC" and „En trámite con capacidad" belong to the group of accepted and
+unresolved capacity. **This is misleading.** The arithmetic of the document is decisive:
 
-* jedenaście podkolumn, dziewięć pozycji stacji oraz te dwie, **sumuje się do
-  mocy ZAJĘTEJ**, dokładnie, w 1838 z 1838 wierszy, w obu sprawdzonych wydaniach;
-* rozbicie technologiczne sumuje się do mocy **przyjętej i nierozstrzygniętej**
-  we wszystkich wierszach o niezerowej wartości.
+* eleven subcolumns, nine station positions plus these two, **sum up to the
+  OCCUPIED capacity**, exactly, in 1838 of 1838 rows, in both editions checked;
+* the technology breakdown sums up to the **accepted and unresolved** capacity
+  in all rows with a nonzero value.
 
-Obie grupy są więc SKŁADNIKAMI mocy zajętej, a nie jej alternatywnymi
-rozbiciami: część węzłów ma wypełnione tylko pozycje, część tylko dwie
-pozostałe, a część obie, i dopiero suma wszystkich jedenastu zamyka się do
-wartości łącznej.
+Both groups are therefore COMPONENTS of the occupied capacity, not alternative
+breakdowns of it: some nodes have only the positions filled in, some only the two
+remaining ones, and some both, and only the sum of all eleven closes to
+the total value.
 
-Ma to wartość wykraczającą poza odwzorowanie pól. Dla tego publikującego **nie
-istnieje zbiór odniesienia odczytany niezależnie od parsera**, więc dokładności
-wydobycia nie da się zmierzyć w sposób, w jaki zmierzono ją dla publikujących
-polskich. Domknięcie sumy jest tu zastępczym, słabszym, ale sprawdzalnym
-świadectwem: aby suma jedenastu komórek zgadzała się z dwunastą, wszystkie
-dwanaście musi być odczytane poprawnie. Na dwóch wydaniach daje to 3676
-niezależnych sprawdzeń, wszystkie domknięte. Jest to świadectwo spójności
-odczytu, NIE pomiar dokładności wobec wzorca, i tak należy je czytać.
+This has value beyond the mapping of fields. For this publisher there **is no
+reference set read independently of the parser**, so the accuracy of
+extraction cannot be measured the way it was measured for the Polish
+publishers. The arithmetic closure is here a substitute, weaker but checkable
+piece of evidence: for the sum of eleven cells to match the twelfth, all
+twelve must be read correctly. Over two editions this gives 3676
+independent checks, all closed. This is evidence of consistency of
+reading, NOT a measurement of accuracy against a reference, and it should be read as such.
 
-Jednostki
----------
-Publikujący podaje moce w **MW mocy czynnej**, więc przeliczenie na kanoniczne
-kW jest zwykłą zmianą rzędu wielkości, bez założeń. Różni to to źródło od
-portugalskiego, które podaje moc pozorną w MVA i dlatego pola mocy nie wypełnia.
+Units
+-----
+The publisher states capacities in **MW of active power**, so converting to the canonical
+kW is a plain change of order of magnitude, without assumptions. This differentiates this source from
+the Portuguese one, which states apparent power in MVA and therefore does not populate the capacity field.
 
-Źródło podaje też **współrzędne geograficzne każdej podstacji**, czego nie robi
-żaden publikujący polski.
+The source also provides **geographic coordinates for each substation**, which no
+Polish publisher does.
 """
 
 from __future__ import annotations
@@ -59,14 +59,14 @@ from .base import Adapter, ParseResult
 PUBLISHER = "e-Distribución Redes Digitales S.L.U."
 JURISDICTION = "ES"
 
-#: Indeksy kolumn w wydobytej tabeli. Ustalone na wydaniu z sierpnia 2025
-#: i zweryfikowane sumami; patrz nagłówek modułu.
+#: Column indices in the extracted table. Fixed on the August 2025 edition
+#: and verified by sums; see the module header.
 K_WSPOLNOTA, K_PROWINCJA, K_GMINA, K_PODSTACJA = 0, 1, 2, 3
 K_SZEROKOSC, K_DLUGOSC, K_NAPIECIE = 4, 5, 6
 K_DOSTEPNA, K_ZAJETA_TOTAL = 7, 8
-K_POZYCJE = tuple(range(9, 18))          # rozbicie mocy zajętej po pozycjach stacji
+K_POZYCJE = tuple(range(9, 18))          # breakdown of occupied capacity by station position
 K_ZAJETA_Z_POZWOLENIEM, K_ZAJETA_W_TOKU = 18, 19
-K_PRZYJETA_TOTAL = 20                     # przyjęta i nierozstrzygnięta
+K_PRZYJETA_TOTAL = 20                     # accepted and unresolved
 K_TECHNOLOGIE = (21, 22, 23, 24, 25)
 K_SCC, K_WEZEL_PRZESYLOWY, K_KOMENTARZ = 26, 27, 28
 SZEROKOSC_WIERSZA = 29
@@ -75,7 +75,7 @@ _WSPOLNOTA = re.compile(r"^\d{2}\s*-\s*")
 
 
 def _liczba(v) -> float | None:
-    """Liczba w zapisie hiszpańskim: przecinek dziesiętny, kropka tysięcy."""
+    """Number in Spanish notation: decimal comma, thousands dot."""
     if v is None:
         return None
     s = str(v).strip().replace("\xa0", "").replace(" ", "")
@@ -89,7 +89,7 @@ def _liczba(v) -> float | None:
 
 
 def _mw_na_kw(v) -> float | None:
-    """MW mocy czynnej -> kW mocy czynnej. Zmiana rzędu, nie wielkości fizycznej."""
+    """MW of active power -> kW of active power. A change of order of magnitude, not of physical quantity."""
     x = _liczba(v)
     return None if x is None else x * 1000.0
 
@@ -97,25 +97,25 @@ def _mw_na_kw(v) -> float | None:
 def _data_z_nazwy(nazwa: str) -> str | None:
     """'EDRD_Capacidad_de_Acceso_2025_08_01.pdf' -> '2025-08-01'.
 
-    Data brana jest z nazwy pliku, a nie ze strony tytułowej, bo nazwa jest
-    maszynowa i rozstrzygalna, a strona tytułowa podaje ją słownie po hiszpańsku.
+    The date is taken from the file name, not from the title page, because the name is
+    machine-readable and decidable, while the title page gives it in words, in Spanish.
     """
     m = re.search(r"(\d{4})[_-](\d{2})[_-](\d{2})", nazwa)
     return f"{m.group(1)}-{m.group(2)}-{m.group(3)}" if m else None
 
 
 def suma_skladnikow_mocy_zajetej(wiersze) -> "tuple[int, int]":
-    """Ile wierszy domyka tożsamość arytmetyczną dokumentu.
+    """How many rows close the arithmetic identity of the document.
 
-    Jedenaście podkolumn mocy zajętej (dziewięć pozycji stacji plus „z
-    pozwoleniem" i „w toku") sumuje się do wartości łącznej. Funkcja zwraca
-    parę (domkniętych, wszystkich).
+    The eleven subcolumns of occupied capacity (nine station positions plus "with
+    permit" and "in progress") sum up to the total value. The function returns
+    a pair (closed, total).
 
-    Po co to jest: dla tego publikującego nie ma zbioru odniesienia odczytanego
-    niezależnie od parsera, więc dokładności wydobycia nie da się zmierzyć wobec
-    wzorca. Domknięcie sumy jest zastępczym świadectwem spójności odczytu -
-    słabszym niż wzorzec, ale sprawdzalnym na każdym wydaniu, bo wymaga
-    poprawnego odczytania wszystkich dwunastu komórek bloku.
+    What this is for: for this publisher there is no reference set read
+    independently of the parser, so the accuracy of extraction cannot be measured against
+    a reference. The arithmetic closure is a substitute piece of evidence of consistency of
+    reading, weaker than a reference, but checkable on every edition, because it requires
+    all twelve cells of the block to be read correctly.
     """
     domkniete = 0
     for w in wiersze:
@@ -141,15 +141,15 @@ class EDistribucionAdapter(Adapter):
         "moc_dostepna", "moc_zarezerwowana", "ograniczenie_flaga", "data_publikacji",
     )
     declared_extensions = {
-        "_wspolnota_autonomiczna": "wspólnota autonomiczna",
-        "_prowincja": "prowincja",
-        "_moc_przyjeta_nierozstrzygnieta_kw": "moc wniosków przyjętych i nierozstrzygniętych",
-        "_moc_zajeta_z_pozwoleniem_kw": "część mocy zajętej objęta pozwoleniem na przyłączenie",
-        "_moc_zajeta_w_toku_kw": "część mocy zajętej w toku postępowania",
-        "_rozbicie_technologiczne_kw": "moc nierozstrzygnięta w podziale na technologie",
-        "_rozbicie_pozycyjne_kw": "moc zajęta w podziale na pozycje stacji",
-        "_wezel_przesylowy": "węzeł sieci przesyłowej o największym oddziaływaniu",
-        "_komentarz": "komentarz publikującego",
+        "_wspolnota_autonomiczna": "autonomous community",
+        "_prowincja": "province",
+        "_moc_przyjeta_nierozstrzygnieta_kw": "capacity of accepted and unresolved applications",
+        "_moc_zajeta_z_pozwoleniem_kw": "part of the occupied capacity covered by a connection permit",
+        "_moc_zajeta_w_toku_kw": "part of the occupied capacity currently in proceedings",
+        "_rozbicie_technologiczne_kw": "unresolved capacity broken down by technology",
+        "_rozbicie_pozycyjne_kw": "occupied capacity broken down by station position",
+        "_wezel_przesylowy": "transmission network node with the greatest impact",
+        "_komentarz": "publisher's comment",
     }
     detect_patterns = (r"edrd[_ ]?capacidad", r"capacidad[_ ]de[_ ]acceso", r"e-?distribuci")
 
@@ -191,8 +191,8 @@ class EDistribucionAdapter(Adapter):
             poz = {i: _mw_na_kw(w[i]) for i in K_POZYCJE}
 
             rekordy.append({
-                # Identyfikator musi rozróżniać poziomy napięcia tej samej podstacji:
-                # publikujący wydaje osobny wiersz dla każdego poziomu.
+                # The identifier must distinguish between voltage levels of the same substation:
+                # the publisher issues a separate row for each level.
                 "id_wezla": f"{podstacja}|{napiecie}" if podstacja and napiecie else podstacja,
                 "nazwa_wezla": podstacja,
                 "lokalizacja_tekst": ", ".join(x for x in (kom(K_GMINA), kom(K_PROWINCJA)) if x) or None,
@@ -220,20 +220,20 @@ class EDistribucionAdapter(Adapter):
         notes = {
             "publikujacy": PUBLISHER,
             "jurysdykcja": JURISDICTION,
-            "tryb_wydania": "dokument przeznaczony do druku, wydanie miesięczne",
+            "tryb_wydania": "document intended for print, monthly edition",
             "stron": stron,
             "wierszy": int(len(df)),
             "wezlow_ograniczonych_przez_Scc": ograniczonych,
             "wierszy_bez_wspolrzednych": bez_wspolrzednych,
             "jednostka_mocy_zrodlowa": "MW",
-            "przeliczenie": "MW -> kW, obie wielkości to moc czynna",
+            "przeliczenie": "MW -> kW, both quantities are active power",
             "data_publikacji": data_pub,
             "tozsamosc_sumy_mocy_zajetej": f"{domkniete}/{sprawdzonych}",
             "uwaga_tozsamosc": (
-                "Jedenaście podkolumn mocy zajętej sumuje się do wartości łącznej. "
-                "Jest to świadectwo SPÓJNOŚCI odczytu, nie pomiar dokładności wobec "
-                "wzorca odczytanego niezależnie od parsera, takiego wzorca dla tego "
-                "publikującego nie ma."
+                "The eleven subcolumns of occupied capacity sum up to the total value. "
+                "This is evidence of the CONSISTENCY of reading, not a measurement of accuracy against "
+                "a reference read independently of the parser; this publisher has no "
+                "such reference."
             ),
         }
         return ParseResult(frame=df, report=notes)

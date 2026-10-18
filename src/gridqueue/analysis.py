@@ -1,20 +1,20 @@
-"""Analizy badawcze na zharmonizowanym panelu.
+"""Research analyses on the harmonized panel.
 
-Dwie rodziny funkcji, obie wyprowadzone z pytań, które rejestr pozwala zadać
-dopiero po harmonizacji:
+Two families of functions, both derived from questions that the register allows to ask
+only after harmonization:
 
-* **obciążenie węzła**, zestawienie mocy objętej wnioskami z ujawnioną mocą
-  dostępną w węźle. Jest to policzalna wersja kryterium „dostępna moc
-  przyłączeniowa", które przeglądy literatury opisują jako niemierzalne
-  z powodu braku danych. Wymaga publikującego, który ujawnia JEDNOCZEŚNIE moc
-  dostępną w węźle i skład stacji wchodzących do węzła;
-* **czas rozpatrywania z cenzurowaniem**, wnioski bez daty rozstrzygnięcia nie
-  są brakiem danych, tylko obserwacjami uciętymi na dacie publikacji. Liczenie
-  mediany wyłącznie na przypadkach kompletnych ZANIŻA ją, i to tym silniej, im
-  dłuższy jest rzeczywisty czas rozpatrywania.
+* **node loading**, a comparison of the capacity covered by applications against the disclosed
+  available capacity at the node. This is a measurable version of the "available connection
+  capacity" criterion, which literature reviews describe as unmeasurable
+  due to lack of data. It requires a publisher who discloses SIMULTANEOUSLY the capacity
+  available at the node and the composition of stations making up the node;
+* **processing time with censoring**, applications without a resolution date are
+  not missing data, only observations censored at the publication date. Computing the
+  median using only complete cases UNDERSTATES it, and does so more strongly, the
+  longer the actual processing time is.
 
-Żadna z tych funkcji nie jest specyficzna dla publikującego: specyficzne są
-adaptery, a to jest warstwa nad schematem.
+Neither of these functions is specific to the publisher: adapters are specific,
+and this is a layer on top of the schema.
 """
 
 from __future__ import annotations
@@ -38,33 +38,33 @@ __all__ = [
     "KMResult",
 ]
 
-#: Przedrostki oznaczeń stacji, usuwane przed porównaniem nazw. Nie niosą
-#: tożsamości obiektu, a występują niekonsekwentnie po obu stronach złączenia.
+#: Prefixes of station designations, removed before comparing names. They do not carry
+#: object identity, and occur inconsistently on both sides of the join.
 PRZEDROSTKI_STACJI: tuple[str, ...] = ("GPZ", "SE", "RS", "RPZ", "STACJA")
 
 _NIEALFANUM = re.compile(r"[^a-z0-9 ]+")
 
-#: Wpisy opisujące obiekt PLANOWANY NA LINII między stacjami, a nie obiekt
-#: w węźle. Przypisanie ich do węzła byłoby arbitralne: linia łączy dwa węzły,
-#: a dopasowanie po nazwie wybrałoby ten koniec, który akurat występuje
-#: w wykazie stacji. Pełna moc takiego wniosku nie obciąża żadnego z nich
-#: w całości, więc wpis zostaje nieprzypisany i jawnie oznaczony.
+#: Entries describing an object PLANNED ON A LINE between stations, rather than an object
+#: at a node. Assigning them to a node would be arbitrary: the line connects two nodes,
+#: and matching by name would pick whichever end happens to appear
+#: in the station list. The full capacity of such an application does not load either of them
+#: in full, so the entry remains unassigned and is explicitly flagged.
 _RELACJA_LINII = re.compile(
     r"\b(w\s+lini(?:i|ach)|relacj(?:i|a)|odczep\s+z\s+lini)", re.IGNORECASE)
 
-#: Litery, których rozkład kanoniczny NIE oddziela znaku diakrytycznego: Unicode
-#: traktuje je jako osobne litery, więc NFKD ich nie rozkłada i naiwne czyszczenie
-#: zamienia je na spację, rozcinając wyraz ("Białogard" -> "bia ogard").
+#: Letters whose canonical decomposition does NOT separate the diacritical mark: Unicode
+#: treats them as separate letters, so NFKD does not decompose them, and naive cleaning
+#: turns them into a space, splitting the word ("Białogard" -> "bia ogard").
 _NIEROZKLADALNE = {"ł": "l", "Ł": "L", "đ": "d", "Đ": "D", "ø": "o", "Ø": "O",
                    "ß": "ss", "æ": "ae", "Æ": "AE", "œ": "oe", "Œ": "OE"}
 
 
 def normalizuj_nazwe(v) -> str:
-    """Nazwa stacji sprowadzona do postaci porównywalnej.
+    """Station name reduced to a comparable form.
 
-    Usuwa znaki diakrytyczne, sprowadza do małych liter, odrzuca przedrostki
-    oznaczeń i zbędne znaki. Porównanie odbywa się na TOKENACH, nie na znakach,
-    żeby „Kutno" nie pasowało do „Kutnowska".
+    Removes diacritical marks, converts to lowercase, drops designation
+    prefixes and extraneous characters. The comparison is performed on TOKENS, not characters,
+    so that "Kutno" does not match "Kutnowska".
     """
     if v is None or (isinstance(v, float) and v != v):
         return ""
@@ -83,7 +83,7 @@ def _tokeny(s: str) -> tuple[str, ...]:
 
 
 def _podciag(igla: Sequence[str], stog: Sequence[str]) -> bool:
-    """Czy `igla` jest ciągłym podciągiem tokenów `stog`."""
+    """Whether `igla` is a contiguous subsequence of the tokens of `stog`."""
     n, m = len(igla), len(stog)
     if n == 0 or n > m:
         return False
@@ -96,23 +96,23 @@ def station_node_map(
     kolumna_grupy: str = "_nr_grupy",
     separator: str = ",",
 ) -> pd.DataFrame:
-    """Odwzorowanie stacja → grupa stacji, odczytane z wierszy encji WEZEL.
+    """Mapping: station -> station group, read from WEZEL entity rows.
 
-    Publikujący, który realizuje punkt 2 obowiązku w podziale na GRUPY stacji,
-    wymienia skład grupy w polu lokalizacji. To jedyne miejsce, w którym
-    przynależność stacji do węzła jest w ogóle ujawniona, stąd ta funkcja.
+    A publisher that carries out point 2 of the duty by splitting stations into GROUPS
+    lists the composition of the group in the location field. This is the only place where
+    a station's membership in a node is disclosed at all, hence this function.
 
-    Kluczem jest GRUPA, nie identyfikator wiersza węzłowego. Publikujący
-    wystawia tę samą grupę osobno dla kierunku wytwórczego i odbiorczego, więc
-    odwzorowanie po identyfikatorze wiersza czyniłoby każdą stację
-    dwuznaczną, co byłoby artefaktem układu dokumentu, nie własnością sieci.
-    Gdy kolumna grupy nie występuje, kluczem staje się identyfikator węzła.
+    The key is the GROUP, not the node-row identifier. The publisher
+    issues the same group separately for the generation direction and the offtake direction, so
+    mapping by row identifier would make every station
+    ambiguous, which would be an artifact of the document layout, not a property of the network.
+    When the group column is not present, the key becomes the node identifier.
 
-    Zwraca ramkę: publikujacy, grupa, nazwa_wezla, stacja, stacja_norm.
+    Returns a frame: publikujacy, grupa, nazwa_wezla, stacja, stacja_norm.
     """
     if kolumna_encji in df.columns:
         wez = df[df[kolumna_encji] == "WEZEL"]
-    else:  # bez anotacji encji rozpoznajemy węzeł po obecności mocy dostępnej
+    else:  # without entity annotation, we recognize a node by the presence of available capacity
         wez = df[df["moc_dostepna"].notna()] if "moc_dostepna" in df else df.iloc[0:0]
     klucz = kolumna_grupy if kolumna_grupy in df.columns else "id_wezla"
     wiersze = []
@@ -145,22 +145,22 @@ def assign_to_nodes(
     mapa: pd.DataFrame,
     kolumna_encji: str = "_encja",
 ) -> pd.DataFrame:
-    """Przypisuje wiersze wnioskowe do grup stacji przez nazwę stacji.
+    """Assigns application rows to station groups by station name.
 
-    Przypisanie jest NAZWOWE, nie topologiczne: opiera się na zgodności nazw
-    ujawnionych przez publikującego, a nie na modelu sieci. Jego trafność nie
-    jest tu walidowana wobec zewnętrznego wzorca, bo taki nie istnieje.
+    The assignment is BY NAME, not topological: it relies on the match of names
+    disclosed by the publisher, rather than on a network model. Its accuracy is not
+    validated here against an external reference, because none exists.
 
-    Zwracany status rozróżnia cztery przypadki, bo brak przypisania
-    i przypisanie niepewne to nie to samo:
+    The returned status distinguishes four cases, because no assignment
+    and an uncertain assignment are not the same thing:
 
-    ``EXACT``      nazwa stacji równa lokalizacji wniosku po normalizacji
-    ``EXTENDED``   lokalizacja zawiera nazwę stacji jako ciągły podciąg tokenów
-    ``LINE``       obiekt planowany na linii między stacjami, nie w węźle
-    ``AMBIGUOUS``  pasuje więcej niż jedna grupa, przypisania nie dokonujemy
-    ``NONE``       brak trafienia albo brak lokalizacji
+    ``EXACT``      station name equal to the application's location after normalization
+    ``EXTENDED``   location contains the station name as a contiguous subsequence of tokens
+    ``LINE``       object planned on a line between stations, not at a node
+    ``AMBIGUOUS``  more than one group matches, no assignment is made
+    ``NONE``       no match, or no location
 
-    Dodaje kolumny `_grupa`, `_grupa_nazwa`, `_grupa_dopasowanie`.
+    Adds the columns `_grupa`, `_grupa_nazwa`, `_grupa_dopasowanie`.
     """
     if not len(mapa):
         out = df.copy()
@@ -219,20 +219,20 @@ def node_loading(
     statusy_czynne: Iterable[str] | None = None,
     kolumna_encji: str = "_encja",
 ) -> pd.DataFrame:
-    """Obciążenie węzła: moc czynnej kolejki wobec ujawnionej mocy dostępnej.
+    """Node loading: the capacity of the active queue against the disclosed available capacity.
 
-    Iloraz większy od jedności oznacza, że sama kolejka przekracza moc, którą
-    publikujący deklaruje jako dostępną. Jest to policzalna postać kryterium
-    „dostępna moc przyłączeniowa".
+    A ratio greater than one means that the queue alone exceeds the capacity that the
+    publisher declares as available. This is a measurable form of the "available connection
+    capacity" criterion.
 
-    Wymaga ramki po `assign_to_nodes`. Gdy publikujący podaje moc dostępną
-    osobno dla kierunku wytwórczego i odbiorczego, `kierunek` wybiera właściwe
-    wiersze węzłowe; domyślnie wyprowadzany jest z `pole_mocy`.
+    Requires a frame after `assign_to_nodes`. When the publisher reports available capacity
+    separately for the generation direction and the offtake direction, `kierunek` selects the
+    correct node rows; by default it is derived from `pole_mocy`.
 
-    Węzły o zerowej mocy dostępnej zwracane są z ilorazem ``NaN`` i flagą
-    `moc_dostepna_zero`: iloraz jest tam NIEOKREŚLONY, a nie nieskończony,
-    i uśrednianie go byłoby błędem. Wiersz zachowuje jednak moc wnioskowaną,
-    bo kolejka do węzła bez wolnej mocy jest informacją, nie brakiem danych.
+    Nodes with zero available capacity are returned with a ``NaN`` ratio and the
+    `moc_dostepna_zero` flag: the ratio there is UNDEFINED, not infinite,
+    and averaging it would be an error. The row nonetheless retains the capacity applied for,
+    because a queue at a node with no free capacity is information, not missing data.
     """
     if statusy_czynne is None:
         statusy_czynne = ("WNIOSEK_ZLOZONY", "WNIOSEK_NIEKOMPLETNY",
@@ -272,15 +272,15 @@ def processing_time(
     do: str = "data_warunkow",
     na_dzien=None,
 ) -> pd.DataFrame:
-    """Czas rozpatrywania wraz z klasyfikacją cenzurowania.
+    """Processing time together with censoring classification.
 
-    Wniosek bez daty rozstrzygnięcia NIE jest brakiem danych: jest obserwacją
-    uciętą na dacie publikacji edycji. Funkcja zwraca kolumnę `czas_dni` dla
-    obu rodzajów obserwacji oraz `zdarzenie` równe 1 dla rozstrzygniętych i 0
-    dla uciętych, w postaci, której oczekuje estymator przeżycia.
+    An application without a resolution date is NOT missing data: it is an observation
+    censored at the edition's publication date. The function returns the column `czas_dni` for
+    both kinds of observations, as well as `zdarzenie` equal to 1 for resolved ones and 0
+    for censored ones, in the form expected by the survival estimator.
 
-    `na_dzien` domyślnie bierze maksimum z pola daty publikacji, a gdy go brak -
-    maksimum z dat rozstrzygnięć.
+    `na_dzien` by default takes the maximum of the publication-date field, and when that is
+    absent, the maximum of the resolution dates.
     """
     d = df.copy()
     for c in (od, do):
@@ -307,7 +307,7 @@ def processing_time(
 
 @dataclass
 class KMResult:
-    """Krzywa przeżycia Kaplana-Meiera z przedziałem Greenwooda."""
+    """Kaplan-Meier survival curve with the Greenwood interval."""
 
     tabela: pd.DataFrame = field(repr=False)
     mediana: float
@@ -325,12 +325,12 @@ class KMResult:
 
 
 def kaplan_meier(czas, zdarzenie, alpha: float = 0.05) -> KMResult:
-    """Estymator Kaplana-Meiera z wariancją Greenwooda.
+    """Kaplan-Meier estimator with Greenwood's variance.
 
-    Zaimplementowany wprost, żeby nie wprowadzać zależności od biblioteki
-    analizy przeżycia dla jednego estymatora. Przedział dla mediany wyznaczany
-    jest metodą odwrócenia przedziału krzywej: granicami są skrajne czasy, dla
-    których pas ufności krzywej obejmuje poziom 0,5.
+    Implemented directly, so as not to introduce a dependency on a survival-analysis
+    library for a single estimator. The interval for the median is determined
+    by the curve-interval-inversion method: the bounds are the extreme times for
+    which the curve's confidence band covers the level of 0.5.
     """
     d = pd.DataFrame({"t": pd.to_numeric(pd.Series(czas), errors="coerce"),
                       "e": pd.to_numeric(pd.Series(zdarzenie), errors="coerce")}).dropna()

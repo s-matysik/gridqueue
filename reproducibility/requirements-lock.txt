@@ -1,6 +1,6 @@
-# Wersje faktycznie użyte do wytworzenia opublikowanych liczb.
-# Python 3.11.15 na Darwin arm64.
-# Odczytane z importlib.metadata w środowisku wykonawczym.
+# The versions actually used to produce the published numbers.
+# Python 3.11.15 on Darwin arm64.
+# Read from importlib.metadata in the execution environment.
 Pillow==12.3.0
 matplotlib==3.11.1
 numpy==2.4.6

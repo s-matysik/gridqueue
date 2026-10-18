@@ -1,4 +1,4 @@
-"""Rejestr adapterów i wykrywanie publikującego."""
+"""Adapter registry and publisher detection."""
 
 from __future__ import annotations
 
@@ -34,15 +34,15 @@ REGISTRY: dict[str, Type[Adapter]] = {
 
 def get_adapter(key: str, **kwargs) -> Adapter:
     if key not in REGISTRY:
-        raise KeyError(f"nieznany adapter {key!r}; dostępne: {sorted(REGISTRY)}")
+        raise KeyError(f"unknown adapter {key!r}; available: {sorted(REGISTRY)}")
     return REGISTRY[key](**kwargs)
 
 
 def detect_publisher(source, *, sniff_bytes: int = 4000) -> Optional[str]:
-    """Rozpoznaj publikującego po nazwie pliku, a jeśli trzeba -- po treści.
+    """Recognize the publisher by file name, and if needed, by content.
 
-    Kolejność jest celowa: nazwa pliku jest tania i zwykle wystarcza, treść
-    pierwszej strony rozstrzyga resztę.  Zwraca klucz rejestru albo None.
+    The order is intentional: the file name is cheap and usually sufficient, the content
+    of the first page resolves the rest.  Returns the registry key or None.
     """
     name = str(source).lower()
     for key, cls in REGISTRY.items():
@@ -66,5 +66,5 @@ def detect_publisher(source, *, sniff_bytes: int = 4000) -> Optional[str]:
 
 
 def declarations() -> list[dict]:
-    """Deklaracje pól opcjonalnych wszystkich zarejestrowanych publikujących."""
+    """Declarations of optional fields of all registered publishers."""
     return [cls().declaration() for cls in REGISTRY.values()]

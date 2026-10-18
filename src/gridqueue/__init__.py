@@ -1,10 +1,10 @@
-"""gridqueue -- harmonizator ustawowych ujawnień przyłączeniowych do sieci
-elektroenergetycznej.
+"""gridqueue -- harmonizer of statutory grid connection disclosures for the
+electrical power network.
 
-Narzędzie sprowadza publikacje operatorów systemów dystrybucyjnych, wymagane
-art. 7 ust. 8l ustawy -- Prawo energetyczne, do jednego przetwarzalnego schematu.
-Wartość narzędzia jest sprawdzalna przez inspekcję: albo dokument staje się
-zbiorem wierszy o zmierzonej dokładności, albo nie.
+The tool brings publications of distribution system operators, required under
+Article 7(8l) of the Energy Law Act, to a single processable schema.
+The value of the tool is verifiable by inspection: either the document becomes
+a set of rows of measured accuracy, or it does not.
 """
 
 from .schema import (  # noqa: F401

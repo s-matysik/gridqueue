@@ -1,28 +1,30 @@
-"""Wydobycie oparte na UKŁADZIE STRONY, nie na wyrażeniach regularnych.
+"""Extraction based on PAGE LAYOUT, not on regular expressions.
 
-Wyrażenie regularne działa na tekście spłaszczonym przez ekstraktor PDF: kolejność
-słów jest kolejnością rysowania, a granice kolumn są odtwarzane ze spacji.  Gdy
-komórka jest pusta albo zawiera spację, sąsiednie pola się zlewają i wartość wsiąka
-do złego pola.  W poprzedniej wersji parsera TAURONA dotyczyło to 767 z 10 559
-wierszy (7,3%).
+The regular expression operates on text flattened by the PDF extractor: word order
+is drawing order, and column boundaries are reconstructed from spaces. When a
+cell is empty or contains a space, adjacent fields merge together and the value
+soaks into the wrong field. In the previous version of the TAURON parser this
+affected 767 of 10 559 rows (7.3%).
 
-Tu robimy odwrotnie: czytamy POŁOŻENIE każdego słowa (x0, x1, top, bottom) i
-najpierw ustalamy geometrię tabeli, a dopiero potem przypisujemy słowa do komórek.
-Dwie strategie, wybierane po tym, co dokument faktycznie zawiera:
+Here we do the opposite: we read the POSITION of each word (x0, x1, top, bottom)
+and first establish the geometry of the table, and only then assign words to
+cells. Two strategies, chosen according to what the document actually contains:
 
-  RULED  -- dokument ma linie siatki (pionowe krawędzie prostokątów).  Granice
-            kolumn są WPROST narysowane przez wytwórcę dokumentu; pusta komórka
-            nie może zlać się z sąsiednią, bo jest odgrodzona linią.
-  BANDED -- dokument nie ma linii.  Granice wyprowadzamy z rozkładu pokrycia osi x
-            przez słowa: kolumna to spójny przedział pokryty słowami, granica to
-            pionowy korytarz bieli obecny na całej wysokości bloku tabeli.
+  RULED  : the document has grid lines (vertical edges of rectangles). Column
+           boundaries are drawn DIRECTLY by the document's producer; an empty
+           cell cannot merge with its neighbour because it is fenced off by a
+           line.
+  BANDED : the document has no lines. Boundaries are derived from the distribution
+           of x-axis coverage by the words: a column is a contiguous interval
+           covered by words, a boundary is a vertical corridor of whitespace
+           present across the entire height of the table block.
 
-Wybór pdfplumber zamiast camelot/tabula: camelot w trybie lattice wymaga Ghostscriptu
-i konwersji do rastra (granice kolumn odtwarzane z obrazu, nie z wektorów), tabula
-wymaga JVM.  pdfplumber daje bezpośredni dostęp do współrzędnych słów i krawędzi
-wektorowych z pdfminer.six, więc granica kolumny jest liczbą z pliku, a nie wynikiem
-detekcji krawędzi na bitmapie -- co jest dokładnie tą własnością, od której zależy
-teza tego narzędzia.
+The choice of pdfplumber over camelot/tabula: camelot in lattice mode requires
+Ghostscript and conversion to raster (column boundaries reconstructed from an
+image, not from vectors), tabula requires a JVM. pdfplumber gives direct access
+to word coordinates and vector edges from pdfminer.six, so a column boundary is
+a number from the file, not the result of edge detection on a bitmap, which is
+exactly the property on which this tool's thesis depends.
 """
 
 from __future__ import annotations
@@ -45,13 +47,13 @@ __all__ = [
 
 
 # --------------------------------------------------------------------------
-# geometria kolumn
+# column geometry
 # --------------------------------------------------------------------------
 
 
 @dataclass
 class ColumnGeometry:
-    """Granice kolumn na stronie: n+1 współrzędnych x dla n kolumn."""
+    """Column boundaries on the page: n+1 x coordinates for n columns."""
 
     bounds: list[float]
     strategy: str                 # "ruled" | "banded"
@@ -62,11 +64,11 @@ class ColumnGeometry:
         return max(0, len(self.bounds) - 1)
 
     def column_of(self, x0: float, x1: float) -> Optional[int]:
-        """Kolumna, do której należy słowo o rozpiętości [x0, x1].
+        """The column to which a word with the span [x0, x1] belongs.
 
-        Decyduje ŚRODEK słowa, nie jego lewa krawędź: słowo przycięte przez linię
-        siatki (co zdarza się przy wąskich kolumnach) trafia tam, gdzie leży jego
-        większa część.
+        The CENTER of the word decides, not its left edge: a word cut by a grid
+        line (which happens with narrow columns) ends up where the larger part
+        of it lies.
         """
         mid = 0.5 * (x0 + x1)
         for i in range(self.n_cols):
@@ -80,11 +82,11 @@ class ColumnGeometry:
 
 
 def detect_ruled_columns(page, *, min_len: float = 5.0, tol: float = 1.5) -> ColumnGeometry:
-    """Granice kolumn z pionowych krawędzi wektorowych strony.
+    """Column boundaries from the page's vertical vector edges.
 
-    Krawędzie krótsze niż ``min_len`` to zwykle ozdobniki / ramki nagłówka, nie
-    linie siatki.  Krawędzie odległe o mniej niż ``tol`` to dwie strony tej samej
-    grubej linii -- scalane do średniej.
+    Edges shorter than ``min_len`` are usually decorations / header frames, not
+    grid lines. Edges less than ``tol`` apart are two sides of the same thick
+    line, merged to their average.
     """
     xs = sorted(
         e["x0"] for e in page.edges
@@ -106,11 +108,11 @@ def detect_banded_columns(
     min_gap: float = 4.0,
     resolution: float = 0.5,
 ) -> ColumnGeometry:
-    """Granice kolumn z pionowych korytarzy bieli w bloku słów.
+    """Column boundaries from vertical corridors of whitespace in the word block.
 
-    Buduje wektor pokrycia osi x (czy jakiekolwiek słowo zajmuje daną pozycję),
-    znajduje przerwy dłuższe niż ``min_gap`` i stawia granicę w ich środku.
-    Używane, gdy dokument nie ma linii siatki.
+    Builds an x-axis coverage vector (whether any word occupies a given position),
+    finds gaps longer than ``min_gap`` and places a boundary at their center.
+    Used when the document has no grid lines.
     """
     if not words:
         return ColumnGeometry([], "banded")
@@ -140,7 +142,7 @@ def detect_banded_columns(
 
 
 # --------------------------------------------------------------------------
-# przypisanie słów do komórek
+# assigning words to cells
 # --------------------------------------------------------------------------
 
 
@@ -150,7 +152,7 @@ def assign_words_to_columns(
     *,
     line_tol: float = 2.0,
 ) -> list[list[str]]:
-    """Ułóż słowa w wiersze wizualne, a w wierszu -- w komórki wg geometrii kolumn."""
+    """Arrange words into visual rows, and within a row into cells according to column geometry."""
     ws = sorted(words, key=lambda w: (round(w["top"], 1), w["x0"]))
     lines: list[list[dict]] = []
     for w in ws:
@@ -175,12 +177,12 @@ def merge_continuation_rows(
     *,
     joiner: str = " ",
 ) -> list[list[str]]:
-    """Scal wiersze wielolinijkowe.
+    """Merge multi-line rows.
 
-    ``is_row_start`` rozstrzyga, czy linia rozpoczyna nowy rekord (u polskich
-    publikujących: pierwsza komórka to numer porządkowy).  Linie pomiędzy są
-    dopisywane do ostatniego rekordu, kolumna po kolumnie -- dzięki temu zawinięty
-    adres nie przenosi się do sąsiedniego pola.
+    ``is_row_start`` decides whether a line begins a new record (for Polish
+    publishers: the first cell is a sequence number). Lines in between are
+    appended to the last record, column by column: this way a wrapped
+    address does not spill over into the neighbouring field.
     """
     rows: list[list[str]] = []
     for ln in lines:
@@ -197,11 +199,11 @@ def merge_continuation_rows(
 
 def extract_ruled_page(page, geom: Optional[ColumnGeometry] = None, *,
                        intersection_tolerance: float = 5.0) -> list[list[Optional[str]]]:
-    """Wiersze strony z tabeli o narysowanej siatce.
+    """Rows of a page from a table with a drawn grid.
 
-    Granice pionowe podajemy jawnie (z ``detect_ruled_columns``), poziome zostawiamy
-    detekcji linii -- dzięki temu komórka wielolinijkowa jest scalana przez samą
-    siatkę, bez heurystyki ciągłości.
+    Vertical boundaries are given explicitly (from ``detect_ruled_columns``), horizontal
+    ones are left to line detection: this way a multi-line cell is merged by the
+    grid itself, without a continuity heuristic.
     """
     if geom is None:
         geom = detect_ruled_columns(page)
@@ -218,7 +220,7 @@ def extract_ruled_page(page, geom: Optional[ColumnGeometry] = None, *,
 
 
 # --------------------------------------------------------------------------
-# audyt przesunięcia kolumn
+# column shift audit
 # --------------------------------------------------------------------------
 
 _RE_DATE = re.compile(r"^\s*\d{2}[./-]\d{2}[./-]\d{4}\s*$|^\s*\d{4}-\d{2}-\d{2}\s*$")
@@ -238,18 +240,19 @@ def looks_like_number(v: Any) -> bool:
     return bool(_RE_NUM.match(str(v)))
 
 
-#: liczba doklejona na początku pola tekstowego -- ślad wsiąknięcia sąsiedniej
-#: kolumny liczbowej w pole opisowe (najczęstsza postać przesunięcia kolumn)
+#: a number stuck onto the beginning of a text field: a trace of the neighbouring
+#: numeric column soaking into the descriptive field (the most common form of column shift)
 _RE_LEADING_NUM = re.compile(r"^\s*-?\d+(?:[.,]\d+)?(?:\s+-?\d+(?:[.,]\d+)?)*\s+\S")
 
 
 def looks_like_text(v: Any) -> bool:
-    """Czy wartość może stać w polu opisowym.
+    """Whether the value can stand in a descriptive field.
 
-    Odrzuca nie tylko czyste liczby i daty, ale też ciągi rozpoczynające się od
-    tokenu liczbowego przed tekstem ("0,1 0,1 WARUNKI PRZYŁĄCZENIA ...").  Ta
-    postać jest podpisem przesunięcia kolumn w wydobyciu regexowym: pusta komórka
-    mocy znika ze spłaszczonego tekstu i wartość mocy dokleja się do statusu.
+    Rejects not only pure numbers and dates, but also strings that start with a
+    numeric token before the text ("0,1 0,1 WARUNKI PRZYŁĄCZENIA ..."). This
+    form is the signature of column shift in regex-based extraction: an empty
+    capacity cell disappears from the flattened text and the capacity value
+    sticks onto the status.
     """
     s = str(v).strip()
     if not s or looks_like_number(s) or looks_like_date(s):
@@ -257,9 +260,9 @@ def looks_like_text(v: Any) -> bool:
     return not bool(_RE_LEADING_NUM.match(s))
 
 
-#: poziom napięcia jest polem o wąskiej, znanej dziedzinie: skrót klasy (nn/SN/WN/NN)
-#: albo wartość z jednostką ("110 kV", "15 kV").  Liczba bez jednostki albo zdanie
-#: oznaczają, że do pola wsiąkła treść sąsiedniej kolumny.
+#: voltage level is a field with a narrow, known domain: a class abbreviation (nn/SN/WN/NN)
+#: or a value with a unit ("110 kV", "15 kV"). A number without a unit or a sentence
+#: means that the content of the neighbouring column has soaked into the field.
 _RE_VOLT = re.compile(
     r"^\s*(?:nn|sn|wn|nn/sn|sn/nn|nN)\s*$"
     r"|^\s*\d+(?:[.,]\d+)?\s*[kKmM]?[vV]\s*$"
@@ -272,7 +275,7 @@ def looks_like_voltage(v: Any) -> bool:
     return bool(_RE_VOLT.match(str(v))) if v is not None else False
 
 
-#: predykaty dziedziny dla kolumn schematu -- "czy ta wartość MOŻE stać w tym polu"
+#: domain predicates for schema columns: "can this value stand in this field"
 DOMAIN_PREDICATES: dict[str, Callable[[Any], bool]] = {
     "moc_wprowadzana": looks_like_number,
     "moc_pobierana": looks_like_number,
@@ -293,7 +296,7 @@ DOMAIN_PREDICATES: dict[str, Callable[[Any], bool]] = {
 
 @dataclass
 class ShiftAudit:
-    """Wynik audytu przesunięcia kolumn."""
+    """Result of the column shift audit."""
 
     n_wierszy: int
     n_przesunietych: int
@@ -320,12 +323,13 @@ def audit_column_shift(
     nullish: Optional[set[str]] = None,
     n_examples: int = 5,
 ) -> ShiftAudit:
-    """Policz wiersze, w których jakaś niepusta wartość stoi w polu, do którego
-    nie może należeć (liczba w polu daty, tekst statusu w polu mocy itd.).
+    """Count rows in which some non-empty value stands in a field it cannot
+    belong to (a number in a date field, status text in a capacity field, etc.).
 
-    To jest operacyjna definicja "przesuniętej kolumny": nie porównujemy z wzorcem,
-    tylko sprawdzamy WEWNĘTRZNĄ sprzeczność typu.  Ta sama miara jest liczona dla
-    starego i nowego wydobycia, więc porównanie jest uczciwe.
+    This is the operational definition of a "shifted column": we do not compare
+    against a reference, we only check an INTERNAL type contradiction. The same
+    measure is computed for the old and the new extraction, so the comparison
+    is fair.
     """
     preds = predicates if predicates is not None else DOMAIN_PREDICATES
     nl = nullish or {"", "-", "--", "---", "nan", "none", "brak", "nie dotyczy"}

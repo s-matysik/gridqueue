@@ -2,52 +2,58 @@
 title: Google Colab
 ---
 
-# Uruchomienie w przeglądarce
+# Running in the browser
 
-[![Otwórz w Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/s-matysik/gridqueue/blob/main/notebooks/gridqueue_colab.ipynb)
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/s-matysik/gridqueue/blob/main/notebooks/gridqueue_colab.ipynb)
 
-Notatnik `notebooks/gridqueue_colab.ipynb` usuwa barierę instalacyjną: recenzent albo analityk
-regulatora uruchamia pełny przebieg bez instalowania czegokolwiek, bez konta i bez akceleratora.
+The notebook `notebooks/gridqueue_colab.ipynb` removes the installation barrier: a reviewer or an
+analyst at the regulator runs the full workflow without installing anything, without an account and
+without an accelerator.
 
-## Co notatnik wykonuje
+## What the notebook does
 
-1. instaluje pakiet z **oznaczonego wydania**, nie z gałęzi głównej, więc wynik nie zależy od
-   bieżącego stanu repozytorium;
-2. pobiera dwie kolejne edycje ujawnienia wprost od publikującego i wypisuje sumy kontrolne;
-3. rozpoznaje publikującego **z zawartości dokumentu** i wydobywa wiersze wspólnego schematu;
-4. ocenia osiem reguł kontroli jakości;
-5. liczy przepływy w kolejce między edycjami oraz **precyzję dopasowania** na polach wyłączonych
-   z klucza;
-6. porównuje odtworzone liczby z opublikowanymi w artykule i **przerywa wykonanie przy rozjeździe**.
+1. installs the package from a **tagged release**, not from the main branch, so the result does not
+   depend on the current state of the repository;
+2. downloads two consecutive editions of the disclosure directly from the publisher and prints the
+   checksums;
+3. recognizes the publisher **from the content of the document** and extracts the rows of the common
+   schema;
+4. evaluates the eight quality control rules;
+5. computes the queue flows between the editions together with the **linkage precision** on the
+   fields held out of the key;
+6. compares the reproduced figures with those published in the paper and **aborts execution on a
+   divergence**.
 
-Punkt szósty jest odpowiednikiem asercji z katalogu `reproducibility/`. Rozjazd nie musi oznaczać
-błędu, publikujący mógł wymienić edycję, ale musi być widoczny, a nie przemilczany.
+Point six is the counterpart of the assertions in the `reproducibility/` directory. A divergence need
+not mean an error, the publisher may have replaced the edition, but it has to be visible rather than
+passed over in silence.
 
-## Czego notatnik nie robi
+## What the notebook does not do
 
-Nie odtwarza dokładności wydobycia wobec zbioru odniesienia, bo ten wymaga odczytu przez człowieka.
-Nie rozstrzyga współrzędnych, bo gazeter geometryczny jest osobnym pobraniem i podlega ODbL,
-a notatnik nie powinien po cichu wciągać użytkownika w obowiązki licencyjne. Nie uruchamia też
-przykładu przekrojowego na tym publikującym, bo **nie spełnia on kryterium pokrycia dat**
-postawionego przed policzeniem wyniku, notatnik pokazuje to wprost, zamiast policzyć medianę
-na kilkunastu procentach rekordów.
+It does not reproduce the extraction accuracy against the reference set, because that set requires a
+human reading. It does not resolve coordinates, because the geometric gazetteer is a separate
+download and is subject to ODbL, and the notebook should not quietly draw the user into licensing
+duties. It also does not run the cross-sectional example on this publisher, because **it does not
+meet the date coverage criterion** set before the result was computed; the notebook shows this
+openly instead of computing a median on a dozen or so percent of the records.
 
-## Gdy pobranie się nie powiedzie
+## When a download fails
 
-Dwie sytuacje są przewidziane i obie kończą się komunikatem, nie wyjątkiem.
+Two situations are anticipated and both end with a message rather than an exception.
 
-**Kod 404.** Edycje przesuwają się w czasie, a starsze bywają usuwane po wymianie. Pobierz bieżący
-wykaz ze strony publikującego, wgraj go przez panel plików i wpisz nazwę do słownika `pliki`.
+**Code 404.** Editions move in time, and older ones are sometimes removed once they are replaced.
+Download the current list from the publisher's site, upload it through the file panel and enter the
+name in the `pliki` dictionary.
 
-**Błąd weryfikacji certyfikatu.** Typowe w sieciach firmowych i instytucjonalnych z serwerem
-pośredniczącym, który podmienia łańcuch certyfikatów; w Colab nie występuje. Notatnik **nie obchodzi
-tej kontroli** i kieruje do wgrania pliku ręcznie.
+**Certificate verification error.** Typical in corporate and institutional networks with an
+intermediary server that substitutes the certificate chain; it does not occur in Colab. The notebook
+**does not circumvent that control** and directs the user to upload the file manually.
 
-## Pozycja notatnika wobec CI
+## Where the notebook stands relative to CI
 
-Ciągła integracja **nie uruchamia** notatnika, bo ten sięga po dokumenty wymieniane kwartalnie,
-a zadanie zależne od zewnętrznej publikacji psułoby się bez związku z kodem. Osobne zadanie
-sprawdza natomiast to, co sprawdzić można bez sieci: czy wszystkie komórki kodu są poprawne
-składniowo i czy każda nazwa importowana z pakietu faktycznie w nim istnieje. To właśnie ta
-druga kontrola odpowiada defektowi, który ujawniło pierwsze uruchomienie notatnika -
-dokumentacja obiecywała metodę `as_frame`, której pakiet nie miał.
+Continuous integration **does not run** the notebook, because it reaches for documents that are
+replaced quarterly, and a job that depends on an external publication would break for reasons
+unrelated to the code. A separate job does check what can be checked without network access: whether
+all the code cells are syntactically correct and whether every name imported from the package really
+exists in it. It is precisely that second check which answers the defect revealed by the first run of
+the notebook: the documentation promised an `as_frame` method that the package did not have.

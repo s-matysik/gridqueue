@@ -18,7 +18,7 @@ def r():
     return LocationResolver(GAZ)
 
 
-def test_normalize_i_tokens():
+def test_normalize_and_tokens():
     assert normalize("Świętego Wincentego") == "swietego wincentego"
     assert tokens("ul. Świętego Wincentego 12") == ["wincentego"]
 
@@ -37,43 +37,43 @@ def test_unique_token(r):
     assert res.matched == "Aleje Jerozolimskie"
 
 
-def test_reversed_z_inicjalem(r):
+def test_reversed_with_initial(r):
     res = r.resolve("Warszawa, BEMA J.")
     assert res.pewnosc in {"UNIQUE_TOKEN", "REVERSED"}
     assert res.matched == "Józefa Bema"
 
 
-def test_reversed_ze_skrotem_tytulu(r):
+def test_reversed_with_title_abbreviation(r):
     res = r.resolve("Warszawa, WINCENTEGO ŚW.")
     assert res.pewnosc in {"UNIQUE_TOKEN", "REVERSED"}
     assert res.matched == "Świętego Wincentego"
 
 
-def test_kod_stacji_nie_jest_zgadywany(r):
+def test_station_code_is_not_guessed(r):
     res = r.resolve("SKB3")
     assert res.pewnosc == "NONE"
     assert res.powod == "kod_stacji_bez_slownika"
     assert res.matched is None
 
 
-def test_kod_stacji_wymuszony_flaga(r):
+def test_station_code_forced_by_a_flag(r):
     res = r.resolve("Grochowska", is_station_code=True)
     assert res.pewnosc == "NONE"
     assert res.powod == "kod_stacji_bez_slownika"
 
 
-def test_pusty_opis(r):
+def test_empty_description(r):
     assert r.resolve(None).powod == "pusty_opis"
     assert r.resolve("   ").powod == "pusty_opis"
 
 
-def test_brak_kandydatow(r):
+def test_no_candidates(r):
     res = r.resolve("Warszawa, Nieistniejąca")
     assert res.pewnosc == "NONE"
     assert res.powod in {"brak_kandydatow", "wiele_kandydatow"}
 
 
-def test_summarize_liczy_odsetek(r):
+def test_summarize_computes_the_share(r):
     rs = r.resolve_series(["Warszawa, Grochowska", "SKB3", "Warszawa, Nieistniejąca"])
     s = LocationResolver.summarize(rs)
     assert s["n"] == 3
@@ -83,13 +83,13 @@ def test_summarize_liczy_odsetek(r):
     assert s["powody_braku"]["kod_stacji_bez_slownika"] == 1
 
 
-def test_skrzyzowanie(r):
+def test_intersection(r):
     res = r.resolve("Warszawa, Marszałkowska/Nowy Świat")
     assert res.pewnosc == "SKRZYZOWANIE"
     assert res.matched is not None and "/" in res.matched
     assert res.rozwiazane
 
 
-def test_skrzyzowanie_wymaga_dwoch_czlonow(r):
+def test_intersection_requires_two_members(r):
     res = r.resolve("Warszawa, Nieistniejąca/Takze Nieistniejąca")
     assert res.pewnosc == "NONE"

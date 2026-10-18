@@ -1,24 +1,26 @@
-"""Odtworzenie liczb walidacyjnych z panelu.
+"""Reproduction of the validation numbers from the panel.
 
-Co ten skrypt robi, a czego nie
--------------------------------
-Odtwarza **liczby pochodne**: pokrycie pól, reguły kontroli jakości, audyt
-przesunięcia kolumn i kompletność rdzenia. Robi to z gotowego panelu, więc
-sprawdza odtwarzalność obliczeń, nie odtwarzalność wydobycia.
+What this script does and what it does not
+------------------------------------------
+It reproduces the **derived numbers**: field coverage, the quality control rules,
+the column shift audit and core completeness. It does so from a finished panel,
+so it checks the reproducibility of the computations, not the reproducibility of
+the extraction.
 
-Nie odtwarza **dokładności wobec zbioru odniesienia**, ta wymaga wzorca
-odczytanego wzrokowo z dokumentu przez człowieka i jest opublikowana jako
-artefakt, a nie wyliczana przez kod.
+It does not reproduce **accuracy against the reference set**; that requires a
+reference read visually from the document by a human and is published as an
+artefact rather than computed by code.
 
-Dokumenty źródłowe nie są redystrybuowane: część z nich jest objęta prawami
-publikujących, a wszystkie są wymieniane kwartalnie na mocy obowiązku ustawowego.
-``manifest.csv`` podaje dla każdego adres, datę pobrania i SHA-256, więc osoba
-odtwarzająca pracę może pobrać dokładnie te pliki albo stwierdzić, że publikujący
-wydał już inną edycję, i wtedy **powinna oczekiwać innych liczb wierszy**.
+The source documents are not redistributed: some of them are covered by the
+rights of their publishers, and all of them are replaced quarterly under the
+statutory duty. ``manifest.csv`` gives the address, the download date and the
+SHA-256 for each of them, so a person reproducing the work can download exactly
+these files or find that the publisher has already issued a different edition,
+and should then **expect different row counts**.
 
-Uruchomienie::
+Running::
 
-    python reproducibility/run_validation.py <panel.parquet> [katalog_wyjściowy]
+    python reproducibility/run_validation.py <panel.parquet> [output_directory]
 """
 
 from __future__ import annotations
@@ -37,7 +39,7 @@ KOREN = Path(__file__).resolve().parent
 
 
 def sprawdz_sumy(katalog: Path) -> dict:
-    """Porównaj SHA-256 dokumentów w podanym katalogu z manifestem."""
+    """Compare the SHA-256 of the documents in the given directory with the manifest."""
     man = pd.read_csv(KOREN / "manifest.csv")
     wynik = {"zgodne": [], "rozne": [], "brakujace": []}
     for _, r in man.iterrows():
@@ -94,7 +96,7 @@ def main(argv: list[str]) -> int:
     jak = pd.DataFrame(reguly)
     jak.to_csv(outdir / "reguly_jakosci.csv", index=False)
 
-    # kontrola spójności: suma po publikujących musi równać się panelowi
+    # consistency check: the sum over publishers has to equal the panel figure
     po_publ = (jak[jak["publikujacy"] != "PANEL RAZEM"]
                .groupby("kod")["naruszenia"].sum())
     panelowe = (jak[jak["publikujacy"] == "PANEL RAZEM"]
@@ -120,9 +122,9 @@ def main(argv: list[str]) -> int:
     (outdir / "podsumowanie.json").write_text(
         json.dumps(podsum, ensure_ascii=False, indent=1), encoding="utf-8")
 
-    # Porównanie z wartościami oczekiwanymi dla tego wydania. Celowo pomijamy
-    # numer wersji pakietu: sprawdzamy, czy LICZBY się zgadzają, a nie czy ktoś
-    # uruchomił dokładnie ten sam tag.
+    # Comparison with the values expected for this release. The package version
+    # number is deliberately left out: we check whether the NUMBERS agree, not
+    # whether somebody ran exactly the same tag.
     oczek_plik = Path(__file__).parent / "expected" / "expected_panel_stats.json"
     rozjazd: dict = {}
     if oczek_plik.exists():
@@ -136,19 +138,19 @@ def main(argv: list[str]) -> int:
     for k, v in podsum.items():
         print(f"{k}: {v}")
     if rozjazd:
-        print("\nBŁĄD: wynik nie odpowiada wartościom oczekiwanym dla tego wydania.",
+        print("\nERROR: the result does not match the values expected for this release.",
               file=sys.stderr)
         for k, v in rozjazd.items():
-            print(f"  {k}: oczekiwano {v['oczekiwano']}, otrzymano {v['otrzymano']}",
+            print(f"  {k}: expected {v['oczekiwano']}, got {v['otrzymano']}",
                   file=sys.stderr)
         return 1
     if oczek_plik.exists():
-        print("\nzgodność z expected/expected_panel_stats.json: OK")
+        print("\nagreement with expected/expected_panel_stats.json: OK")
     if niezgodne:
-        print("\nUWAGA: suma naruszeń po publikujących nie domyka się do panelu.",
+        print("\nWARNING: the sum of violations over publishers does not close to the panel.",
               file=sys.stderr)
         return 1
-    print(f"\nzapisano do: {outdir}")
+    print(f"\nsaved to: {outdir}")
     return 0
 
 
