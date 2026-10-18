@@ -1,40 +1,40 @@
-"""Wspólny schemat ujawnień przyłączeniowych (statutory connection-queue disclosure).
+"""Common schema for connection-queue disclosures (statutory connection-queue disclosure).
 
-Schemat jest wyprowadzony ze STRUKTURY OBOWIĄZKU PRAWNEGO, nie z układu konkretnego
-dokumentu.  Art. 7 ust. 8l ustawy z dnia 10 kwietnia 1997 r. -- Prawo energetyczne
-nakłada na operatora systemu dystrybucyjnego cztery rozłączne obowiązki ujawnieniowe:
+The schema is derived from the STRUCTURE OF THE STATUTORY DUTY, not from the layout of a
+particular document.  Article 7(8l) of the Act of 10 April 1997, the Energy Law,
+imposes four separate disclosure duties on the distribution system operator:
 
-  pkt 1  -- podmioty ubiegające się o przyłączenie źródeł (kto, gdzie, jaka moc,
-            jaki zasób, na jakim etapie)                     -> encja WNIOSEK
-  pkt 2  -- łączna dostępna moc przyłączeniowa i jej planowane zmiany w okresie
-            kolejnych 5 lat, w podziale na stacje lub ich grupy
-                                                             -> encja WĘZEŁ
-  pkt 3  -- złożone wnioski o określenie warunków przyłączenia -> encja WNIOSEK
-  pkt 4  -- wydane odmowy określenia warunków przyłączenia     -> encja WNIOSEK
+  point 1  : entities applying for the connection of sources (who, where, how much capacity,
+            what resource, at what stage)                     -> APPLICATION entity
+  point 2  : total available connection capacity and its planned changes over the
+            next 5 years, broken down by station or group of stations
+                                                             -> NODE entity
+  point 3  : applications filed for determination of connection conditions -> APPLICATION entity
+  point 4  : refusals issued for determination of connection conditions     -> APPLICATION entity
 
-Z tego wynikają trzy osie, które schemat odwzorowuje jako grupy pól:
+From this follow three axes, which the schema maps as field groups:
 
-  TOŻSAMOŚĆ  -- co jest przyłączane i gdzie (id_wniosku, id_wezla, nazwa_wezla,
+  IDENTITY   : what is being connected and where (id_wniosku, id_wezla, nazwa_wezla,
                 lokalizacja_tekst, wspolrzedne, poziom_napiecia, klasa_zasobu)
-  MOC        -- ile mocy w którą stronę i ile jej jeszcze jest
+  CAPACITY   : how much capacity, in which direction, and how much of it is still left
                 (moc_wprowadzana, moc_pobierana, moc_dostepna, moc_zarezerwowana,
                  ograniczenie_flaga, pozycja_w_kolejce)
-  PROCES     -- gdzie w postępowaniu administracyjnym stoi sprawa
+  PROCESS    : where the case stands in the administrative proceedings
                 (status_procesu, data_wniosku, data_warunkow, data_odmowy,
                  powod_odmowy, data_umowy, data_energizacji, data_publikacji)
 
-Oś PROCES jest bezpośrednim odwzorowaniem ścieżki proceduralnej ustawy: wniosek ->
-(zaliczka) -> warunki przyłączenia albo odmowa -> umowa o przyłączenie ->
-rozpoczęcie dostarczania energii.  Warunki przyłączenia są ważne dwa lata
-(art. 7 ust. 8i), co czyni parę (data_warunkow, data_umowy) sprawdzalną regułą,
-a nie tylko dwiema kolumnami.
+The PROCESS axis is a direct mapping of the statute's procedural path: application ->
+(advance payment) -> connection conditions or refusal -> connection agreement ->
+start of energy supply.  Connection conditions are valid for two years
+(Article 7(8i)), which makes the pair (data_warunkow, data_umowy) a checkable rule,
+not just two columns.
 
-RDZEŃ OBOWIĄZKOWY (5 pól) to minimum, bez którego ujawnienie nie realizuje
-żadnego z pkt 1/3/4: nie da się powiedzieć, czyj to wniosek, gdzie, na co,
-o jaką moc i na jakim etapie.
+The MANDATORY CORE (5 fields) is the minimum without which the disclosure fulfills
+none of points 1/3/4: it is impossible to say whose application it is, where, for what,
+how much capacity, and at what stage.
 
-Jednostki kanoniczne: moc w kW (nie MW -- publikujący używają obu), daty w ISO
-8601 (YYYY-MM-DD), współrzędne w WGS84 jako (lat, lon).
+Canonical units: capacity in kW (not MW, publishers use both), dates in ISO
+8601 (YYYY-MM-DD), coordinates in WGS84 as (lat, lon).
 """
 
 from __future__ import annotations
@@ -60,17 +60,17 @@ __all__ = [
 ]
 
 # --------------------------------------------------------------------------
-# normalizacja jednostek kanonicznych
+# normalization of canonical units
 # --------------------------------------------------------------------------
 
 _NUM_RE = re.compile(r"^-?\d+(?:[.,]\d+)?$")
 
 
 def canonical_power_kw(value: Any, unit: str = "kW") -> Optional[float]:
-    """Sprowadź moc do kW.  Zwraca None dla pustych/nieparsowalnych wartości.
+    """Convert power to kW.  Returns None for empty/unparsable values.
 
-    Akceptuje polski separator dziesiętny (przecinek) i spacje tysięczne
-    (także NBSP i wąską spację, których używają generatory PDF).
+    Accepts the Polish decimal separator (comma) and thousands spaces
+    (also NBSP and narrow space, which PDF generators use).
     """
     if value is None:
         return None
@@ -84,7 +84,7 @@ def canonical_power_kw(value: Any, unit: str = "kW") -> Optional[float]:
         if s in {"", "-", "--", "---", "brak", "nie dotyczy", "n/d", "N/D"}:
             return None
         s = s.replace(",", ".")
-        # dopuść wielokrotne kropki tysięczne typu 1.234.5 -> odrzuć
+        # allow for multiple thousands dots like 1.234.5 -> reject
         if not _NUM_RE.match(s.replace(".", "", max(0, s.count(".") - 1))):
             try:
                 num = float(s)
@@ -102,12 +102,12 @@ def canonical_power_kw(value: Any, unit: str = "kW") -> Optional[float]:
         return num * 1000.0
     if u in {"w", "wat", "watt"}:
         return num / 1000.0
-    raise ValueError(f"nieznana jednostka mocy: {unit!r}")
+    raise ValueError(f"unknown power unit: {unit!r}")
 
 
-# Publikujacy nie trzymaja sie wlasnego wzorca [dd.mm.rrrr]: w zestawieniu wnioskow
-# Stoena wystepuja daty z jednocyfrowym dniem ("2.04.2026"), wiec wzorzec musi je
-# przyjmowac -- inaczej poprawnie wydobyta data przepada na normalizacji.
+# Publishers do not stick to their own [dd.mm.rrrr] pattern: in Stoena's register of
+# applications there are dates with a single-digit day ("2.04.2026"), so the pattern
+# must accept them, otherwise a correctly extracted date is lost at normalization.
 _DATE_PATTERNS = (
     ("%d.%m.%Y", re.compile(r"^\d{1,2}\.\d{1,2}\.\d{4}$")),
     ("%Y-%m-%d", re.compile(r"^\d{4}-\d{1,2}-\d{1,2}$")),
@@ -124,7 +124,7 @@ _NULLISH = {
 
 
 def canonical_date(value: Any) -> Optional[str]:
-    """Sprowadź datę do ISO 8601 (YYYY-MM-DD).  None dla pustych/nieparsowalnych."""
+    """Convert a date to ISO 8601 (YYYY-MM-DD).  None for empty/unparsable values."""
     if value is None:
         return None
     if isinstance(value, _dt.datetime):
@@ -155,7 +155,7 @@ def _is_null(v: Any) -> bool:
 
 
 # --------------------------------------------------------------------------
-# specyfikacja pól
+# field specification
 # --------------------------------------------------------------------------
 
 
@@ -166,7 +166,7 @@ class Field:
     group: str                 # "tozsamosc" | "moc" | "proces"
     core: bool
     unit: Optional[str]
-    podstawa: str              # który punkt art. 7 ust. 8l uzasadnia pole
+    podstawa: str              # which point of Article 7(8l) justifies the field
     opis: str
     check: Optional[Callable[[Any], bool]] = field(default=None, repr=False)
 
@@ -205,62 +205,62 @@ def _is_bool(v: Any) -> bool:
 
 
 SCHEMA: tuple[Field, ...] = (
-    # ---------------- TOŻSAMOŚĆ ----------------
+    # ---------------- IDENTITY ----------------
     Field("id_wniosku", "string", "tozsamosc", True, None, "pkt 1/3/4",
-          "Identyfikator pozycji w rejestrze publikującego; unikalny w obrębie "
-          "publikacji, nie globalnie."),
+          "Identifier of the entry in the publisher's register; unique within the "
+          "publication, not globally."),
     Field("id_wezla", "string", "tozsamosc", False, None, "pkt 2",
-          "Identyfikator stacji elektroenergetycznej lub jej grupy, w podziale na "
-          "które ustawa każe podawać dostępną moc."),
+          "Identifier of the power station or its group, broken down by "
+          "which the statute requires the available capacity to be reported."),
     Field("nazwa_wezla", "string", "tozsamosc", False, None, "pkt 2",
-          "Nazwa własna stacji/punktu zasilania, jeśli publikujący ją ujawnia."),
+          "Proper name of the station/supply point, if the publisher discloses it."),
     Field("lokalizacja_tekst", "string", "tozsamosc", True, None, "pkt 1/3/4",
-          "Lokalizacja miejsca przyłączenia tak, jak ją podał publikujący "
-          "(adres, miejscowość, kod stacji) -- bez interpretacji."),
+          "Location of the connection point exactly as given by the publisher "
+          "(address, locality, station code), without interpretation."),
     Field("wspolrzedne", "geopoint", "tozsamosc", False, "WGS84", "pkt 1/2",
-          "Współrzędne geograficzne (lat, lon); wynik rozwiązania lokalizacji albo "
-          "dana źródłowa.", _is_geopoint),
+          "Geographic coordinates (lat, lon); result of location resolution or "
+          "source data.", _is_geopoint),
     Field("poziom_napiecia", "string", "tozsamosc", False, None, "pkt 1 (>1 kV)",
-          "Poziom napięcia przyłączenia; obowiązek dotyczy sieci powyżej 1 kV, więc "
-          "pole rozstrzyga o zakresie ujawnienia."),
+          "Voltage level of the connection; the duty applies to networks above 1 kV, so "
+          "the field determines the scope of the disclosure."),
     Field("klasa_zasobu", "string", "tozsamosc", True, None, "pkt 1/3/4",
-          "Rodzaj instalacji, urządzeń lub sieci, zharmonizowany do słownika "
-          "kontrolowanego (PV, FW, BESS, ODB, ...)."),
-    # ---------------- MOC ----------------
+          "Type of installation, equipment or network, harmonized to the controlled "
+          "vocabulary (PV, FW, BESS, ODB, ...)."),
+    # ---------------- CAPACITY ----------------
     Field("moc_wprowadzana", "number", "moc", False, "kW", "pkt 1/3",
-          "Moc przyłączeniowa wprowadzana do sieci (generacja/eksport).", _num_nonneg),
+          "Connection capacity fed into the network (generation/export).", _num_nonneg),
     Field("moc_pobierana", "number", "moc", False, "kW", "pkt 1/3/4",
-          "Moc przyłączeniowa pobierana z sieci (odbiór/import); dla wniosków "
-          "odbiorczych jest to główna wielkość wniosku.  Nie jest polem rdzenia "
-          "bezwarunkowo: rdzeń wymaga CO NAJMNIEJ JEDNEGO z pary "
-          "(moc_pobierana, moc_wprowadzana) -- patrz CORE_ALTERNATIVES.", _num_nonneg),
+          "Connection capacity drawn from the network (consumption/import); for "
+          "consumption applications this is the main quantity of the application.  It is "
+          "not unconditionally a core field: the core requires AT LEAST ONE "
+          "of the pair (moc_pobierana, moc_wprowadzana), see CORE_ALTERNATIVES.", _num_nonneg),
     Field("moc_dostepna", "number", "moc", False, "kW", "pkt 2",
-          "Łączna dostępna moc przyłączeniowa w węźle.", _num_nonneg),
+          "Total available connection capacity at the node.", _num_nonneg),
     Field("moc_zarezerwowana", "number", "moc", False, "kW", "pkt 2",
-          "Moc zajęta wydanymi i ważnymi warunkami / rezerwą.", _num_nonneg),
+          "Capacity taken up by issued and valid connection conditions / reservation.", _num_nonneg),
     Field("ograniczenie_flaga", "boolean", "moc", False, None, "pkt 2",
-          "Czy w węźle występuje czynnik ograniczający przyłączenie.", _is_bool),
+          "Whether there is a factor at the node limiting the connection.", _is_bool),
     Field("pozycja_w_kolejce", "number", "moc", False, None, "pkt 1",
-          "Pozycja wniosku w kolejce przyłączeniowej, jeśli publikujący ją prowadzi."),
-    # ---------------- PROCES ----------------
+          "Position of the application in the connection queue, if the publisher maintains one."),
+    # ---------------- PROCESS ----------------
     Field("status_procesu", "string", "proces", True, None, "pkt 1/3/4",
-          "Etap postępowania, zharmonizowany do słownika kontrolowanego."),
+          "Stage of the proceedings, harmonized to the controlled vocabulary."),
     Field("data_wniosku", "date", "proces", False, "ISO-8601", "pkt 3",
-          "Data złożenia wniosku o określenie warunków przyłączenia.", _is_iso_date),
+          "Date the application for determination of connection conditions was filed.", _is_iso_date),
     Field("data_warunkow", "date", "proces", False, "ISO-8601", "pkt 1/3",
-          "Data określenia warunków przyłączenia; początek dwuletniego terminu "
-          "ważności (art. 7 ust. 8i).", _is_iso_date),
+          "Date the connection conditions were determined; the start of the two-year "
+          "validity period (Article 7(8i)).", _is_iso_date),
     Field("data_odmowy", "date", "proces", False, "ISO-8601", "pkt 4",
-          "Data wydania odmowy określenia warunków przyłączenia.", _is_iso_date),
+          "Date the refusal to determine connection conditions was issued.", _is_iso_date),
     Field("powod_odmowy", "string", "proces", False, None, "pkt 4",
-          "Uzasadnienie odmowy (przyczyny techniczne / ekonomiczne / inne)."),
+          "Justification for the refusal (technical / economic / other reasons)."),
     Field("data_umowy", "date", "proces", False, "ISO-8601", "pkt 1",
-          "Data zawarcia umowy o przyłączenie.", _is_iso_date),
+          "Date the connection agreement was concluded.", _is_iso_date),
     Field("data_energizacji", "date", "proces", False, "ISO-8601", "pkt 1",
-          "Data rozpoczęcia dostarczania energii elektrycznej.", _is_iso_date),
+          "Date electricity supply began.", _is_iso_date),
     Field("data_publikacji", "date", "proces", False, "ISO-8601", "art. 7 ust. 8m",
-          "Stan na dzień, dla którego publikujący sporządził ujawnienie; "
-          "ustawa wymaga aktualizacji co najmniej raz na kwartał.", _is_iso_date),
+          "Status as of the date for which the publisher prepared the disclosure; "
+          "the statute requires updates at least once per quarter.", _is_iso_date),
 )
 
 SCHEMA_VERSION: str = "1.0"
@@ -269,18 +269,20 @@ FIELDS: tuple[str, ...] = tuple(f.name for f in SCHEMA)
 CORE_FIELDS: tuple[str, ...] = tuple(f.name for f in SCHEMA if f.core)
 OPTIONAL_FIELDS: tuple[str, ...] = tuple(f.name for f in SCHEMA if not f.core)
 
-# Rdzeń warunkowy, osobny dla każdej encji obowiązku.
+# Conditional core, separate for each entity of the duty.
 #
-# Schemat ma dwie encje, bo przepis ma dwa punkty o różnym przedmiocie, i rdzeń
-# jednej z nich nie jest wymaganiem wobec drugiej.  Ocenianie wiersza encji
-# WEZEL wymaganiami encji WNIOSEK mierzyłoby niezgodność encji, nie braki
-# ujawnienia.
+# The schema has two entities, because the provision has two points with a different
+# subject, and the core of one of them is not a requirement for the other.  Assessing a
+# WEZEL entity row against the requirements of the WNIOSEK entity would measure entity
+# mismatch, not disclosure gaps.
 #
-# W obu encjach część wymagań jest ALTERNATYWĄ, nie konkretnym polem.  Wniosek
-# przyłączeniowy zawsze deklaruje moc, lecz nie zawsze tę samą: wytwórczy
-# wprowadzaną, odbiorczy pobieraną, dwukierunkowy (np. magazyn) obie.  Analogicznie
-# pkt 2 bywa realizowany mocą dostępną albo liczbą wolnych miejsc przyłączeniowych
-# (wtedy flagą ograniczenia) -- obie postaci spotkaliśmy u różnych publikujących.
+# In both entities, part of the requirements is an ALTERNATIVE, not a specific field.  A
+# connection application always declares a capacity, but not always the same one: a
+# generation application declares export capacity, a consumption application import
+# capacity, a bidirectional one (e.g. storage) both.  Similarly, point 2 is sometimes
+# implemented via the available capacity or via the number of free connection slots
+# (in that case via the constraint flag); we have encountered both forms from different
+# publishers.
 ENTITY_COLUMN: str = "_encja"
 DEFAULT_ENTITY: str = "WNIOSEK"
 
@@ -295,7 +297,7 @@ CORE_BY_ENTITY: dict[str, dict[str, tuple]] = {
     },
 }
 
-# zachowane dla zgodności wstecznej z 0.3.x; odnosi się do encji WNIOSEK
+# kept for backward compatibility with 0.3.x; refers to the WNIOSEK entity
 CORE_ALTERNATIVES: tuple[tuple[str, ...], ...] = tuple(
     CORE_BY_ENTITY["WNIOSEK"]["alternatywy"])
 
@@ -320,13 +322,13 @@ def _mask_dla_encji(df, sub_idx, spec):
 
 
 def core_complete_mask(df):
-    """Maska wierszy z kompletnym rdzeniem WŁAŚCIWEJ DLA SIEBIE ENCJI.
+    """Mask of rows with a complete core FOR THEIR OWN ENTITY.
 
-    Encja czytana jest z kolumny anotacyjnej ``_encja``; wiersze bez tej anotacji
-    traktowane są jako ``WNIOSEK`` (tak wiersze emitują adaptery, które encji nie
-    rozróżniają, bo ich publikujący realizuje wyłącznie pkt 1/3/4).  Brak kolumny
-    wymaganej traktowany jest jak kolumna pusta -- rdzeń jest wymaganiem wobec
-    WIERSZA, nie wobec kształtu ramki.
+    The entity is read from the annotation column ``_encja``; rows without this
+    annotation are treated as ``WNIOSEK`` (this is how rows are emitted by adapters that
+    do not distinguish entities, because their publisher fulfills only points 1/3/4).  A
+    missing required column is treated like an empty column: the core is a requirement on
+    the ROW, not on the shape of the frame.
     """
     import pandas as _pd
 
@@ -348,11 +350,11 @@ GROUPS: dict[str, tuple[str, ...]] = {
     for g in ("tozsamosc", "moc", "proces")
 }
 
-# kolumny towarzyszące, nie należące do schematu (metadane panelu / anotacje)
+# accompanying columns, not part of the schema (panel metadata / annotations)
 META_COLUMNS: tuple[str, ...] = ("publikujacy", "jurysdykcja", "dokument_zrodlowy")
 ANNOTATION_PREFIX = "_"
 
-# słowniki kontrolowane
+# controlled vocabularies
 KLASY_ZASOBU = (
     "PV", "FW", "EW", "BIOGAZ", "GAZ", "WEGIEL", "BESS", "ODB", "MIX", "SIEC",
     "INNE", "NIEOKRESLONA",
@@ -365,48 +367,48 @@ STATUSY = (
 
 
 # --------------------------------------------------------------------------
-# walidator instancji
+# instance validator
 # --------------------------------------------------------------------------
 
 
 def validate_instance(row: dict[str, Any], *, strict_vocab: bool = False) -> list[str]:
-    """Zwróć listę komunikatów o naruszeniach dla pojedynczego wiersza.
+    """Return a list of violation messages for a single row.
 
-    Pusta lista = wiersz zgodny ze schematem.  Walidator NIE rzuca wyjątku --
-    ujawnienia bywają niekompletne z winy publikującego i to jest wynik pomiaru,
-    a nie błąd wykonania.
+    Empty list = row conforms to the schema.  The validator does NOT raise an exception:
+    disclosures are sometimes incomplete through the publisher's fault, and that is a
+    measurement result, not a runtime error.
     """
     problems: list[str] = []
     unknown = set(row) - set(FIELDS) - set(META_COLUMNS)
     unknown = {k for k in unknown if not k.startswith(ANNOTATION_PREFIX)}
     if unknown:
-        problems.append(f"pola spoza schematu: {sorted(unknown)}")
+        problems.append(f"fields outside the schema: {sorted(unknown)}")
     for name in CORE_FIELDS:
         if name not in row or _is_null(row.get(name)):
-            problems.append(f"brak pola rdzenia: {name}")
+            problems.append(f"missing core field: {name}")
     for name, value in row.items():
         f = BY_NAME.get(name)
         if f is None or _is_null(value):
             continue
         if f.dtype == "number":
             if not isinstance(value, (int, float)) or isinstance(value, bool):
-                problems.append(f"{name}: oczekiwano liczby, jest {type(value).__name__}")
+                problems.append(f"{name}: expected a number, got {type(value).__name__}")
                 continue
         if f.check is not None and not f.check(value):
-            problems.append(f"{name}: wartość nie przechodzi kontroli typu ({value!r})")
+            problems.append(f"{name}: value does not pass the type check ({value!r})")
     if strict_vocab:
         kz = row.get("klasa_zasobu")
         if not _is_null(kz) and kz not in KLASY_ZASOBU:
-            problems.append(f"klasa_zasobu spoza słownika: {kz!r}")
+            problems.append(f"klasa_zasobu outside the vocabulary: {kz!r}")
         st = row.get("status_procesu")
         if not _is_null(st) and st not in STATUSY:
-            problems.append(f"status_procesu spoza słownika: {st!r}")
+            problems.append(f"status_procesu outside the vocabulary: {st!r}")
     return problems
 
 
 def validate_frame(df, *, strict_vocab: bool = True) -> dict[str, Any]:
-    """Walidacja całej ramki.  Zwraca raport (liczby), nie wyjątek."""
-    import pandas as pd  # lokalny import: schema.py ma być użyteczny bez pandas
+    """Validation of the entire frame.  Returns a report (figures), not an exception."""
+    import pandas as pd  # local import: schema.py is meant to be usable without pandas
 
     report: dict[str, Any] = {
         "n_wierszy": int(len(df)),
@@ -454,17 +456,17 @@ def validate_frame(df, *, strict_vocab: bool = True) -> dict[str, Any]:
 
 
 def empty_frame():
-    """Pusta ramka w schemacie (wszystkie 21 pól + kolumny metadanych)."""
+    """Empty frame in the schema (all 21 fields + metadata columns)."""
     import pandas as pd
 
     return pd.DataFrame({c: pd.Series(dtype="object") for c in FIELDS + META_COLUMNS})
 
 
 def _encja_pola(nazwa: str) -> str:
-    """Encja, w której pole występuje: WNIOSEK, WEZEL albo obie.
+    """Entity in which the field occurs: WNIOSEK, WEZEL, or obie.
 
-    Wyprowadzone z CORE_BY_ENTITY oraz z przynależności pola do punktu obowiązku:
-    punkt 2 opisuje węzeł, punkty 1, 3 i 4 opisują wniosek.
+    Derived from CORE_BY_ENTITY and from the field's membership in a point of the duty:
+    point 2 describes the node, points 1, 3 and 4 describe the application.
     """
     wezlowe = {"id_wezla", "nazwa_wezla", "moc_dostepna", "moc_zarezerwowana",
                "ograniczenie_flaga"}
@@ -475,12 +477,12 @@ def _encja_pola(nazwa: str) -> str:
 
 
 def _status_rdzenia(nazwa: str) -> str:
-    """Trójwartościowy status: rdzeń bezwarunkowy, alternatywa rdzenia, rozszerzenie.
+    """Three-valued status: unconditional core, core alternative, extension.
 
-    Rdzeń jest WARUNKOWY: pole bezwarunkowe dla jednej encji nie musi być
-    wymagane dla drugiej, a pary alternatyw wymagają wypełnienia co najmniej
-    jednego członu. Dwuwartościowa kolumna `rdzen` tego nie oddaje i dlatego
-    istnieje ta druga.
+    The core is CONDITIONAL: a field unconditional for one entity need not be required
+    for the other, and alternative pairs require at least one member to be filled in.
+    The two-valued column `rdzen` does not capture this, and that is why this second
+    one exists.
     """
     for encja, spec in CORE_BY_ENTITY.items():
         if nazwa in spec["wymagane"]:
@@ -493,7 +495,7 @@ def _status_rdzenia(nazwa: str) -> str:
 
 
 def schema_table():
-    """Specyfikacja jako ramka -- artefakt do manuskryptu."""
+    """Specification as a frame, an artifact for the manuscript."""
     import pandas as pd
 
     return pd.DataFrame(

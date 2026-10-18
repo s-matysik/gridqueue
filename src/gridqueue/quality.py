@@ -1,26 +1,26 @@
-"""Kontrola jakości zbioru: reguły z przepisu i z semantyki postępowania.
+"""Quality control of the dataset: rules derived from statute and from the semantics of the process.
 
-Każda reguła zwraca LICZBĘ NARUSZEŃ, nie wyjątek.  Naruszenie nie jest błędem
-narzędzia -- jest własnością ujawnienia i właśnie po to ten moduł istnieje.
-Raport jakości jest wynikiem naukowym: mówi, na ile publikacja ustawowa jest
-wewnętrznie spójna.
+Each rule returns a NUMBER OF VIOLATIONS, not an exception.  A violation is not a bug
+in the tool; it is a property of the disclosure, and that is exactly why this module exists.
+The quality report is a scientific result: it tells how internally consistent
+the statutory publication is.
 
-Reguły:
-  R1  monotonicznosc_dat        -- wniosek <= warunki <= umowa <= energizacja
-  R2  waznosc_warunkow_2lata    -- warunki przyłączenia są ważne 2 lata
-                                   (art. 7 ust. 8i); data utraty ważności nie może
-                                   wypaść później niż 2 lata po ich określeniu
-  R3  dopuszczalnosc_przejsc    -- status musi być zgodny z zestawem obecnych dat
-  R4  spojnosc_jednostek_mocy   -- wartości mocy w kW muszą mieścić się w zakresie
-                                   fizycznym przyłączeń >1 kV (wykrywa pomyłkę MW/kW)
-  R5  zakresy_wartosci          -- moce nieujemne, daty w oknie 1990-2100
-  R6  duplikaty_identyfikatorow -- ten sam id_wniosku w wielu wierszach
-  R7  kompletnosc_rdzenia       -- rdzeń WŁAŚCIWEJ DLA WIERSZA ENCJI: dla WNIOSKU
-                                   4 pola niepuste oraz co najmniej jedno z pary
-                                   (moc_pobierana, moc_wprowadzana); dla WEZLA
-                                   id_wezla oraz co najmniej jedno z pary
+Rules:
+  R1  monotonicznosc_dat        : application <= conditions <= agreement <= energization
+  R2  waznosc_warunkow_2lata    : connection conditions are valid for 2 years
+                                   (art. 7 ust. 8i); the expiry date must not
+                                   fall later than 2 years after they were determined
+  R3  dopuszczalnosc_przejsc    : status must be consistent with the set of dates present
+  R4  spojnosc_jednostek_mocy   : capacity values in kW must fall within the physical
+                                   range of connections >1 kV (detects an MW/kW mix-up)
+  R5  zakresy_wartosci          : capacities non-negative, dates in the 1990-2100 window
+  R6  duplikaty_identyfikatorow : the same id_wniosku in multiple rows
+  R7  kompletnosc_rdzenia       : core of the ENTITY PROPER TO THE ROW: for WNIOSEK
+                                   4 fields non-empty plus at least one of the pair
+                                   (moc_pobierana, moc_wprowadzana); for WEZEL
+                                   id_wezla plus at least one of the pair
                                    (moc_dostepna, ograniczenie_flaga)
-  R8  slownik_kontrolowany      -- klasa_zasobu i status_procesu ze słownika
+  R8  slownik_kontrolowany      : klasa_zasobu and status_procesu from the dictionary
 """
 
 from __future__ import annotations
@@ -57,11 +57,11 @@ class QualityReport:
                 "naruszen_lacznie": sum(r["naruszenia"] for r in self.reguly)}
 
     def as_frame(self):
-        """Jeden wiersz na regule: kod, nazwa, naruszenia, udzial.
+        """One row per rule: kod, nazwa, naruszenia, udzial.
 
-        Kolumna `szczegoly` jest celowo pominieta, jej zawartosc rozni sie
-        strukturalnie miedzy regulami, wiec w ramce bylaby kolumna obiektow.
-        Pelne szczegoly zwraca `as_dict()`.
+        The `szczegoly` column is deliberately omitted; its content differs
+        structurally between rules, so in the dataframe it would be a column of objects.
+        Full details are returned by `as_dict()`.
         """
         import pandas as pd
 
@@ -73,7 +73,7 @@ class QualityReport:
 
 
 def _plus_years(d: _dt.date, n: int) -> _dt.date:
-    """Data przesunieta o n lat; 29 lutego w roku nieprzestepnym -> 28 lutego."""
+    """Date shifted by n years; 29 February in a non-leap year -> 28 February."""
     try:
         return d.replace(year=d.year + n)
     except ValueError:
@@ -105,7 +105,7 @@ def r1_monotonicznosc_dat(df) -> tuple[int, dict]:
                 cnt += 1
         if cnt:
             pary[f"{a}>{b}"] = cnt
-    # wiersz liczony raz
+    # row counted once
     mask = [False] * len(df)
     for i in range(len(have) - 1):
         a, b = have[i], have[i + 1]
@@ -118,14 +118,14 @@ def r1_monotonicznosc_dat(df) -> tuple[int, dict]:
 
 
 def r2_waznosc_warunkow(df) -> tuple[int, dict]:
-    """Warunki przyłączenia są ważne dwa lata (art. 7 ust. 8i).
+    """Connection conditions are valid for two years (art. 7 ust. 8i).
 
-    Jeśli publikujący podaje datę utraty ważności, musi ona wypadać nie później
-    niż dwa lata po dacie określenia warunków.  Sprawdzamy też umowy zawarte po
-    upływie dwóch lat od warunków, które ich nie utraciły.
+    If the publisher provides an expiry date, it must fall no later
+    than two years after the date the conditions were determined.  We also check agreements
+    concluded after two years have elapsed from the conditions that did not expire.
     """
     if "data_warunkow" not in df.columns:
-        return 0, {"uwaga": "brak pola data_warunkow"}
+        return 0, {"uwaga": "missing field data_warunkow"}
     col_utr = "_data_utraty_waznosci" if "_data_utraty_waznosci" in df.columns else None
     n_utr_bad = n_umowa_bad = 0
     n_sprawdzonych_utr = 0
@@ -157,22 +157,22 @@ def r2_waznosc_warunkow(df) -> tuple[int, dict]:
         det["nadwyzka_dni_min"] = nadwyzki[0]
         det["nadwyzka_dni_max"] = nadwyzki[-1]
         det["poza_tolerancja_30_dni"] = sum(1 for x in nadwyzki if x > 30)
-        # Liczba MUSI byc policzona, nie wpisana. Wczesniej stala tu literalna
-        # "334" -- akurat tyle wypadalo na panelu czterech publikujacych, ale
-        # ten sam string wracal przy KAZDYM wywolaniu, takze per publikujacy
-        # i na panelu szesciu, gdzie n_utr_bad ma inna wartosc. Diagnostyka
-        # podawala wtedy liczbe niezgodna z wlasnym wynikiem reguly.
+        # The number MUST be computed, not hardcoded. Previously a literal
+        # "334" stood here; that happened to be exactly how many came up on the panel of four
+        # publishers, but the same string came back on EVERY call, including per publisher
+        # and on the panel of six, where n_utr_bad has a different value. The diagnostics
+        # then reported a number inconsistent with the rule's own result.
         det["interpretacja"] = (
-            "systematyczne przesuniecie o stala liczbe dni wskazuje na regule "
-            f"administracyjna publikujacego, a nie na {n_utr_bad} niezaleznych "
-            "naruszen terminu"
+            "a systematic shift by a constant number of days indicates an administrative "
+            f"rule of the publisher, rather than {n_utr_bad} independent "
+            "violations of the deadline"
         )
     return n_utr_bad + n_umowa_bad, det
 
 
-#: jakie daty MUSZĄ / NIE MOGĄ istnieć przy danym statusie
+#: which dates MUST / MUST NOT exist for a given status
 _STATUS_WYMAGA: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
-    # status: (pola wymagane, pola zakazane)
+    # status: (required fields, forbidden fields)
     "WARUNKI_WYDANE": (("data_warunkow",), ("data_odmowy",)),
     "ODMOWA": (("data_odmowy",), ("data_umowy", "data_energizacji")),
     "UMOWA_OBOWIAZUJACA": (("data_umowy",), ("data_odmowy",)),
@@ -184,13 +184,13 @@ _STATUS_WYMAGA: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
 
 
 def r3_dopuszczalnosc_przejsc(df) -> tuple[int, dict]:
-    """Status musi byc zgodny z zestawem obecnych dat.
+    """Status must be consistent with the set of dates present.
 
-    Wymog obecnosci daty stosujemy TYLKO do pol, ktore dany publikujacy w ogole
-    ujawnia.  Brytyjski rejestr nie publikuje zadnych dat postepowania -- zadanie
-    od niego "daty umowy" nie jest kontrola spojnosci, tylko bledem kategorii.
-    Pola ujawniane wyznaczamy empirycznie: kolumna z co najmniej jedna wartoscia
-    niepusta w obrebie publikujacego.
+    We apply the requirement that a date be present ONLY to fields that the given publisher
+    actually discloses.  The British register does not publish any process dates; demanding
+    "agreement date" from it is not a consistency check but a category error.
+    We determine the disclosed fields empirically: a column with at least one non-empty
+    value within the publisher.
     """
     if "status_procesu" not in df.columns:
         return 0, {}
@@ -210,9 +210,9 @@ def r3_dopuszczalnosc_przejsc(df) -> tuple[int, dict]:
         spec = _STATUS_WYMAGA.get(st)
         if not spec:
             continue
-        # Klucz moze nie istniec: groupby pomija grupe o pustej nazwie publikujacego,
-        # wiec wiersz bez tej adnotacji nie ma wlasnego wpisu.  Wtedy stosujemy zbior
-        # globalny zamiast rzucac KeyError i tracic cala regule.
+        # The key may not exist: groupby skips the group with an empty publisher name,
+        # so a row without that annotation has no entry of its own.  In that case we use the
+        # global set instead of raising a KeyError and losing the whole rule.
         dost = (ujawniane.get(df["publikujacy"].iloc[i], globalne)
                 if ujawniane is not None else globalne)
         wymagane = tuple(c for c in spec[0] if c in dost)
@@ -230,9 +230,9 @@ def r3_dopuszczalnosc_przejsc(df) -> tuple[int, dict]:
     return n_bad, {"szczegoly": dict(sorted(szczegoly.items(), key=lambda kv: -kv[1])[:20])}
 
 
-#: zakres fizyczny przyłączeń >1 kV w kW.  Dolny próg 1 kW odrzuca wartości,
-#: które najpewniej podano w MW zamiast kW; górny 5 GW -- powyżej największej
-#: pojedynczej jednostki wytwórczej w KSE.
+#: physical range of connections >1 kV in kW.  The lower threshold of 1 kW rejects values
+#: that were most likely given in MW instead of kW; the upper bound of 5 GW is
+#: above the largest single generating unit in the KSE.
 _MOC_MIN_KW, _MOC_MAX_KW = 1.0, 5_000_000.0
 
 
@@ -295,13 +295,13 @@ def r6_duplikaty_identyfikatorow(df) -> tuple[int, dict]:
 
 
 def r7_kompletnosc_rdzenia(df) -> tuple[int, dict]:
-    """Rdzeń schematu: wszystkie CORE_FIELDS niepuste oraz z każdej grupy
-    CORE_ALTERNATIVES co najmniej jedno pole niepuste.
+    """Schema core: all CORE_FIELDS non-empty, and from each group of
+    CORE_ALTERNATIVES at least one field non-empty.
 
-    Grupa alternatywna istnieje, bo wniosek przyłączeniowy zawsze deklaruje moc,
-    lecz nie zawsze tę samą: wytwórczy wprowadzaną, odbiorczy pobieraną,
-    dwukierunkowy obie.  Wymaganie jednej konkretnej zamieniałoby własność
-    schematu w pozorne naruszenie ujawnienia.
+    The alternative group exists because a connection application always declares a capacity,
+    but not always the same one: a generation one declares export capacity, a consumption one
+    import capacity, a bidirectional one both.  Requiring one specific field would turn a
+    property of the schema into an apparent disclosure violation.
     """
     if ENTITY_COLUMN in df.columns:
         enc = df[ENTITY_COLUMN].map(
@@ -325,7 +325,7 @@ def r7_kompletnosc_rdzenia(df) -> tuple[int, dict]:
                 per[f"{nazwa}/{c}"] = cnt
         for grupa in spec["alternatywy"]:
             obecne = [c for c in grupa if c in sub.columns]
-            etykieta = f"{nazwa}/co najmniej jedno z: " + ", ".join(grupa)
+            etykieta = f"{nazwa}/at least one of: " + ", ".join(grupa)
             if not obecne:
                 per[etykieta] = int(len(sub))
                 continue
@@ -353,20 +353,20 @@ def r8_slownik_kontrolowany(df) -> tuple[int, dict]:
 
 
 RULES: tuple[Rule, ...] = (
-    Rule("R1", "monotoniczność dat postępowania", "semantyka procesu (art. 7 ust. 8l pkt 1)",
+    Rule("R1", "monotonicity of process dates", "process semantics (art. 7 ust. 8l pkt 1)",
          r1_monotonicznosc_dat),
-    Rule("R2", "dwuletnia ważność warunków przyłączenia", "art. 7 ust. 8i",
+    Rule("R2", "two-year validity of connection conditions", "art. 7 ust. 8i",
          r2_waznosc_warunkow),
-    Rule("R3", "dopuszczalność stanu procesu wobec dat", "semantyka procesu",
+    Rule("R3", "admissibility of process state given the dates", "process semantics",
          r3_dopuszczalnosc_przejsc),
-    Rule("R4", "spójność jednostek mocy", "art. 7 ust. 8l (sieć >1 kV)",
+    Rule("R4", "consistency of capacity units", "art. 7 ust. 8l (network >1 kV)",
          r4_spojnosc_jednostek),
-    Rule("R5", "zakresy wartości", "kontrola techniczna", r5_zakresy_wartosci),
-    Rule("R6", "duplikaty identyfikatorów", "wymóg identyfikowalności pozycji",
+    Rule("R5", "value ranges", "technical control", r5_zakresy_wartosci),
+    Rule("R6", "duplicate identifiers", "requirement for identifiability of records",
          r6_duplikaty_identyfikatorow),
-    Rule("R7", "kompletność rdzenia schematu", "art. 7 ust. 8l pkt 1/3/4",
+    Rule("R7", "completeness of the schema core", "art. 7 ust. 8l pkt 1/3/4",
          r7_kompletnosc_rdzenia),
-    Rule("R8", "słownik kontrolowany", "harmonizacja międzyoperatorska",
+    Rule("R8", "controlled dictionary", "inter-operator harmonization",
          r8_slownik_kontrolowany),
 )
 
@@ -376,7 +376,7 @@ def run_quality(df, rules: Optional[tuple[Rule, ...]] = None) -> QualityReport:
     for rule in (rules or RULES):
         try:
             n, det = rule.fn(df)
-        except Exception as exc:  # reguła nie może wywrócić raportu
+        except Exception as exc:  # a rule must not break the report
             n, det = -1, {"blad": f"{type(exc).__name__}: {exc}"}
         out.append({
             "kod": rule.kod,

@@ -1,48 +1,48 @@
-"""Rozwiązywacz lokalizacji z JAWNYM poziomem pewności.
+"""Location resolver with an EXPLICIT confidence level.
 
-Reguła nadrzędna: rozwiązywacz nigdy nie zgaduje po cichu.  Każdy wynik niesie
-poziom pewności, a odsetek rozwiązanych jest raportowaną metryką, nie założeniem.
+Overriding rule: the resolver never guesses silently.  Every result carries a
+confidence level, and the share of resolved cases is a reported metric, not an assumption.
 
-Poziomy pewności (malejąco):
-  EXACT        -- znormalizowany opis jest identyczny z nazwą w gazeterze
-  UNIQUE_TOKEN -- dokładnie jedna nazwa w gazeterze zawiera rozpoznawalny token
-                  wyróżniający z opisu
-  TOKEN_SUBSET -- zbiór tokenów opisu zawiera się w tokenach dokładnie jednej nazwy
-  REVERSED     -- dopasowanie po odwróceniu kolejności członów nazwy
-                  ("WINCENTEGO ŚW." -> "Świętego Wincentego", "BEMA J." -> "Józefa Bema")
-  SKRZYZOWANIE -- opis wskazuje skrzyżowanie dwóch ulic ("WALICÓW / GRZYBOWSKA");
-                  rozwiązane, gdy co najmniej dwa człony trafiają w gazeter
-  NONE         -- brak dopasowania; pole ``powod`` mówi dlaczego
+Confidence levels (descending):
+  EXACT        : the normalized description is identical to a name in the gazetteer
+  UNIQUE_TOKEN : exactly one name in the gazetteer contains a recognizable
+                 distinguishing token from the description
+  TOKEN_SUBSET : the set of tokens in the description is contained in the tokens of exactly one name
+  REVERSED     : matched after reversing the order of the name's parts
+                 ("WINCENTEGO ŚW." -> "Świętego Wincentego", "BEMA J." -> "Józefa Bema")
+  SKRZYZOWANIE : the description indicates an intersection of two streets ("WALICÓW / GRZYBOWSKA");
+                 resolved when at least two parts hit the gazetteer
+  NONE         : no match; the ``powod`` field says why
 
-Dla publikujących, którzy podają lokalizację jako WEWNĘTRZNY KOD STACJI
-(TAURON: "SKB3", "RCB4"), rozwiązywacz zwraca NONE z powodem
-``kod_stacji_bez_slownika`` -- nie próbuje zgadywać, bo operator nie publikuje
-słownika kodów i każde dopasowanie byłoby konfabulacją.
+For publishers that give the location as an INTERNAL STATION CODE
+(TAURON: "SKB3", "RCB4"), the resolver returns NONE with the reason
+``kod_stacji_bez_slownika``: it does not try to guess, because the operator does not publish
+a code dictionary and any match would be confabulation.
 
-Rozszerzenie o współrzędne (wersja 0.2)
----------------------------------------
-Wynik niesie teraz punkt oraz DRUGI, niezależny poziom -- ``dokladnosc``
-(patrz :data:`DOKLADNOSC`).  Dwa poziomy odpowiadają na dwa różne pytania:
+Extension with coordinates (version 0.2)
+----------------------------------------
+The result now carries a point and a SECOND, independent level: ``dokladnosc``
+(see :data:`DOKLADNOSC`).  The two levels answer two different questions:
 
-  ``pewnosc``    -- jak pewna jest IDENTYFIKACJA nazwy miejsca,
-  ``dokladnosc`` -- jak precyzyjnie zwrócony punkt reprezentuje to miejsce.
+  ``pewnosc``    : how certain the IDENTIFICATION of the place name is,
+  ``dokladnosc`` : how precisely the returned point represents that place.
 
-Są rozłączne z założenia: dopasowanie EXACT do ulicy o długości 6 km daje punkt
-o dokładności ``PUNKT_NA_OSI_ULICY`` z rozmyciem rzędu kilometra, a dopasowanie
-UNIQUE_TOKEN do krótkiej ulicy -- punkt lepszy.  Długość osi dopasowanej ulicy
-jest zwracana w ``dlugosc_ulicy_m`` właśnie po to, by rozmycie dało się
-policzyć, a nie tylko zadeklarować.
+They are disjoint by design: an EXACT match to a 6 km long street gives a point
+with accuracy ``PUNKT_NA_OSI_ULICY`` and a blur on the order of a kilometer, while a
+UNIQUE_TOKEN match to a short street gives a better point.  The length of the matched
+street's axis is returned in ``dlugosc_ulicy_m`` for exactly this reason: so that the blur
+can be computed, not merely declared.
 
-Zachowane jest rozróżnienie między **nierozwiązaniem nazwy**
-(``pewnosc == "NONE"``) a **rozwiązaniem nazwy bez dostępnej geometrii**
+The distinction is preserved between **failing to resolve the name**
+(``pewnosc == "NONE"``) and **resolving the name without available geometry**
 (``pewnosc != "NONE"``, ``dokladnosc == "BRAK_GEOMETRII"``,
-``powod == "nazwa_rozwiazana_bez_geometrii"``) -- to dwa różne stany wiedzy
-i mieszanie ich zawyżałoby albo zaniżałoby pokrycie.  Predykaty:
-``Resolution.rozwiazane`` (nazwa) i ``Resolution.ma_wspolrzedne`` (punkt).
+``powod == "nazwa_rozwiazana_bez_geometrii"``): these are two different states of knowledge,
+and mixing them would overstate or understate coverage.  Predicates:
+``Resolution.rozwiazane`` (name) and ``Resolution.ma_wspolrzedne`` (point).
 
-Numer domu nie jest interpolowany wzdłuż osi ulicy bez znanego zakresu
-numeracji -- byłoby to zgadywanie.  ``punkt_dla_numeru`` zwraca punkt wyłącznie
-z indeksu punktów adresowych, jeśli taki jest wczytany.
+The house number is not interpolated along the street axis without a known numbering
+range: that would be guessing.  ``punkt_dla_numeru`` returns a point only
+from the address point index, if one has been loaded.
 """
 
 from __future__ import annotations
@@ -61,24 +61,24 @@ __all__ = [
 
 PEWNOSC = ("EXACT", "UNIQUE_TOKEN", "TOKEN_SUBSET", "REVERSED", "SKRZYZOWANIE", "NONE")
 
-#: Poziom DOKLADNOSCI UMIEJSCOWIENIA -- odpowiada na inne pytanie niz ``pewnosc``.
-#: ``pewnosc`` mowi, jak pewna jest IDENTYFIKACJA nazwy; ``dokladnosc`` mowi,
-#: jak precyzyjnie zwrocony punkt reprezentuje wskazane miejsce.  Rozdzielenie
-#: jest konieczne, bo nazwa moze byc zidentyfikowana bezblednie (EXACT), a punkt
-#: i tak byc tylko srodkiem kilkukilometrowej ulicy.
+#: Level of placement ACCURACY (DOKLADNOSC): answers a different question than ``pewnosc``.
+#: ``pewnosc`` says how certain the IDENTIFICATION of the name is; ``dokladnosc`` says
+#: how precisely the returned point represents the indicated place.  The separation
+#: is necessary because a name can be identified flawlessly (EXACT), while the point
+#: can still be only the center of a street several kilometers long.
 #:
-#:   PUNKT_ADRESOWY        -- znany punkt adresowy (ulica + numer domu)
-#:   PUNKT_SKRZYZOWANIA    -- przeciecie osi dwoch wskazanych ulic
-#:   PUNKT_NA_OSI_ULICY    -- punkt w 50% dlugosci osi ulicy (niepewnosc ~ dlugosc/4)
-#:   CENTROID_MIEJSCOWOSCI -- rozwiazano tylko miejscowosc, nie ulice
-#:   BRAK_GEOMETRII        -- nazwa ROZWIAZANA, ale gazeter nie ma dla niej wspolrzednych
-#:   BRAK                  -- nazwa nierozwiazana, wiec nie ma czego umiejscawiac
+#:   PUNKT_ADRESOWY        : known address point (street + house number)
+#:   PUNKT_SKRZYZOWANIA    : intersection of the axes of two indicated streets
+#:   PUNKT_NA_OSI_ULICY    : point at 50% of the street axis length (uncertainty ~ length/4)
+#:   CENTROID_MIEJSCOWOSCI : only the locality was resolved, not the street
+#:   BRAK_GEOMETRII        : name RESOLVED, but the gazetteer has no coordinates for it
+#:   BRAK                  : name not resolved, so there is nothing to place
 DOKLADNOSC = (
     "PUNKT_ADRESOWY", "PUNKT_SKRZYZOWANIA", "PUNKT_NA_OSI_ULICY",
     "CENTROID_MIEJSCOWOSCI", "BRAK_GEOMETRII", "BRAK",
 )
 
-#: przedrostki i człony, które nie wyróżniają ulicy
+#: prefixes and parts that do not distinguish a street
 _STOP = {
     "ul", "ulica", "al", "aleja", "aleje", "pl", "plac", "os", "osiedle", "rondo",
     "sw", "swietego", "swietej", "im", "imienia", "gen", "generala", "gen.",
@@ -87,7 +87,7 @@ _STOP = {
     "bulwar", "park", "most", "wybrzeze", "brak", "dzialka", "nr", "dz", "obreb",
 }
 
-#: kod stacji: 2-6 znaków wielkich liter/cyfr bez spacji, albo opis projektowanej stacji
+#: station code: 2-6 uppercase letters/digits without spaces, or a description of a planned station
 _RE_STATION_CODE = re.compile(r"^[A-ZĄĆĘŁŃÓŚŻŹ]{2,5}\d{0,2}$")
 
 
@@ -123,40 +123,40 @@ class Resolution:
     lon: Optional[float]
     pewnosc: str
     powod: str = ""
-    #: poziom dokladnosci umiejscowienia -- patrz DOKLADNOSC
+    #: placement accuracy level: see DOKLADNOSC
     dokladnosc: str = "BRAK"
-    #: miejscowosc, w ktorej gazeterze szukano (None dla gazetera jednoobszarowego)
+    #: locality whose gazetteer was searched (None for a single-area gazetteer)
     miejscowosc: Optional[str] = None
-    #: dlugosc osi dopasowanej ulicy w metrach, jesli gazeter ja niesie;
-    #: jest to jawna miara rozmycia punktu PUNKT_NA_OSI_ULICY
+    #: length of the matched street's axis in meters, if the gazetteer carries it;
+    #: this is an explicit measure of the blur of a PUNKT_NA_OSI_ULICY point
     dlugosc_ulicy_m: Optional[float] = None
-    #: liczba ROZLACZNYCH skladowych geometrii o tej nazwie w tej miejscowosci
+    #: number of DISJOINT geometry components with this name in this locality
     n_skladowych: Optional[int] = None
-    #: najwieksza odleglosc miedzy centroidami tych skladowych [m].  Duza
-    #: wartosc oznacza, ze nazwa ulicy NIE wyznacza jednego miejsca: w jednym
-    #: miescie istnieje kilka odleglych ulic o tej samej nazwie, a punkt lezy
-    #: na najdluzszej skladowej.  Rejestry ustawowe nie podaja dzielnicy, wiec
-    #: tej niejednoznacznosci nie da sie usunac z danych opublikowanych --
-    #: dlatego jest RAPORTOWANA, nie ukrywana.
+    #: largest distance between the centroids of these components [m].  A large
+    #: value means the street name does NOT determine a single place: within one
+    #: city there are several distant streets with the same name, and the point lies
+    #: on the longest component.  Statutory registers do not give the district, so
+    #: this ambiguity cannot be removed from the published data;
+    #: that is why it is REPORTED, not hidden.
     rozrzut_skladowych_m: Optional[float] = None
 
     @property
     def rozwiazane(self) -> bool:
-        """Czy NAZWA zostala zidentyfikowana (niezaleznie od dostepnosci geometrii)."""
+        """Whether the NAME has been identified (regardless of geometry availability)."""
         return self.pewnosc != "NONE"
 
     @property
     def ma_wspolrzedne(self) -> bool:
-        """Czy wynik niesie punkt.  Rozlaczne z ``rozwiazane``: nazwa moze byc
-        rozwiazana, a geometrii moze nie byc (``dokladnosc == BRAK_GEOMETRII``)."""
+        """Whether the result carries a point.  Disjoint from ``rozwiazane``: the name may be
+        resolved while the geometry may be missing (``dokladnosc == BRAK_GEOMETRII``)."""
         return self.lat is not None and self.lon is not None
 
 
 class LocationResolver:
-    """Dopasowanie opisu miejsca do gazetera nazw ulic/miejsc.
+    """Matching of a place description against a gazetteer of street/place names.
 
-    ``gazetteer``: mapa nazwa -> (lat, lon) albo nazwa -> None (gdy współrzędnych
-    nie ma, a interesuje nas samo rozstrzygnięcie identyfikacji).
+    ``gazetteer``: a map name -> (lat, lon) or name -> None (when there are no
+    coordinates, and only the identification outcome matters to us).
     """
 
     def __init__(self, gazetteer: dict[str, Optional[tuple[float, float]]]):
@@ -175,13 +175,13 @@ class LocationResolver:
 
     # ------------------------------------------------------------------
     def _coords(self, name: str) -> tuple[Optional[float], Optional[float]]:
-        """Wspolrzedne wpisu gazetera.
+        """Coordinates of a gazetteer entry.
 
-        Obslugiwane postacie wpisu (zgodnosc wstecz zachowana):
-          ``None``                  -- brak geometrii
-          ``(lat, lon)``            -- goly punkt
-          ``{"lat":..,"lon":..}``   -- wpis rozszerzony, moze dodatkowo niesc
-                                       ``os`` (lista [lat, lon]) i ``dlugosc_m``
+        Supported entry forms (backward compatibility preserved):
+          ``None``                  : no geometry
+          ``(lat, lon)``            : bare point
+          ``{"lat":..,"lon":..}``   : extended entry, may additionally carry
+                                      ``os`` (list [lat, lon]) and ``dlugosc_m``
         """
         c = self.gazetteer.get(name)
         if isinstance(c, dict):
@@ -198,23 +198,23 @@ class LocationResolver:
         return c if isinstance(c, dict) else {}
 
     def axis(self, name: str) -> Optional[list[tuple[float, float]]]:
-        """Os ulicy jako lista (lat, lon), jesli gazeter ja niesie."""
+        """Street axis as a list of (lat, lon), if the gazetteer carries it."""
         os_ = self._meta(name).get("os")
         if not os_ or len(os_) < 2:
             return None
         return [(float(p[0]), float(p[1])) for p in os_]
 
-    #: prog udzialu wyjasnionych tokenow opisu; ponizej progu dopasowanie
-    #: nie-EXACT jest odrzucane jako opis slowny, nie nazwa ulicy
+    #: threshold for the share of explained description tokens; below the threshold a
+    #: non-EXACT match is rejected as a verbal description, not a street name
     PROG_POKRYCIA_TOKENOW = 0.5
-    #: od tylu tokenow opisu prog jest stosowany (krotkie opisy sa nazwami ulic)
+    #: from this many description tokens the threshold is applied (short descriptions are street names)
     MIN_TOKENOW_DLA_PROGU = 4
 
     def _udzial_wyjasnionych(self, ts: list[str], name: str) -> float:
-        """Jaka czesc tokenow opisu wyjasnia dopasowana nazwa.
+        """What fraction of the description's tokens is explained by the matched name.
 
-        Token uchodzi za wyjasniony, gdy jest rowny tokenowi nazwy albo jest
-        jego przedrostkiem (obsluga inicjalow: "a." -> "augusta").
+        A token counts as explained when it equals a token of the name or is
+        a prefix of it (handling of initials: "a." -> "augusta").
         """
         if not ts:
             return 0.0
@@ -223,13 +223,13 @@ class LocationResolver:
         return ile / len(ts)
 
     def _opis_slowny(self, ts: list[str], name: str) -> bool:
-        """Czy dopasowanie opiera sie na jednym tokenie dlugiego opisu slownego.
+        """Whether the match relies on a single token of a long verbal description.
 
-        Zmierzone na panelu: opis "Bezposrednie sasiedztwo Lotniska Chopina w
-        Warszawie" trafial w ulice "Fryderyka Chopina" przez sam token
-        "chopina", dajac punkt w srodmiesciu zamiast przy lotnisku.  Dopasowanie
-        wyjasniajace mniej niz polowe tokenow dlugiego opisu nie jest
-        identyfikacja ulicy i jest odrzucane z jawnym powodem.
+        Measured on the panel: the description "Bezposrednie sasiedztwo Lotniska Chopina w
+        Warszawie" matched the street "Fryderyka Chopina" through the single token
+        "chopina", giving a point in the city center instead of near the airport.  A match
+        explaining less than half the tokens of a long description is not an
+        identification of a street and is rejected with an explicit reason.
         """
         if len(ts) < self.MIN_TOKENOW_DLA_PROGU:
             return False
@@ -249,13 +249,14 @@ class LocationResolver:
 
     # ------------------------------------------------------------------
     def punkt_dla_numeru(self, name: str, numer: Optional[str]) -> Optional[tuple[float, float]]:
-        """Umiejscowienie numeru domu.
+        """Placement of a house number.
 
-        Jesli gazeter niesie punkt adresowy dla pary (ulica, numer) -- zwraca go.
-        W przeciwnym razie zwraca ``None``: interpolacja numeru wzdluz osi bez
-        znanego zakresu numeracji bylaby zgadywaniem, a rozwiazywacz nie zgaduje.
-        Os ulicy jest zachowana w gazeterze wlasnie po to, by punkt adresowy dal
-        sie do niej odniesc, gdy zbior punktow adresowych bedzie dostepny.
+        If the gazetteer carries an address point for the pair (street, number), it is
+        returned.  Otherwise returns ``None``: interpolating the number along the axis
+        without a known numbering range would be guessing, and the resolver does not
+        guess.  The street axis is kept in the gazetteer for exactly this reason: so
+        that the address point can be referenced against it once a set of address
+        points becomes available.
         """
         if not numer:
             return None
@@ -269,11 +270,12 @@ class LocationResolver:
     @staticmethod
     def _przeciecie(a: list[tuple[float, float]],
                     b: list[tuple[float, float]]) -> Optional[tuple[float, float]]:
-        """Punkt przeciecia (albo najmniejszego zblizenia) dwoch osi ulic.
+        """Intersection point (or closest approach) of two street axes.
 
-        Liczone na osiach z gazetera, w przyblizeniu rownopolowym wokol
-        szerokosci srodkowej -- na skali miasta blad tej aproksymacji jest
-        rzedu metrow i nie ma znaczenia wobec rozmycia samego wejscia.
+        Computed on the axes from the gazetteer, with an equirectangular approximation
+        around the median latitude: at the scale of a city the error of this
+        approximation is on the order of meters and is negligible compared to the
+        blur of the input itself.
         """
         import math
 
@@ -307,15 +309,15 @@ class LocationResolver:
     # ------------------------------------------------------------------
     def resolve(self, query: Optional[str], *, is_station_code: bool = False,
                 sprawdzaj_kod_stacji: bool = True) -> Resolution:
-        """Rozwiąż opis miejsca.
+        """Resolve a place description.
 
-        ``sprawdzaj_kod_stacji=False`` wyłącza heurystykę kodu stacji.  Jest to
-        potrzebne, gdy wywołujący już rozstrzygnął, że opis NIE jest kodem
-        stacji -- na przykład :class:`MultiLocalityResolver` sprawdza kod na
-        pełnym opisie, a potem przekazuje tu sam człon ulicy.  Bez tego
-        przełącznika krótkie nazwy ulic zapisane wersalikami ("MARSA", "TAMKA",
-        "DŁUGA") wpadały w wzorzec kodu stacji: zmierzone 25 fałszywych braków
-        na 1 236 wierszach rejestru Stoen Operator.
+        ``sprawdzaj_kod_stacji=False`` disables the station code heuristic.  This is
+        needed when the caller has already determined that the description is NOT a
+        station code; for example :class:`MultiLocalityResolver` checks the code on
+        the full description and then passes only the street part here.  Without this
+        switch, short street names written in uppercase ("MARSA", "TAMKA",
+        "DŁUGA") fell into the station code pattern: measured 25 false negatives
+        on 1,236 rows of the Stoen Operator register.
         """
         q = (query or "").strip()
         if not q:
@@ -323,11 +325,11 @@ class LocationResolver:
         if is_station_code or (sprawdzaj_kod_stacji and _RE_STATION_CODE.match(q)):
             return Resolution(q, None, None, None, "NONE", "kod_stacji_bez_slownika")
 
-        # odetnij człon miejscowości, jeśli podany jako "MIASTO, adres"
+        # strip the locality part, if given as "CITY, address"
         street = q.split(",", 1)[1] if "," in q else q
         nq = normalize(street)
 
-        # 1) dokładne
+        # 1) exact
         if nq in self._by_norm:
             return self._hit(q, self._by_norm[nq][0], "EXACT")
         nq_full = normalize(street.split(" nr ")[0])
@@ -338,11 +340,12 @@ class LocationResolver:
         if not ts:
             return Resolution(q, None, None, None, "NONE", "brak_tokenow_wyrozniajacych")
 
-        # 2) unikalny token
+        # 2) unique token
         cands = {t: self._by_token.get(t, []) for t in ts}
-        # Odrzucenie przez prog pokrycia tokenow NIE konczy rozwiazywania:
-        # dalsze strategie (odwrocenie czlonow, skrzyzowanie) moga opis wyjasnic
-        # w calosci.  Flaga sluzy tylko do nadania powodu, gdy nic nie zadziala.
+        # Rejection via the token coverage threshold does NOT end resolution:
+        # further strategies (reversing the parts, intersection) may explain the
+        # description in full.  The flag only serves to assign a reason when nothing
+        # works.
         odrzucono_opis = False
 
         unique = [names[0] for t, names in cands.items() if len(names) == 1]
@@ -352,7 +355,7 @@ class LocationResolver:
             else:
                 return self._hit(q, unique[0], "UNIQUE_TOKEN")
 
-        # 3) podzbiór tokenów
+        # 3) token subset
         fs = frozenset(ts)
         subset_hits = [n for tsx, names in self._by_tokenset.items()
                        if fs and fs <= tsx for n in names]
@@ -362,7 +365,7 @@ class LocationResolver:
             else:
                 return self._hit(q, subset_hits[0], "TOKEN_SUBSET")
 
-        # 4) odwrócona kolejność członów
+        # 4) reversed order of parts
         rev = self._resolve_reversed(street, ts)
         if rev is not None:
             if self._opis_slowny(ts, rev):
@@ -370,8 +373,8 @@ class LocationResolver:
             else:
                 return self._hit(q, rev, "REVERSED")
 
-        # 5) skrzyżowanie: publikujący podaje dwie ulice ("WALICÓW / GRZYBOWSKA").
-        #    Miejsce jest określone -- to węzeł sieci ulic, nie jedna ulica.
+        # 5) intersection: the publisher gives two streets ("WALICÓW / GRZYBOWSKA").
+        #    The place is determined: it is a node of the street network, not a single street.
         parts = [p for p in re.split(r"[/\\]", street) if p.strip()]
         if len(parts) > 1:
             hits = []
@@ -383,7 +386,8 @@ class LocationResolver:
                 lat, lon = hits[0].lat, hits[0].lon
                 dokl = "PUNKT_NA_OSI_ULICY" if lat is not None else "BRAK_GEOMETRII"
                 powod = f"dopasowano {len(hits)} z {len(parts)} członów"
-                # jesli gazeter niesie osie obu ulic, punktem jest ich przeciecie
+                # if the gazetteer carries the axes of both streets, the point is their
+                # intersection
                 ax = [self.axis(h.matched) for h in hits[:2]]
                 if all(ax):
                     xp = self._przeciecie(ax[0], ax[1])
@@ -405,12 +409,13 @@ class LocationResolver:
 
     # ------------------------------------------------------------------
     def _resolve_reversed(self, street: str, ts: list[str]) -> Optional[str]:
-        """Domyka przypadki typu "WINCENTEGO ŚW." / "BEMA J.".
+        """Closes cases of the type "WINCENTEGO ŚW." / "BEMA J.".
 
-        Publikujący zapisują nazwisko na początku i skracają imię lub tytuł do
-        inicjału.  Szukamy nazw gazetera, których zbiór tokenów zawiera WSZYSTKIE
-        pełne tokeny opisu (niezależnie od kolejności), a pozostałe tokeny opisu
-        są przedrostkami tokenów kandydata (obsługa inicjałów "J." -> "jozefa").
+        Publishers write the surname first and shorten the given name or title to an
+        initial.  We look for gazetteer names whose token set contains ALL the full
+        tokens of the description (regardless of order), while the remaining tokens
+        of the description are prefixes of the candidate's tokens (handling of
+        initials "J." -> "jozefa").
         """
         full = [t for t in ts if len(t) > 2]
         inits = [t for t in ts if len(t) <= 2]
@@ -427,7 +432,7 @@ class LocationResolver:
                 n for n in pool
                 if all(any(tok.startswith(i) for tok in tokens(n)) for i in inits)
             }
-        # dopuść też nieskrócone odwrócenie: dokładnie ten sam multizbiór tokenów
+        # also allow an unabbreviated reversal: exactly the same multiset of tokens
         exact_rev = {n for n in pool if frozenset(tokens(n)) == frozenset(ts)}
         if len(exact_rev) == 1:
             return next(iter(exact_rev))
@@ -459,30 +464,32 @@ class LocationResolver:
 
 
 class MultiLocalityResolver:
-    """Rozwiązywacz dla gazetera z podziałem na miejscowości.
+    """Resolver for a gazetteer split by locality.
 
-    Rejestry przyłączeniowe podają lokalizację jako ``MIEJSCOWOŚĆ, ulica``.
-    Jedna płaska przestrzeń nazw ulic byłaby tu błędem: ta sama nazwa ulicy
-    występuje w kilkunastu miejscowościach aglomeracji i płaski gazeter musiałby
-    albo zgadywać, albo zwracać ``wiele_kandydatow``.  Ta klasa trzyma osobny
-    :class:`LocationResolver` na miejscowość i kieruje zapytanie do właściwego.
+    Connection registers give the location as ``LOCALITY, street``.
+    A single flat namespace of street names would be an error here: the same street
+    name occurs in a dozen or so localities of the agglomeration, and a flat gazetteer
+    would have to either guess or return ``wiele_kandydatow``.  This class keeps a
+    separate :class:`LocationResolver` per locality and routes the query to the right
+    one.
 
-    Zachowana jest nadrzędna zasada pakietu: **brak z przyczyną zamiast
-    zgadywania**.  Dochodzą dwa nowe, jawne powody braku:
+    The package's overriding principle is preserved: **a no-match with a reason
+    instead of guessing**.  Two new, explicit no-match reasons are added:
 
-      ``miejscowosc_poza_gazeterem``  -- podanej miejscowości nie ma w gazeterze;
-                                         to ograniczenie ZASIĘGU, nie porażka
-                                         dopasowania, i jest raportowane osobno
-      ``nazwa_rozwiazana_bez_geometrii`` -- nazwa dopasowana, ale wpis gazetera
-                                         nie ma współrzędnych
+      ``miejscowosc_poza_gazeterem``     : the given locality is not in the gazetteer;
+                                            this is a COVERAGE limitation, not a
+                                            matching failure, and is reported
+                                            separately
+      ``nazwa_rozwiazana_bez_geometrii`` : the name was matched, but the gazetteer
+                                            entry has no coordinates
 
-    Gdy ulicy nie udało się rozwiązać, a miejscowość owszem, zwracany jest
-    **brak** (``pewnosc == "NONE"``) -- centroid miejscowości NIE jest
-    podstawiany w pole ``wspolrzedne``, bo byłby punktem o innym znaczeniu niż
-    reszta kolumny.  Centroid jest natomiast udostępniony w polu
-    ``lat``/``lon`` z ``dokladnosc == "CENTROID_MIEJSCOWOSCI"`` tylko wtedy, gdy
-    wywołujący jawnie poprosi (``dopusc_centroid=True``), i wtedy rozpoznaje go
-    po polu ``dokladnosc``.
+    When the street could not be resolved but the locality could, a
+    **no-match** is returned (``pewnosc == "NONE"``): the locality centroid is NOT
+    substituted into the ``wspolrzedne`` field, because it would be a point with a
+    different meaning than the rest of the column.  The centroid is instead made
+    available in the ``lat``/``lon`` field with ``dokladnosc == "CENTROID_MIEJSCOWOSCI"``
+    only when the caller explicitly asks for it (``dopusc_centroid=True``), and it can
+    then be recognized by the ``dokladnosc`` field.
     """
 
     def __init__(self, miejscowosci: dict[str, dict],
@@ -493,7 +500,7 @@ class MultiLocalityResolver:
         for key, m in miejscowosci.items():
             k = normalize(key)
             self.resolvery[k] = LocationResolver(m.get("ulice", {}))
-            # opcjonalny indeks punktow adresowych: "<ulica>|<numer>" -> [lat, lon]
+            # optional index of address points: "<street>|<number>" -> [lat, lon]
             pa = m.get("punkty_adresowe") or {}
             if pa:
                 idx = {}
@@ -505,9 +512,9 @@ class MultiLocalityResolver:
                 self.centroidy[k] = (float(m["lat"]), float(m["lon"]))
             self._alias[k] = k
             self._alias.setdefault(normalize(m.get("nazwa") or key), k)
-        # alias czlonu glownego: "SEKOCIN NOWY"/"SEKOCIN STARY" -> pierwszy czlon,
-        # gdy jest jednoznaczny; gdy nie jest, alias nie powstaje i zapytanie
-        # o "SEKOCIN" konczy sie jawnym brakiem zamiast wyborem na chybil trafil
+        # alias of the main part: "SEKOCIN NOWY"/"SEKOCIN STARY" -> the first part,
+        # when it is unambiguous; when it is not, the alias is not created and a query
+        # for "SEKOCIN" ends in an explicit no-match instead of a random choice
         heads: dict[str, list[str]] = defaultdict(list)
         for k in list(self.resolvery):
             parts = k.split()
@@ -522,26 +529,26 @@ class MultiLocalityResolver:
 
     # ------------------------------------------------------------------
     def rozdziel(self, tekst: Optional[str]) -> tuple[Optional[str], str]:
-        """Rozdziel ``"MIEJSCOWOŚĆ, ulica"`` na (miejscowość, ulica)."""
+        """Split ``"LOCALITY, street"`` into (locality, street)."""
         t = (tekst or "").strip()
         if "," in t:
             a, b = t.split(",", 1)
             return a.strip(), b.strip()
         return None, t
 
-    #: numer domu na koncu opisu: "25", "85A", "12/14", "3 bis"
+    #: house number at the end of the description: "25", "85A", "12/14", "3 bis"
     _RE_NUMER = re.compile(r"\s+(\d+\s*[a-zA-Z]?(?:\s*/\s*\d+\s*[a-zA-Z]?)?)\s*$")
 
     @classmethod
     def rozdziel_numer(cls, street: str) -> tuple[str, Optional[str]]:
-        """Odetnij numer domu z końca opisu ulicy.
+        """Strip the house number from the end of a street description.
 
-        Zwraca ``(ulica, numer)`` albo ``(ulica, None)``.  Sama obecność liczby
-        na końcu nie dowodzi, że to numer domu -- w nazwach ulic liczby są
-        częste ("Aleja 4 Czerwca 1989", "11 Listopada").  Dlatego wynik tego
-        cięcia jest w :meth:`resolve` przyjmowany tylko wtedy, gdy reszta opisu
-        dopasowuje się do TEJ SAMEJ nazwy ulicy, a numer trafia w indeks
-        punktów adresowych.  Inaczej opis pozostaje nietknięty.
+        Returns ``(street, number)`` or ``(street, None)``.  The mere presence of a
+        number at the end does not prove that it is a house number: numbers are
+        common in street names ("Aleja 4 Czerwca 1989", "11 Listopada").  That is why
+        the result of this cut is accepted in :meth:`resolve` only when the rest of
+        the description matches the SAME street name, and the number hits the address
+        point index.  Otherwise the description is left untouched.
         """
         m = cls._RE_NUMER.search(street or "")
         if not m:
@@ -563,12 +570,12 @@ class MultiLocalityResolver:
         if miejscowosc:
             m_txt = miejscowosc
         if not m_txt:
-            # Bez ZADEKLAROWANEJ miejscowosci dopasowanie nazwy ulicy do gazetera
-            # konkretnego miasta jest zgadywaniem, nie rozwiazaniem.  Zmierzone:
-            # przy podstawianiu domyslnej miejscowosci opisy TAURONA typu
-            # "Stacja projektowana" trafialy w warszawska "ul. Projektowana",
-            # a "Wrzoski (planowany)" w drogowe "planowany lacznik".  Dlatego
-            # domyslna miejscowosc jest opcjonalna i domyslnie WYLACZONA.
+            # Without a DECLARED locality, matching a street name against the
+            # gazetteer of a specific city is guessing, not resolving.  Measured:
+            # when substituting the default locality, TAURON descriptions of the
+            # type "Stacja projektowana" matched the Warsaw "ul. Projektowana",
+            # and "Wrzoski (planowany)" matched the road "planowany lacznik".  That
+            # is why the default locality is optional and OFF by default.
             if not self.domyslna:
                 return Resolution(q, None, None, None, "NONE",
                                   "brak_deklaracji_miejscowosci")
@@ -587,10 +594,10 @@ class MultiLocalityResolver:
         sub = self.resolvery[key]
         r = sub.resolve(street, sprawdzaj_kod_stacji=False)
 
-        # numer domu: jesli nie podano wprost, spróbuj odciąć z końca opisu.
-        # Cięcie jest przyjmowane tylko wtedy, gdy reszta wskazuje TĘ SAMĄ ulicę
-        # (albo gdy pełny opis w ogóle się nie dopasował) -- inaczej liczba jest
-        # częścią nazwy ulicy, nie numerem domu.
+        # house number: if not given explicitly, try to cut it off the end of the
+        # description.  The cut is accepted only when the rest indicates the SAME
+        # street (or when the full description did not match at all); otherwise the
+        # number is part of the street name, not a house number.
         num = numer
         if num is None:
             rest, kand = self.rozdziel_numer(street)
@@ -632,9 +639,9 @@ class MultiLocalityResolver:
 
 
 def resolver_from_gazeter_json(path, *, domyslna: Optional[str] = None) -> MultiLocalityResolver:
-    """Zbuduj :class:`MultiLocalityResolver` z gazetera ze współrzędnymi.
+    """Build a :class:`MultiLocalityResolver` from a gazetteer with coordinates.
 
-    Oczekiwany układ pliku: ``{"miejscowosci": {KLUCZ: {"nazwa","lat","lon",
+    Expected file layout: ``{"miejscowosci": {KLUCZ: {"nazwa","lat","lon",
     "ulice": {nazwa: {"lat","lon","dlugosc_m","os"}}}}}``.
     """
     import json
@@ -646,7 +653,7 @@ def resolver_from_gazeter_json(path, *, domyslna: Optional[str] = None) -> Multi
 
 
 def resolver_from_osm_json(path) -> LocationResolver:
-    """Zbuduj rozwiązywacz z pliku JSON z nazwami ulic (lista nazw albo mapa)."""
+    """Build a resolver from a JSON file with street names (list of names or a map)."""
     import json
 
     with open(path, encoding="utf-8") as fh:

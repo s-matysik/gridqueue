@@ -1,4 +1,4 @@
-"""Testy rozszerzenia rozwiązywacza o współrzędne i poziom dokładności."""
+"""Tests of the resolver extension with coordinates and an accuracy level."""
 
 import pytest
 
@@ -9,7 +9,7 @@ from gridqueue.geoloc import (
     Resolution,
 )
 
-# gazeter w postaci rozszerzonej: wpis niesie punkt, długość i oś
+# gazetteer in its extended form: an entry carries a point, a length and an axis
 GAZ_WAW = {
     "Grochowska": {"lat": 52.24, "lon": 21.09, "dlugosc_m": 5200.0,
                    "os": [[52.245, 21.05], [52.235, 21.13]]},
@@ -17,7 +17,7 @@ GAZ_WAW = {
                       "os": [[52.205, 21.012], [52.240, 21.012]]},
     "Świętokrzyska": {"lat": 52.235, "lon": 21.01, "dlugosc_m": 1500.0,
                       "os": [[52.235, 20.995], [52.235, 21.030]]},
-    # wpis BEZ geometrii -- nazwa rozwiązywalna, punktu nie ma
+    # an entry with NO geometry: the name is resolvable, the point is not there
     "Bezgeometryczna": None,
 }
 GAZ_PIASECZNO = {
@@ -38,14 +38,14 @@ def mr():
     return MultiLocalityResolver(MIEJSC)
 
 
-# --- poziom dokładności jest osobnym polem -------------------------------
+# --- the accuracy level is a separate field ------------------------------
 
-def test_dokladnosc_jest_z_kontrolowanego_slownika(mr):
+def test_the_accuracy_comes_from_a_controlled_vocabulary(mr):
     r = mr.resolve("WARSZAWA, Grochowska")
     assert r.dokladnosc in DOKLADNOSC
 
 
-def test_punkt_na_osi_ulicy(mr):
+def test_a_point_on_the_street_axis(mr):
     r = mr.resolve("WARSZAWA, Grochowska")
     assert r.pewnosc == "EXACT"
     assert r.dokladnosc == "PUNKT_NA_OSI_ULICY"
@@ -54,8 +54,8 @@ def test_punkt_na_osi_ulicy(mr):
     assert r.dlugosc_ulicy_m == 5200.0
 
 
-def test_pewnosc_i_dokladnosc_sa_niezalezne(mr):
-    """EXACT na długiej ulicy nie oznacza dokładnego punktu -- rozmycie jest jawne."""
+def test_confidence_and_accuracy_are_independent(mr):
+    """EXACT on a long street does not mean an exact point; the blur is explicit."""
     dluga = mr.resolve("WARSZAWA, Grochowska")
     krotka = mr.resolve("PIASECZNO, Puławska")
     assert dluga.pewnosc == krotka.pewnosc == "EXACT"
@@ -63,17 +63,17 @@ def test_pewnosc_i_dokladnosc_sa_niezalezne(mr):
     assert dluga.dlugosc_ulicy_m > krotka.dlugosc_ulicy_m
 
 
-# --- rozróżnienie: brak nazwy vs brak geometrii --------------------------
+# --- the distinction: no name vs no geometry -----------------------------
 
-def test_nazwa_rozwiazana_bez_geometrii(mr):
+def test_a_name_resolved_without_geometry(mr):
     r = mr.resolve("WARSZAWA, Bezgeometryczna")
-    assert r.rozwiazane is True           # nazwa zidentyfikowana
-    assert r.ma_wspolrzedne is False      # ale punktu nie ma
+    assert r.rozwiazane is True           # the name has been identified
+    assert r.ma_wspolrzedne is False      # but there is no point
     assert r.dokladnosc == "BRAK_GEOMETRII"
     assert r.powod == "nazwa_rozwiazana_bez_geometrii"
 
 
-def test_nazwa_nierozwiazana_to_inny_stan_niz_brak_geometrii(mr):
+def test_an_unresolved_name_is_a_different_state_than_missing_geometry(mr):
     r = mr.resolve("WARSZAWA, Nieistniejąca")
     assert r.rozwiazane is False
     assert r.ma_wspolrzedne is False
@@ -81,19 +81,19 @@ def test_nazwa_nierozwiazana_to_inny_stan_niz_brak_geometrii(mr):
     assert r.powod != "nazwa_rozwiazana_bez_geometrii"
 
 
-# --- zasada: brak z przyczyną zamiast zgadywania -------------------------
+# --- the principle: a gap with a reason instead of a guess ---------------
 
-def test_kod_stacji_nadal_nie_jest_zgadywany(mr):
+def test_a_station_code_is_still_not_guessed(mr):
     r = mr.resolve("SKB3")
     assert r.pewnosc == "NONE" and r.powod == "kod_stacji_bez_slownika"
     assert r.lat is None and r.lon is None
 
 
-def test_krotka_nazwa_ulicy_wersalikami_nie_jest_kodem_stacji():
-    """Regresja: "WARSZAWA, MARSA" -- człon ulicy pasuje do wzorca kodu stacji.
+def test_a_short_street_name_in_capitals_is_not_a_station_code():
+    """Regression: in "WARSZAWA, MARSA" the street member matches the station code pattern.
 
-    Kod stacji jest rozstrzygany na PEŁNYM opisie; człon po przecinku jest z
-    definicji nazwą ulicy.  Zmierzone: 25 fałszywych braków na 1 236 wierszach.
+    A station code is decided on the FULL description; the member after the comma
+    is by definition a street name.  Measured: 25 false gaps on 1,236 rows.
     """
     m = MultiLocalityResolver({
         "WARSZAWA": {"nazwa": "Warszawa", "lat": 52.23, "lon": 21.0,
@@ -101,40 +101,41 @@ def test_krotka_nazwa_ulicy_wersalikami_nie_jest_kodem_stacji():
     r = m.resolve("WARSZAWA, MARSA")
     assert r.pewnosc == "EXACT" and r.matched == "Marsa"
     assert r.ma_wspolrzedne
-    # a sam kod stacji nadal jest odrzucany
+    # and the station code on its own is still rejected
     assert m.resolve("SKB3").powod == "kod_stacji_bez_slownika"
 
 
-def test_miejscowosc_poza_gazeterem_jest_osobnym_powodem(mr):
+def test_a_locality_outside_the_gazetteer_is_a_separate_reason(mr):
     r = mr.resolve("KRAKÓW, Grochowska")
     assert r.pewnosc == "NONE"
     assert r.powod == "miejscowosc_poza_gazeterem"
     assert r.lat is None
 
 
-def test_ta_sama_nazwa_w_dwoch_miejscowosciach_nie_jest_mieszana(mr):
-    """Rozdzielenie przestrzeni nazw: 'Grochowska' istnieje w obu i daje różne punkty."""
+def test_the_same_name_in_two_localities_is_not_conflated(mr):
+    """Separation of name spaces: 'Grochowska' exists in both and gives different points."""
     a = mr.resolve("WARSZAWA, Grochowska")
     b = mr.resolve("PIASECZNO, Grochowska")
     assert a.pewnosc == b.pewnosc == "EXACT"
     assert (a.lat, a.lon) != (b.lat, b.lon)
 
 
-def test_niejednoznaczna_miejscowosc_nie_jest_rozstrzygana_losowo(mr):
-    """'SĘKOCIN' pasuje do Nowego i Starego -- jawny brak, nie wybór na chybił trafił."""
+def test_an_ambiguous_locality_is_not_settled_at_random(mr):
+    """'SĘKOCIN' matches both Nowy and Stary: an explicit gap, not a hit-or-miss choice."""
     r = mr.resolve("SĘKOCIN, Jakakolwiek")
     assert r.pewnosc == "NONE"
     assert r.powod.startswith("miejscowosc_niejednoznaczna")
     assert r.lat is None
 
 
-def test_bez_zadeklarowanej_miejscowosci_nie_zgaduje(mr):
-    """Opis bez członu miejscowości nie jest dopasowywany do gazetera miasta.
+def test_with_no_declared_locality_it_does_not_guess(mr):
+    """A description with no locality member is not matched against a city gazetteer.
 
-    Regresja zmierzona na panelu: przy podstawianiu domyślnej miejscowości opisy
-    TAURONA "Stacja projektowana" trafiały w warszawską "ul. Projektowana",
-    a "Wrzoski (planowany)" w drogowe "planowany łącznik" -- 21 fałszywych
-    rozwiązań na 11 649 wierszy publikujących bez członu miejscowości.
+    A regression measured on the panel: when a default locality was substituted,
+    the TAURON descriptions "Stacja projektowana" matched the Warsaw street
+    "ul. Projektowana", and "Wrzoski (planowany)" matched the road feature
+    "planowany łącznik": 21 false resolutions on 11,649 rows of publishers with
+    no locality member.
     """
     for opis in ["Stacja projektowana", "Wrzoski (planowany)", "Langage B"]:
         r = mr.resolve(opis)
@@ -143,41 +144,41 @@ def test_bez_zadeklarowanej_miejscowosci_nie_zgaduje(mr):
         assert r.lat is None and r.lon is None
 
 
-def test_domyslna_miejscowosc_dziala_gdy_jawnie_wlaczona():
+def test_the_default_locality_works_when_it_is_switched_on_explicitly():
     m = MultiLocalityResolver(MIEJSC, domyslna="WARSZAWA")
     r = m.resolve("Grochowska")
     assert r.pewnosc == "EXACT" and r.ma_wspolrzedne
 
 
-def test_centroid_miejscowosci_tylko_na_jawne_zadanie(mr):
+def test_the_locality_centroid_only_on_an_explicit_request(mr):
     bez = mr.resolve("PIASECZNO, Nieistniejąca")
     assert bez.lat is None
     z = mr.resolve("PIASECZNO, Nieistniejąca", dopusc_centroid=True)
     assert z.dokladnosc == "CENTROID_MIEJSCOWOSCI"
     assert (z.lat, z.lon) == (52.0747, 21.0271)
-    assert z.rozwiazane is False          # nazwa ulicy nadal nierozwiązana
+    assert z.rozwiazane is False          # the street name is still unresolved
 
 
-# --- skrzyżowanie: punkt przecięcia osi ----------------------------------
+# --- intersection: the crossing point of the axes ------------------------
 
-def test_skrzyzowanie_daje_punkt_przeciecia_osi(mr):
+def test_an_intersection_gives_the_crossing_point_of_the_axes(mr):
     r = mr.resolve("WARSZAWA, Marszałkowska/Świętokrzyska")
     assert r.pewnosc == "SKRZYZOWANIE"
     assert r.dokladnosc == "PUNKT_SKRZYZOWANIA"
-    # osie: Marszałkowska lon=21.012 (pion), Świętokrzyska lat=52.235 (poziom)
+    # axes: Marszałkowska lon=21.012 (vertical), Świętokrzyska lat=52.235 (horizontal)
     assert abs(r.lat - 52.235) < 1e-3
     assert abs(r.lon - 21.012) < 1e-3
 
 
-# --- numer domu nie jest interpolowany ----------------------------------
+# --- the house number is not interpolated --------------------------------
 
-def test_numer_domu_bez_indeksu_nie_jest_zgadywany(mr):
+def test_a_house_number_without_an_index_is_not_guessed(mr):
     r = mr.resolve("WARSZAWA, Grochowska", numer="12")
-    assert r.dokladnosc == "PUNKT_NA_OSI_ULICY"   # NIE PUNKT_ADRESOWY
+    assert r.dokladnosc == "PUNKT_NA_OSI_ULICY"   # NOT PUNKT_ADRESOWY
     assert (r.lat, r.lon) == (52.24, 21.09)
 
 
-def test_numer_domu_z_indeksem_punktow_adresowych(mr):
+def test_a_house_number_with_an_index_of_address_points(mr):
     res_waw = mr.resolvery["warszawa"]
     res_waw.punkty_adresowe = {("grochowska", "12"): (52.2411, 21.0912)}
     r = mr.resolve("WARSZAWA, Grochowska", numer="12")
@@ -186,12 +187,13 @@ def test_numer_domu_z_indeksem_punktow_adresowych(mr):
     del res_waw.punkty_adresowe
 
 
-# --- próg pokrycia tokenów: opis słowny nie jest nazwą ulicy -------------
+# --- token coverage threshold: a verbal description is not a street name -
 
-def test_opis_slowny_nie_jest_dopasowywany_do_ulicy():
-    """Zmierzone na panelu: "Bezpośrednie sąsiedztwo Lotniska Chopina w Warszawie"
-    trafiało w "Fryderyka Chopina" przez sam token "chopina" -- punkt wypadał
-    w Śródmieściu zamiast przy lotnisku.  1 fałszywe rozwiązanie na 1 218.
+def test_a_verbal_description_is_not_matched_to_a_street():
+    """Measured on the panel: "Bezpośrednie sąsiedztwo Lotniska Chopina w Warszawie"
+    matched "Fryderyka Chopina" through the token "chopina" alone, so the point
+    fell in the city centre instead of next to the airport.  1 false resolution
+    on 1,218.
     """
     m = MultiLocalityResolver({
         "WARSZAWA": {"nazwa": "Warszawa", "lat": 52.23, "lon": 21.0,
@@ -203,12 +205,12 @@ def test_opis_slowny_nie_jest_dopasowywany_do_ulicy():
     assert r.lat is None
 
 
-def test_prog_pokrycia_nie_przerywa_dalszych_strategii():
-    """Odrzucenie po progu musi przepuścić opis do reguły skrzyżowań.
+def test_the_coverage_threshold_does_not_cut_off_the_later_strategies():
+    """A rejection by the threshold has to pass the description on to the intersection rule.
 
-    Regresja: "SOBIESKIEGO JANA III/ IDZIKOWSKIEGO" ma 4 tokeny, więc próg się
-    stosuje; token "idzikowskiego" jest unikalny i wyjaśnia 1 z 4 tokenów.
-    Natychmiastowy zwrot braku gubił poprawne skrzyżowanie.
+    Regression: "SOBIESKIEGO JANA III/ IDZIKOWSKIEGO" has 4 tokens, so the
+    threshold applies; the token "idzikowskiego" is unique and explains 1 of the
+    4 tokens. Returning a gap immediately lost the correct intersection.
     """
     m = MultiLocalityResolver({
         "WARSZAWA": {"nazwa": "Warszawa", "lat": 52.23, "lon": 21.0, "ulice": {
@@ -221,18 +223,19 @@ def test_prog_pokrycia_nie_przerywa_dalszych_strategii():
     assert r.dokladnosc == "PUNKT_SKRZYZOWANIA"
 
 
-def test_krotki_opis_nie_podlega_progowi(mr):
-    """Próg dotyczy tylko opisów od 4 tokenów -- krótkie opisy to nazwy ulic."""
+def test_a_short_description_is_not_subject_to_the_threshold(mr):
+    """The threshold applies only to descriptions of 4 tokens or more; short descriptions are street names."""
     r = mr.resolve("WARSZAWA, Grochowska")
     assert r.pewnosc == "EXACT" and r.ma_wspolrzedne
 
 
-# --- niejednoznaczność nazwy w obrębie miejscowości ----------------------
+# --- ambiguity of a name within one locality -----------------------------
 
-def test_rozrzut_skladowych_jest_raportowany():
-    """Nazwa ulicy powtórzona w kilku częściach miasta: punkt leży na najdłuższej
-    składowej, a rozrzut składowych jest zwracany jako jawna miara ryzyka.
-    Rejestry ustawowe nie podają dzielnicy, więc tego nie da się rozstrzygnąć.
+def test_the_spread_of_the_components_is_reported():
+    """A street name repeated in several parts of a city: the point lies on the
+    longest component, and the spread of the components is returned as an
+    explicit measure of risk. Statutory registers do not give the district, so
+    this cannot be settled.
     """
     m = MultiLocalityResolver({
         "WARSZAWA": {"nazwa": "Warszawa", "lat": 52.23, "lon": 21.0,
@@ -245,30 +248,30 @@ def test_rozrzut_skladowych_jest_raportowany():
     assert r.rozrzut_skladowych_m == 25993.4
 
 
-# --- zgodność wstecz -----------------------------------------------------
+# --- backward compatibility ----------------------------------------------
 
-def test_stary_gazeter_krotkiego_formatu_dziala():
+def test_the_old_short_format_gazetteer_works():
     r = LocationResolver({"Grochowska": (52.24, 21.09)})
     res = r.resolve("WARSZAWA, Grochowska")
     assert (res.lat, res.lon) == (52.24, 21.09)
     assert res.dokladnosc == "PUNKT_NA_OSI_ULICY"
 
 
-def test_stary_gazeter_bez_wspolrzednych_dziala():
+def test_the_old_gazetteer_without_coordinates_works():
     r = LocationResolver({"Grochowska": None})
     res = r.resolve("WARSZAWA, Grochowska")
     assert res.pewnosc == "EXACT" and res.lat is None
     assert res.dokladnosc == "BRAK_GEOMETRII"
 
 
-# --- podsumowanie --------------------------------------------------------
+# --- summary -------------------------------------------------------------
 
-def test_summarize_rozdziela_rozwiazane_od_ze_wspolrzednymi(mr):
+def test_summarize_separates_the_resolved_from_those_with_coordinates(mr):
     rs = mr.resolve_series([
-        "WARSZAWA, Grochowska",          # EXACT + punkt
-        "WARSZAWA, Bezgeometryczna",     # EXACT bez punktu
-        "SKB3",                          # kod stacji
-        "KRAKÓW, Grochowska",            # poza gazeterem
+        "WARSZAWA, Grochowska",          # EXACT + point
+        "WARSZAWA, Bezgeometryczna",     # EXACT without a point
+        "SKB3",                          # station code
+        "KRAKÓW, Grochowska",            # outside the gazetteer
     ])
     s = MultiLocalityResolver.summarize(rs)
     assert s["n"] == 4

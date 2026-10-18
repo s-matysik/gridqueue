@@ -1,116 +1,120 @@
 ---
-title: Analiza wzdłużna
+title: Longitudinal analysis
 ---
 
-# Porównanie edycji rejestru
+# Comparison of register editions
 
-Obowiązek ustawowy każe wymieniać ujawnienie co najmniej raz na kwartał, więc kolejne edycje
-tego samego rejestru są naturalnym materiałem do analizy wzdłużnej. Jedna rzecz stoi temu
-na drodze i trzeba ją zadeklarować, a nie obejść milczeniem.
+The statutory duty requires the disclosure to be replaced at least once per quarter, so consecutive
+editions of the same register are natural material for longitudinal analysis. One thing stands in the
+way of this and has to be declared rather than passed over in silence.
 
-## Rejestr nie publikuje trwałego identyfikatora wniosku
+## The register does not publish a persistent application identifier
 
-U części publikujących pole identyfikatora obiektu jest puste w niemal każdym wierszu -
-u PSE w 866 z 876, a pakiet wstawia wtedy zastępnik oparty na liczbie porządkowej
-w dokumencie. Taki zastępnik jest stabilny **w obrębie jednej edycji i bezwartościowy między
-edycjami**: pozycja 869 w jednej edycji nie jest tym samym wnioskiem co pozycja 869
-w następnej, bo wiersze się przesuwają. Złączenie po identyfikatorze dałoby wynik pozornie
-sensowny i całkowicie fałszywy.
+At some publishers the object identifier field is empty in almost every row,
+at PSE in 866 of 876, and the package then inserts a surrogate based on the ordinal number
+in the document. Such a surrogate is stable **within a single edition and worthless between
+editions**: position 869 in one edition is not the same application as position 869
+in the next, because the rows shift. A join on the identifier would give a result that looks
+sensible and is entirely false.
 
-`compare_editions` używa więc **klucza treściowego** zbudowanego z publikującego, lokalizacji,
-poziomu napięcia, klasy zasobu i obu mocy. Daty i status są z klucza celowo wyłączone: daty
-bywają uzupełniane między edycjami, a status jest właśnie tym, czego zmianę mierzymy.
+`compare_editions` therefore uses a **content key** built from the publisher, the location,
+the voltage level, the resource class and both capacities. Dates and status are deliberately excluded
+from the key: dates are sometimes filled in between editions, and the status is precisely what we are
+measuring the change of.
 
-Ograniczenie klucza treściowego: rozjeżdża się, gdy publikujący skoryguje którekolwiek z pól
-wchodzących w jego skład, i wtedy ten sam wniosek wygląda jak zniknięcie w parze
-z pojawieniem. Miara niżej pozwala ocenić, jak często to się zdarza.
+A limitation of the content key: it diverges when the publisher corrects any of the fields
+it is built from, and then the same application looks like a disappearance paired
+with an appearance. The measure below makes it possible to judge how often this happens.
 
-## Algorytm dopasowania, pełna specyfikacja
+## The linkage algorithm, full specification
 
-Żeby wynik dało się odtworzyć i zakwestionować, podajemy reguły wprost.
+So that the result can be reproduced and challenged, we state the rules openly.
 
-1. **Klucz** jest konkatenacją sześciu pól: publikujący, lokalizacja tekstowa, poziom napięcia,
-   klasa zasobu, moc wprowadzana, moc pobierana. Wartości brane są **po harmonizacji przez
-   adapter**, a więc po normalizacji białych znaków, jednostek i słowników kontrolowanych;
-   poza tym porównanie jest **dokładne, bez tolerancji**, także dla mocy.
-2. **Brak wartości jest wartością.** Pole puste wchodzi do klucza jako pusty łańcuch, więc wiersz
-   z brakującą mocą dopasuje się tylko do wiersza, w którym ta moc też jest pusta. Uzupełnienie
-   mocy przez publikującego rozrywa zatem parę i daje jedno zniknięcie oraz jedno pojawienie.
-   To samo dotyczy zmiany poziomu napięcia albo klasy zasobu.
-3. **Unikalność jest wymagana w obu edycjach.** Wiersze o powtarzającym się kluczu są odrzucane
-   przed dopasowaniem, zachowywany jest pierwszy, bo dla nich przypisanie jeden-do-wielu nie ma
-   jednoznacznego rozstrzygnięcia. Liczby są raportowane: `wierszy_w_kolizji_a` i `_b` podają,
-   ile wierszy stoi w grupach kolizyjnych, a `odrzuconych_jako_niejednoznaczne_a` i `_b`, ile
-   faktycznie wypada z dopasowania.
-4. **Nowe i ubyłe** to po prostu różnice zbiorów kluczy, liczone po odrzuceniu kolizji.
-5. **Daty i status są z klucza wyłączone**: daty bywają uzupełniane między edycjami, a status
-   jest właśnie tym, czego zmianę mierzymy.
+1. **The key** is the concatenation of six fields: publisher, location text, voltage level,
+   resource class, injected capacity, consumed capacity. The values are taken **after harmonization by
+   the adapter**, that is after normalization of whitespace, units and controlled vocabularies;
+   apart from that the comparison is **exact, with no tolerance**, including for the capacities.
+2. **A missing value is a value.** An empty field enters the key as an empty string, so a row
+   with a missing capacity will match only a row in which that capacity is also empty. Filling in
+   the capacity by the publisher therefore breaks the pair and gives one disappearance and one appearance.
+   The same applies to a change of the voltage level or the resource class.
+3. **Uniqueness is required in both editions.** Rows with a repeating key are rejected
+   before linkage, the first being retained, because for them a one-to-many assignment has no
+   unambiguous settlement. The figures are reported: `wierszy_w_kolizji_a` and `_b` give
+   how many rows stand in colliding groups, and `odrzuconych_jako_niejednoznaczne_a` and `_b`, how many
+   actually drop out of the linkage.
+4. **New and departed** are simply differences of the sets of keys, computed after the collisions have
+   been rejected.
+5. **Dates and status are excluded from the key**: dates are sometimes filled in between editions, and
+   the status is precisely what we are measuring the change of.
 
-Na parze edycji PSE kolizje obejmują 56 wierszy w edycji lipcowej i 48 w sierpniowej, co po
-odrzuceniu daje 31 i 27 wierszy wypadających z dopasowania, odpowiednio 3,5 % i 3,1 % wierszy.
+On the pair of PSE editions the collisions cover 56 rows in the July edition and 48 in the August one,
+which after rejection leaves 31 and 27 rows dropping out of the linkage, respectively 3,5 % and 3,1 % of
+the rows.
 
-## Precyzja dopasowania zmierzona na polach wstrzymanych
+## Linkage precision measured on held-out fields
 
-Macierz przejść jest świadectwem pośrednim, więc dokładamy świadectwo bezpośrednie.
-`linkage_audit` porównuje każdą dopasowaną parę na **dziewięciu polach wyłączonych z klucza**:
-nazwa podmiotu ubiegającego się, nazwa obiektu, data złożenia wniosku oraz sześć pól rozbicia
-mocy na technologie. Klucz nie wymusza zgodności żadnego z nich, więc ich zgodność jest
-niezależnym świadectwem, że para dotyczy tego samego wniosku.
+The transition matrix is indirect evidence, so we add direct evidence.
+`linkage_audit` compares every linked pair on **nine fields excluded from the key**:
+the name of the applying entity, the name of the object, the date the application was filed and six fields of the
+capacity breakdown by technology. The key does not enforce the agreement of any of them, so their
+agreement is independent evidence that the pair concerns the same application.
 
-Para jest **fałszywa**, gdy rdzeń nazwy podmiotu ORAZ rdzeń nazwy obiektu są rozbieżne i żaden
-nie zawiera się w drugim; **niepewna**, gdy rozbieżny jest dokładnie jeden z nich; **potwierdzona**
-w pozostałych przypadkach. Rdzeń nazwy powstaje przez usunięcie formy prawnej, interpunkcji
-i spacji, bo publikujący zmienia zapis formy prawnej między edycjami. Pole uzupełnione
-jednostronnie, puste w jednej edycji, wypełnione w drugiej, nie jest liczone jako rozbieżność,
-bo jest redakcją tego samego wniosku.
+A pair is **false** when the stem of the entity name AND the stem of the object name diverge and
+neither is contained in the other; **uncertain** when exactly one of them diverges; **confirmed**
+in the remaining cases. The stem of a name arises by removing the legal form, punctuation
+and spaces, because the publisher changes the way the legal form is written between editions. A field
+filled in on one side only, empty in one edition, populated in the other, is not counted as a divergence,
+because it is an editing of the same application.
 
-Wynik na parze edycji PSE, na **wszystkich 804 parach**, nie na próbce:
+The result on the pair of PSE editions, on **all 804 pairs**, not on a sample:
 
-| klasa pary | liczba | udział |
+| class of pair | count | share |
 |---|---:|---:|
-| potwierdzona | 795 | 98,88 % |
-| niepewna | 6 | 0,75 % |
-| fałszywa | 3 | 0,37 % |
+| confirmed | 795 | 98,88 % |
+| uncertain | 6 | 0,75 % |
+| false | 3 | 0,37 % |
 
-Precyzja dopasowania mieści się więc w przedziale **98,88 % do 99,63 %**, zależnie od tego, czy
-przypadki niepewne policzyć jako błędne, czy jako trafne. Trzy pary fałszywe to różne wnioski
-dzielące lokalizację, napięcie, klasę i obie moci, na przykład dwa magazyny energii tej samej
-mocy w tej samej miejscowości. Wynik przejść jest wobec nich odporny: po usunięciu dziewięciu
-par wątpliwych udział przejść w przód zmienia się z 98,28 % na 98,25 %.
+The linkage precision therefore falls in the range **98,88 % to 99,63 %**, depending on whether
+the uncertain cases are counted as wrong or as right. The three false pairs are different applications
+sharing location, voltage, class and both capacities, for example two energy storage facilities of the same
+capacity in the same locality. The transition result is robust against them: after removing the nine
+doubtful pairs the share of forward transitions changes from 98,28 % to 98,25 %.
 
-Zastrzeżenie, którego nie pomijamy: nie jest to walidacja wobec prawdy zewnętrznej, bo dla tego
-rejestru taka prawda nie istnieje, nie ma trwałego identyfikatora, wobec którego można by
-dopasowanie sprawdzić. Jest to test spójności wewnętrznej na danych, których klucz nie dotyka.
+A caveat we do not leave out: this is not validation against an external truth, because for this
+register no such truth exists, there is no persistent identifier against which the
+linkage could be checked. It is a test of internal consistency on data the key does not touch.
 
-## Macierz przejść jako test dopasowania
+## The transition matrix as a test of the linkage
 
-Jeśli klucz dopasowuje właściwe wiersze, przejścia statusu powinny biec zgodnie z kierunkiem
-postępowania administracyjnego. Jeśli dopasowuje losowo, będą rozłożone bez tego porządku.
-Na parze edycji PSE z 31 lipca i 31 sierpnia 2026 roku **98,28 % przejść biegnie w przód**
-(57 z 58), przy jednym przejściu wstecznym z umowy obowiązującej do warunków wydanych.
-Jest to test niezależny od samego dopasowania i właśnie dlatego ma wartość.
+If the key links the right rows, the status transitions should run in the direction of the
+administrative proceeding. If it links at random, they will be distributed without that order.
+On the pair of PSE editions of 31 July and 31 August 2026, **98,28 % of the transitions run forward**
+(57 of 58), with one backward transition from an agreement in force to conditions issued.
+This is a test independent of the linkage itself, and that is exactly why it has value.
 
-## Rejestr nie jest monotoniczną migawką
+## The register is not a monotonic snapshot
 
-Drugi wynik tej samej pary edycji jest ostrzeżeniem dla każdego, kto chciałby czytać różnicę
-między edycjami jako zmianę stanu kolejki:
+The second result from the same pair of editions is a warning to anyone who might want to read the
+difference between editions as a change in the state of the queue:
 
-| wielkość | wartość |
+| quantity | value |
 |---|---:|
-| wierszy w edycji lipcowej | 892 |
-| wierszy w edycji sierpniowej | 876 |
-| kluczy unikalnych | 861 i 849 |
-| wspólnych | 804 |
-| nowych | 45 |
-| ubyłych | 57 |
-| zmian statusu | 58 |
-| **nowych już w stanie zamkniętym** | **13** |
-| **ubyłych o statusie czynnym** | **33** |
+| rows in the July edition | 892 |
+| rows in the August edition | 876 |
+| unique keys | 861 and 849 |
+| common | 804 |
+| new | 45 |
+| departed | 57 |
+| status changes | 58 |
+| **new, already in a closed state** | **13** |
+| **departed with an active status** | **33** |
 
-Trzynaście wierszy pojawia się w nowszej edycji już jako wniosek wycofany, odmowa albo warunki
-wygasłe, czyli rejestr **dopisuje sprawy zakończone wstecz**. Trzydzieści trzy wiersze
-o statusie czynnym znikają, czego zakończeniem postępowania wyjaśnić nie można. Własność
-`migawka_monotoniczna` zwraca w tej parze `False` i ma to być sygnał, nie szczegół techniczny.
+Thirteen rows appear in the newer edition already as a withdrawn application, a refusal or expired
+conditions, which means the register **adds completed cases retrospectively**. Thirty-three rows
+with an active status disappear, which cannot be explained by the proceeding having ended. The
+`migawka_monotoniczna` property returns `False` on this pair and that is meant to be a signal, not a
+technical detail.
 
 ```python
 from gridqueue import compare_editions, linkage_audit, get_adapter
@@ -119,37 +123,38 @@ a = get_adapter("pl_pse").parse("edycja_2026_07_31.xlsx").frame
 b = get_adapter("pl_pse").parse("edycja_2026_08_31.xlsx").frame
 d = compare_editions(a, b, "2026-07-31", "2026-08-31")
 d.as_dict()
-d.przejscia          # macierz przejść statusu
+d.przejscia          # status transition matrix
 
-linkage_audit(a, b).as_dict()   # precyzja dopasowania
+linkage_audit(a, b).as_dict()   # linkage precision
 ```
 
-Pełny przebieg z figurą: `examples/longitudinal_use_case.py`.
+A full run with a figure: `examples/longitudinal_use_case.py`.
 
-## Uruchomienie bez instalacji
+## Running without installation
 
-Całą tę analizę odtwarza notatnik Colab na żywych danych publikującego, z asercją zgodności z liczbami opublikowanymi, patrz [Google Colab](colab.md).
+This whole analysis is reproduced by the Colab notebook on the publisher's live data, with an assertion of agreement with the published figures, see [Google Colab](colab.md).
 
 
-## Klucz musi być dobrany do encji
+## The key has to be matched to the entity
 
-Domyślny klucz treściowy jest zbudowany dla encji WNIOSEK. Na wierszach encji WĘZEŁ
-**rozpada się**, bo pola wniosku, klasa zasobu i obie moce, są tam puste. Niedopasowanie
-**nie zgłasza błędu**: po cichu produkuje kolizje, które w dalszej analizie wyglądają jak
-zdarzenia w rejestrze.
+The default content key is built for the WNIOSEK entity. On rows of the WĘZEŁ entity it
+**falls apart**, because the application fields, the resource class and both capacities, are empty there.
+A mismatch **does not report an error**: it quietly produces collisions, which in further analysis look like
+events in the register.
 
-Zmierzone na parze wydań publikującego hiszpańskiego (1 lipca i 1 sierpnia 2025, po 1 838
-wierszy każde):
+Measured on a pair of issues of the Spanish publisher (1 July and 1 August 2025, 1 838
+rows each):
 
-| klucz | kolizje | odrzucone jako niejednoznaczne | pary dopasowane | precyzja | czułość |
+| key | collisions | rejected as ambiguous | linked pairs | precision | recall |
 |---|---:|---:|---:|---:|---:|
-| `DEFAULT_KEY_FIELDS` (wniosek) | 916 | 660 | 1 178 |, |, |
-| `NODE_KEY_FIELDS` (węzeł) | 0 | 0 | **1 838** | **1,000** | **1,000** |
+| `DEFAULT_KEY_FIELDS` (application) | 916 | 660 | 1 178 |, |, |
+| `NODE_KEY_FIELDS` (node) | 0 | 0 | **1 838** | **1,000** | **1,000** |
 
-Dla porównania: na polskim rejestrze przesyłowym ta sama metoda daje precyzję 98,88-99,63 %
-i czułość 0,9652. Różnica nie jest własnością metody, lecz **praktyki ujawniania**: publikujący
-hiszpański wydaje stabilny identyfikator węzła, a polski nie publikuje trwałego identyfikatora
-wniosku. Metoda mierzy więc także to, na ile rejestr nadaje się do śledzenia w czasie.
+For comparison: on the Polish transmission register the same method gives a precision of 98,88-99,63 %
+and a recall of 0,9652. The difference is not a property of the method but of the **disclosure
+practice**: the Spanish publisher issues a stable node identifier, whereas the Polish one does not
+publish a persistent application identifier. The method therefore also measures how far a register
+lends itself to tracking over time.
 
 ```python
 from gridqueue import NODE_KEY_FIELDS, compare_editions, linkage_audit

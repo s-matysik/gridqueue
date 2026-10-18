@@ -1,26 +1,27 @@
-"""Przykład badawczy: przepływy w kolejce przyłączeniowej między edycjami.
+"""Research example: flows in the connection queue between editions.
 
-Pytanie badawcze
-----------------
-Jak zmienia się kolejka przyłączeniowa między dwiema edycjami tego samego
-rejestru i czy rejestr zachowuje się jak **monotoniczna migawka**, to znaczy
-czy sprawy wchodzą do niego i wychodzą zgodnie z przebiegiem postępowania, czy
-też pojawiają się i znikają także poza tym porządkiem?
+Research question
+-----------------
+How does the connection queue change between two editions of the same register,
+and does the register behave like a **monotone snapshot**, that is, do cases
+enter it and leave it in step with the course of the proceedings, or do they
+also appear and disappear outside that order?
 
-Dlaczego to pytanie jest warunkiem każdej analizy wzdłużnej na tym źródle: jeśli
-rejestr nie jest monotoniczny, to różnica między edycjami nie jest tożsama ze
-zmianą stanu kolejki i trzeba to zadeklarować zamiast milcząco założyć.
+Why this question is a precondition of any longitudinal analysis on this source:
+if the register is not monotone, then the difference between editions is not the
+same thing as a change in the state of the queue, and that has to be declared
+rather than silently assumed.
 
-Uruchomienie::
+Running::
 
-    python examples/longitudinal_use_case.py <edycja_A.xlsx> <edycja_B.xlsx> \\
-        [etykieta_A] [etykieta_B] [katalog_wyjściowy]
+    python examples/longitudinal_use_case.py <edition_A.xlsx> <edition_B.xlsx> \\
+        [label_A] [label_B] [output_directory]
 
-Wytwarza::
+Produces::
 
-    przeplywy_kolejki.csv        podsumowanie przepływów
-    przejscia_statusu.csv        macierz przejść statusu
-    przejscia_statusu.png        figura macierzy przejść
+    przeplywy_kolejki.csv        summary of the flows
+    przejscia_statusu.csv        matrix of status transitions
+    przejscia_statusu.png        figure of the transition matrix
 """
 
 from __future__ import annotations
@@ -35,23 +36,23 @@ from gridqueue import (SCHEMA_VERSION, STATUS_ORDER, TERMINAL_NEGATIVE,
                        get_adapter, linkage_audit)
 
 OPIS = {
-    "WNIOSEK_ZLOZONY": "wniosek złożony",
-    "WNIOSEK_NIEKOMPLETNY": "wniosek niekompletny",
-    "W_TRAKCIE_ANALIZY": "w trakcie analizy",
-    "WARUNKI_WYDANE": "warunki wydane",
-    "UMOWA_OBOWIAZUJACA": "umowa obowiązująca",
-    "PRZYLACZONY": "przyłączony",
-    "ODMOWA": "odmowa",
-    "WNIOSEK_WYCOFANY": "wniosek wycofany",
-    "WARUNKI_WYGASLE": "warunki wygasłe",
+    "WNIOSEK_ZLOZONY": "application lodged",
+    "WNIOSEK_NIEKOMPLETNY": "application incomplete",
+    "W_TRAKCIE_ANALIZY": "under analysis",
+    "WARUNKI_WYDANE": "conditions issued",
+    "UMOWA_OBOWIAZUJACA": "agreement in force",
+    "PRZYLACZONY": "connected",
+    "ODMOWA": "refusal",
+    "WNIOSEK_WYCOFANY": "application withdrawn",
+    "WARUNKI_WYGASLE": "conditions expired",
 }
 
 
 def wczytaj(sciezka: Path) -> pd.DataFrame:
-    """Wczytaj edycję, rozpoznając publikującego z dokumentu."""
+    """Load an edition, recognising the publisher from the document."""
     klucz = detect_publisher(str(sciezka))
     if klucz is None:
-        raise SystemExit(f"nie rozpoznano publikującego dla {sciezka}")
+        raise SystemExit(f"publisher not recognised for {sciezka}")
     return get_adapter(klucz).parse(str(sciezka)).frame
 
 
@@ -87,10 +88,10 @@ def figura(tr: pd.DataFrame, plik: Path, etykiety: tuple[str, str]) -> None:
                        ha="right", fontsize=6.5)
     ax.set_yticks(range(len(idx)))
     ax.set_yticklabels([OPIS.get(s, s) for s in idx], fontsize=6.5)
-    ax.set_xlabel(f"status w edycji {etykiety[1]}", fontsize=7.5)
-    ax.set_ylabel(f"status w edycji {etykiety[0]}", fontsize=7.5)
-    ax.set_title("Przejścia statusu biegną zgodnie z porządkiem postępowania,\n"
-                 "co niezależnie potwierdza dopasowanie klucza treściowego",
+    ax.set_xlabel(f"status in edition {etykiety[1]}", fontsize=7.5)
+    ax.set_ylabel(f"status in edition {etykiety[0]}", fontsize=7.5)
+    ax.set_title("Status transitions run in step with the order of the proceedings,\n"
+                 "which independently confirms the linkage by the content key",
                  fontsize=8, loc="left")
     ax.set_xticks(np.arange(-.5, len(kol), 1), minor=True)
     ax.set_yticks(np.arange(-.5, len(idx), 1), minor=True)
@@ -131,33 +132,33 @@ def main(argv: list[str]) -> int:
     for k, v in podsum.items():
         print(f"{k}: {v}")
     print()
-    print("Interpretacja:")
+    print("Interpretation:")
     u = d.udzial_przejsc_w_przod
     if u is not None:
-        print(f"  {u * 100:.2f} % przejść biegnie zgodnie z porządkiem postępowania, "
-              "jest to niezależny test dopasowania klucza treściowego, bo klucz "
-              "dopasowujący losowo nie wytworzyłby tego porządku.")
+        print(f"  {u * 100:.2f} % of transitions run in step with the order of the "
+              "proceedings; this is an independent test of the linkage by the content "
+              "key, because a key that linked at random would not produce that order.")
     if not podsum["migawka_monotoniczna"]:
-        print(f"  Rejestr NIE jest monotoniczną migawką: {podsum['nowe_zamkniete']} "
-              f"wierszy pojawia się już w stanie zamkniętym, a {podsum['ubyle_czynne']} "
-              "wierszy o statusie czynnym znika. Różnicy między edycjami nie wolno "
-              "czytać jako samej zmiany stanu kolejki.")
+        print(f"  The register is NOT a monotone snapshot: {podsum['nowe_zamkniete']} "
+              f"rows appear already in a closed state, and {podsum['ubyle_czynne']} "
+              "rows with an active status disappear. The difference between editions "
+              "must not be read as a change in the state of the queue alone.")
     pa = audyt.precyzja_dolna * 100
     pg = audyt.precyzja_gorna * 100
-    print(f"  Precyzja dopasowania oceniona na polach WYŁĄCZONYCH z klucza "
-          f"(nazwa podmiotu, nazwa obiektu, data wniosku, rozbicie mocy na technologie) "
-          f"wynosi {pa:.2f}-{pg:.2f} % na wszystkich {audyt.par} parach: "
-          f"{audyt.potwierdzonych} potwierdzonych, {audyt.niepewnych} niepewnych, "
-          f"{audyt.falszywych} fałszywych. Nie jest to walidacja wobec prawdy zewnętrznej, "
-          f"bo takiej dla tego rejestru nie ma, klucz nie wymusza zgodności tych pól, "
-          f"więc ich zgodność jest niezależnym świadectwem.")
-    print(f"  Wierszy odrzuconych z dopasowania jako niejednoznaczne: "
-          f"{podsum['odrzuconych_jako_niejednoznaczne_a']} i "
+    print(f"  Linkage precision assessed on the fields EXCLUDED from the key "
+          f"(entity name, object name, application date, breakdown of capacity by technology) "
+          f"is {pa:.2f}-{pg:.2f} % over all {audyt.par} pairs: "
+          f"{audyt.potwierdzonych} confirmed, {audyt.niepewnych} uncertain, "
+          f"{audyt.falszywych} false. This is not validation against an external truth, "
+          f"because there is none for this register; the key does not force these fields "
+          f"to agree, so their agreement is independent evidence.")
+    print(f"  Rows dropped from the linkage as ambiguous: "
+          f"{podsum['odrzuconych_jako_niejednoznaczne_a']} and "
           f"{podsum['odrzuconych_jako_niejednoznaczne_b']}; "
-          f"w kolizji klucza stoi odpowiednio {podsum['wierszy_w_kolizji_a']} i "
-          f"{podsum['wierszy_w_kolizji_b']} wierszy.")
+          f"in key collision there stand {podsum['wierszy_w_kolizji_a']} and "
+          f"{podsum['wierszy_w_kolizji_b']} rows respectively.")
 
-    print(f"\nzapisano do: {out}")
+    print(f"\nsaved to: {out}")
     return 0
 
 

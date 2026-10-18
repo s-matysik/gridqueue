@@ -10,7 +10,7 @@ from gridqueue.schema import (
 )
 
 
-def test_schema_ma_21_pol_i_4_polowy_rdzen_bezwarunkowy():
+def test_schema_has_21_fields_and_a_4_field_unconditional_core():
     assert len(SCHEMA) == 21
     assert len(FIELDS) == len(set(FIELDS)) == 21
     assert set(CORE_FIELDS) == {
@@ -20,26 +20,26 @@ def test_schema_ma_21_pol_i_4_polowy_rdzen_bezwarunkowy():
     assert SCHEMA_VERSION == "1.0"
 
 
-def test_rdzen_mocy_jest_alternatywa_nie_konkretnym_polem():
-    # Pole mocy nie może być wymagane bezwarunkowo: wniosek czysto wytwórczy
-    # deklaruje moc wprowadzaną, odbiorczy pobieraną.
+def test_the_power_core_is_an_alternative_not_one_specific_field():
+    # A power field cannot be required unconditionally: a purely generating
+    # application declares export capacity, a demand one import capacity.
     assert "moc_pobierana" not in CORE_FIELDS
     assert "moc_wprowadzana" not in CORE_FIELDS
     assert CORE_ALTERNATIVES == (("moc_pobierana", "moc_wprowadzana"),)
     wspolny = {"id_wniosku": "X1", "lokalizacja_tekst": "Pozna\u0144", "klasa_zasobu": "PV",
                "status_procesu": "WNIOSEK_ZLOZONY"}
     df = pd.DataFrame([
-        {**wspolny, "moc_wprowadzana": 1200.0, "moc_pobierana": None},   # wytwórczy
-        {**wspolny, "moc_wprowadzana": None, "moc_pobierana": 90.0},     # odbiorczy
-        {**wspolny, "moc_wprowadzana": 500.0, "moc_pobierana": 500.0},   # dwukierunkowy
-        {**wspolny, "moc_wprowadzana": None, "moc_pobierana": None},     # bez mocy
+        {**wspolny, "moc_wprowadzana": 1200.0, "moc_pobierana": None},   # generating
+        {**wspolny, "moc_wprowadzana": None, "moc_pobierana": 90.0},     # demand
+        {**wspolny, "moc_wprowadzana": 500.0, "moc_pobierana": 500.0},   # bidirectional
+        {**wspolny, "moc_wprowadzana": None, "moc_pobierana": None},     # no capacity
     ])
     assert core_complete_mask(df).tolist() == [True, True, True, False]
 
 
-def test_rdzen_jest_osobny_dla_kazdej_encji_obowiazku():
-    # Wiersza encji WEZEL nie wolno oceniać wymaganiami encji WNIOSEK: pkt 2
-    # przepisu ma inny przedmiot niż pkt 1/3/4.
+def test_the_core_is_separate_for_each_entity_of_the_duty():
+    # A WEZEL entity row must not be judged by the requirements of the WNIOSEK
+    # entity: point 2 of the provision has a different subject than points 1/3/4.
     assert set(CORE_BY_ENTITY) == {"WNIOSEK", "WEZEL"}
     df = pd.DataFrame([
         {ENTITY_COLUMN: "WEZEL", "id_wezla": "SE-1", "moc_dostepna": 0.0},
@@ -51,7 +51,7 @@ def test_rdzen_jest_osobny_dla_kazdej_encji_obowiazku():
     assert core_complete_mask(df).tolist() == [True, True, False, True]
 
 
-def test_brak_anotacji_encji_znaczy_wniosek():
+def test_a_missing_entity_annotation_means_an_application():
     df = pd.DataFrame([{"id_wniosku": "X1", "lokalizacja_tekst": "\u0141\u00f3d\u017a",
                         "klasa_zasobu": "ODB", "status_procesu": "PRZYLACZONY",
                         "moc_pobierana": 40.0}])
@@ -59,14 +59,14 @@ def test_brak_anotacji_encji_znaczy_wniosek():
     assert core_complete_mask(df).tolist() == [True]
 
 
-def test_kazde_pole_ma_podstawe_prawna_i_grupe():
+def test_every_field_has_a_legal_basis_and_a_group():
     for f in SCHEMA:
         assert f.podstawa, f.name
         assert f.group in {"tozsamosc", "moc", "proces"}, f.name
     assert sum(len(v) for v in GROUPS.values()) == 21
 
 
-def test_jednostka_kanoniczna_mocy_to_kw():
+def test_the_canonical_power_unit_is_kw():
     for f in SCHEMA:
         if f.name.startswith("moc_"):
             assert f.unit == "kW", f.name
@@ -101,21 +101,21 @@ def test_canonical_date(raw, expected):
     assert canonical_date(raw) == expected
 
 
-def test_canonical_power_odrzuca_nieznana_jednostke():
+def test_canonical_power_rejects_an_unknown_unit():
     with pytest.raises(ValueError):
         canonical_power_kw("1", "GW")
 
 
-def test_validate_instance_wykrywa_brak_rdzenia():
+def test_validate_instance_detects_a_missing_core():
     row = {"id_wniosku": "X1", "lokalizacja_tekst": "Warszawa, Grochowska"}
     problems = validate_instance(row)
     assert any("klasa_zasobu" in p for p in problems)
     assert any("status_procesu" in p for p in problems)
-    # moc nie jest polem rdzenia bezwarunkowo, więc jej brak nie jest tu zgłaszany
+    # capacity is not a core field unconditionally, so its absence is not reported here
     assert not any("moc_pobierana" in p for p in problems)
 
 
-def test_validate_instance_przepuszcza_poprawny_wiersz():
+def test_validate_instance_passes_a_correct_row():
     row = {
         "id_wniosku": "X1", "lokalizacja_tekst": "Warszawa, Grochowska",
         "klasa_zasobu": "ODB", "moc_pobierana": 12000.0,
@@ -125,14 +125,14 @@ def test_validate_instance_przepuszcza_poprawny_wiersz():
     assert validate_instance(row, strict_vocab=True) == []
 
 
-def test_validate_instance_wykrywa_pole_spoza_schematu():
+def test_validate_instance_detects_a_field_outside_the_schema():
     row = {c: "x" for c in CORE_FIELDS}
     row["moc_pobierana"] = 1.0
     row["nieistniejace_pole"] = 1
-    assert any("spoza schematu" in p for p in validate_instance(row))
+    assert any("fields outside the schema" in p for p in validate_instance(row))
 
 
-def test_validate_instance_wykrywa_zly_typ_i_zly_geopoint():
+def test_validate_instance_detects_a_wrong_type_and_a_wrong_geopoint():
     row = {c: "x" for c in CORE_FIELDS}
     row["moc_pobierana"] = "dużo"
     row["wspolrzedne"] = (999.0, 0.0)
@@ -141,7 +141,7 @@ def test_validate_instance_wykrywa_zly_typ_i_zly_geopoint():
     assert any("wspolrzedne" in p for p in problems)
 
 
-def test_validate_frame_liczy_wypelnienie_i_rdzen():
+def test_validate_frame_counts_fill_rate_and_core():
     df = pd.DataFrame({
         "id_wniosku": ["a", "b"],
         "lokalizacja_tekst": ["x", None],
@@ -156,7 +156,7 @@ def test_validate_frame_liczy_wypelnienie_i_rdzen():
     assert rep["wypelnienie"]["data_umowy"] == 0.0
 
 
-def test_empty_frame_i_schema_table():
+def test_empty_frame_and_schema_table():
     ef = empty_frame()
     assert list(ef.columns)[:21] == list(FIELDS)
     st = schema_table()

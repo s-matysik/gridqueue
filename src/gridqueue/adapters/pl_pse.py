@@ -1,28 +1,29 @@
-"""Adapter: Polskie Sieci Elektroenergetyczne S.A. (PL, operator PRZESYŁOWY).
+"""Adapter: Polskie Sieci Elektroenergetyczne S.A. (PL, TRANSMISSION operator).
 
-Uwaga ustrojowa, którą trzeba zapisać w manuskrypcie, bo zmienia zakres wniosku:
-PSE jest operatorem systemu PRZESYŁOWEGO, nie dystrybucyjnego.  Nie naciągamy tu
-niczego -- dokument sam deklaruje podstawę: plik nazywa się "Informacje
-publikowane zgodnie z Art. 7 ust. 8l ustawy PE", a komórka A1 arkusza powtarza tę
-deklarację.  Art. 7 ust. 8l adresuje "przedsiębiorstwo energetyczne zajmujące się
-przesyłaniem LUB dystrybucją", więc obowiązek obejmuje OSP tak samo jak OSD.
+Structural note that must be recorded in the manuscript, because it changes the scope of
+the claim:
+PSE is the operator of the TRANSMISSION system, not the distribution system. We are not
+stretching anything here: the document itself declares the basis: the file is named "Informacje
+publikowane zgodnie z Art. 7 ust. 8l ustawy PE", and cell A1 of the worksheet repeats that
+declaration. Art. 7 ust. 8l addresses an "energy undertaking engaged in transmission OR
+distribution", so the duty covers the OSP just as much as the OSD.
 
-Co z tego naprawdę wynika dla porównywalności:
-  * zakres napięć jest inny -- 110/220/400 kV zamiast SN/110 kV.  To nie jest
-    niezgodność ze schematem (obowiązek dotyczy sieci powyżej 1 kV), tylko
-    zmierzona różnica w polu ``poziom_napiecia``;
-  * PSE realizuje pkt 1), 3) i 4) w jednym zestawieniu (encja WNIOSEK);
-  * pkt 2) (dostępna moc w stacjach) PSE ujawnia INACZEJ: nie jako moc w MW, lecz
-    jako "Listę rozdzielni, dla których brak jest dostępnych miejsc przyłączenia"
-    z LICZBĄ dostępnych miejsc.  To jest informacja o węźle i o ograniczeniu, ale
-    NIE jest wartością mocy -- mapujemy ją na ``ograniczenie_flaga`` i rozszerzenie
-    ``_liczba_dostepnych_miejsc``, a pole ``moc_dostepna`` zostawiamy puste.
-    Wpisanie tam zera albo liczby miejsc byłoby fabrykacją jednostki.
+What this really means for comparability:
+  * the voltage range is different: 110/220/400 kV instead of MV/110 kV. This is not a
+    mismatch with the schema (the duty applies to networks above 1 kV), just a measured
+    difference in the ``poziom_napiecia`` field;
+  * PSE fulfills items 1), 3) and 4) in a single compilation (the APPLICATION entity);
+  * item 2) (available capacity at the stations) PSE discloses DIFFERENTLY: not as capacity
+    in MW, but as a "Listę rozdzielni, dla których brak jest dostępnych miejsc przyłączenia"
+    with the NUMBER of available slots. This is information about the node and about the
+    constraint, but it is NOT a capacity value: we map it to ``ograniczenie_flaga`` and the
+    extension ``_liczba_dostepnych_miejsc``, and we leave the ``moc_dostepna`` field empty.
+    Putting a zero or the number of slots there would be a fabrication of the unit.
 
-Nośnikiem jest XLSX, a nie PDF, więc geometria kolumn nie jest tu w ogóle problemem:
-komórka arkusza ma tożsamość z definicji.  Zachowujemy jednak ten sam audyt
-sprzeczności typu, żeby liczba dla PSE była porównywalna z liczbami dla publikujących
-PDF-owych -- i żeby było widać, ile z niej pochodzi z układu, a ile z samego źródła.
+The carrier is XLSX, not PDF, so column geometry is not a problem here at all: the worksheet
+cell has identity by definition. We nonetheless keep the same type-mismatch audit, so that
+the count for PSE is comparable to the counts for PDF-based publishers, and so that it is
+visible how much of it comes from the layout and how much from the source itself.
 """
 
 from __future__ import annotations
@@ -46,11 +47,11 @@ class PSEAdapter(Adapter):
     declared_fields = T.DECLARED_FIELDS + ("id_wezla", "nazwa_wezla", "ograniczenie_flaga")
     declared_extensions = dict(
         T.DECLARED_EXTENSIONS,
-        _liczba_dostepnych_miejsc="liczba wolnych miejsc przyłączenia w rozdzielni",
-        _symbol_stacji="symbol stacji w nomenklaturze PSE",
-        _zko_pse="Zakład Koordynacyjny Ośrodka PSE",
-        _rozdzielnia="oznaczenie rozdzielni w stacji",
-        _przypisy="odnośniki przypisów odcięte od treści komórek (pole=znacznik)",
+        _liczba_dostepnych_miejsc="number of free connection slots at the switching station",
+        _symbol_stacji="station symbol in PSE nomenclature",
+        _zko_pse="PSE Coordination Centre",
+        _rozdzielnia="identifier of the switching station within the station",
+        _przypisy="footnote references stripped from the cell contents (field=marker)",
     )
     detect_patterns = (r"pse", r"art_7_ust_8l", r"polskie sieci elektroenergetyczne")
 
@@ -59,11 +60,11 @@ class PSEAdapter(Adapter):
 
     # ------------------------------------------------------------------
     def parse(self, source) -> ParseResult:
-        """``source``: ścieżka do arkusza pkt 1/3/4 albo lista ścieżek.
+        """``source``: path to the worksheet for items 1/3/4, or a list of paths.
 
-        Rozpoznanie roli pliku po zawartości, nie po nazwie: arkusz o nazwie
-        "Wykaz wspólny" to zestawienie wniosków, arkusz "Lista zajętych rozdzielni"
-        to ujawnienie węzłowe.
+        Recognizing the role of the file by its content, not by its name: a worksheet named
+        "Wykaz wspólny" is the compilation of applications, the worksheet "Lista zajętych
+        rozdzielni" is the node-level disclosure.
         """
         import pandas as pd
 
@@ -76,13 +77,13 @@ class PSEAdapter(Adapter):
             elif any("rozdzielni" in s.lower() for s in xl.sheet_names):
                 f, r = self._parse_wezly(xl, src)
             else:
-                raise ValueError(f"nierozpoznany arkusz PSE w {src!r}: {xl.sheet_names}")
+                raise ValueError(f"unrecognized PSE worksheet in {src!r}: {xl.sheet_names}")
             frames.append(f)
             reports.append(r)
         df = pd.concat(frames, ignore_index=True) if frames else self.blank_frame(0)
         report = {
             "publikujacy": self.publisher,
-            "strategia_wydobycia": "arkusz kalkulacyjny (tożsamość komórki z definicji)",
+            "strategia_wydobycia": "spreadsheet (cell identity by definition)",
             "wzorzec": "PTPiREE/PSE, art. 7 ust. 8l pkt 1), 3), 4)",
             "dokumenty": reports,
             "n_wierszy": int(len(df)),
@@ -104,10 +105,10 @@ class PSEAdapter(Adapter):
         body = d.iloc[hdr_row + 1:].reset_index(drop=True)
         body.columns = range(body.shape[1])
 
-        # Ostatnie wiersze arkusza to LEGENDA przedrostków identyfikatora
-        # ("E- Wnioskodawca wystąpił z wnioskiem...").  Wiersz danych ma wypełnione
-        # pole wzorca "Nazwa OSD/OSP"; legenda go nie ma.  Kryterium jest więc
-        # własnością wzorca, a nie zgadywaniem po pozycji.
+        # The last rows of the worksheet are the LEGEND of identifier prefixes
+        # ("E- Wnioskodawca wystąpił z wnioskiem..."). A data row has the pattern
+        # field "Nazwa OSD/OSP" filled in; the legend does not have it. The criterion is
+        # thus a property of the pattern, not a guess based on position.
         osd_col = 2
         keep = body[osd_col].notna() & body[osd_col].map(
         lambda v: bool(str(v).strip()) if v is not None else False)
@@ -120,9 +121,9 @@ class PSEAdapter(Adapter):
                 raw[logical] = body[phys]
         out = T.to_schema(raw, publisher_key="pse", data_publikacji=self.data_publikacji)
 
-        # Odnośniki przypisów wracają jako rozszerzenie, żeby odcięcie ich od
-        # treści nie było utratą danej.  Klucz ``marks`` to (wiersz arkusza,
-        # kolumna arkusza), a ``keep`` mówi, które wiersze arkusza zostały.
+        # Footnote references come back as an extension, so that cutting them off from
+        # the content is not a loss of data. The ``marks`` key is (worksheet row,
+        # worksheet column), and ``keep`` tells which worksheet rows remained.
         wiersze_arkusza = [i for i, k in enumerate(keep.tolist(), start=hdr_row + 1) if k]
         znaczniki = []
         for ri in wiersze_arkusza:
@@ -148,7 +149,7 @@ class PSEAdapter(Adapter):
 
     # ------------------------------------------------------------------
     def _parse_wezly(self, xl, src):
-        """Lista rozdzielni bez wolnych miejsc przyłączenia (ujawnienie węzłowe)."""
+        """List of switching stations without free connection slots (node-level disclosure)."""
         import pandas as pd
 
         sheet = next(s for s in xl.sheet_names if "rozdzielni" in s.lower())
@@ -162,7 +163,7 @@ class PSEAdapter(Adapter):
                 hdr = i
                 break
         if hdr is None:
-            raise ValueError(f"nie znaleziono nagłówka listy rozdzielni w {src!r}")
+            raise ValueError(f"header of the switching-station list not found in {src!r}")
         cols = [str(v).strip() if isinstance(v, str) else "" for v in d.iloc[hdr].tolist()]
         body = d.iloc[hdr + 1:].reset_index(drop=True)
         body.columns = cols
@@ -190,7 +191,7 @@ class PSEAdapter(Adapter):
         out["poziom_napiecia"] = [_volt_of(rozdz.iloc[i]) for i in idx]
         out["klasa_zasobu"] = "NIEOKRESLONA"
         out["status_procesu"] = "NIEOKRESLONY"
-        # moc_dostepna NIE jest wypełniana: źródło podaje LICZBĘ MIEJSC, nie moc.
+        # moc_dostepna is NOT filled in: the source gives the NUMBER OF SLOTS, not capacity.
         out["moc_dostepna"] = None
         out["ograniczenie_flaga"] = [
             (float(miejsc.iloc[i]) == 0.0) if _num(miejsc.iloc[i]) is not None else None
@@ -208,8 +209,8 @@ class PSEAdapter(Adapter):
             "encja": "WEZEL",
             "n_wierszy": int(len(out)),
             "stan_na": stan,
-            "uwaga": "źródło podaje liczbę wolnych miejsc przyłączenia, nie moc w MW; "
-                     "moc_dostepna pozostaje pusta",
+            "uwaga": "the source gives the number of free connection slots, not capacity in "
+                     "MW; moc_dostepna remains empty",
         }
 
     # ------------------------------------------------------------------
@@ -219,11 +220,11 @@ class PSEAdapter(Adapter):
             vals = [str(v).strip().lower() for v in d.iloc[i].tolist() if isinstance(v, str)]
             if any(v.startswith("id obiektu") for v in vals):
                 return i
-        raise ValueError("nie znaleziono wiersza nagłówka arkusza PSE")
+        raise ValueError("header row of the PSE worksheet not found")
 
     @staticmethod
     def _read_vocab(xl) -> dict[str, list[str]]:
-        """Słowniki kontrolowane zadeklarowane przez sam dokument."""
+        """Controlled vocabularies declared by the document itself."""
         if _SHEET_VOCAB not in xl.sheet_names:
             return {}
         lr = xl.parse(_SHEET_VOCAB, header=None)
@@ -237,23 +238,23 @@ class PSEAdapter(Adapter):
 
 
 def _read_sheet_bez_przypisow(src, sheet: str):
-    """Wczytaj arkusz, odłączając ODNOŚNIKI PRZYPISÓW od treści komórek.
+    """Read the worksheet, detaching FOOTNOTE REFERENCES from the cell contents.
 
-    Dlaczego to nie jest kosmetyka.  Pomiar dokładności na wzorcu odczytanym
-    wzrokowo pokazał siedem niezgodności u PSE i wszystkie miały jedną przyczynę:
-    PSE oznacza część wartości odnośnikiem przypisu zapisanym jako INDEKS GÓRNY
-    wewnątrz komórki -- lokalizacja "WYP" z przypisem M, "CPK" z przypisem K,
-    "SE EJ" z F, "Norki" z Y, oraz moce "300,1", "50,1" i "300" z przypisem E.
-    Płaski odczyt sklejał je w "WYPM", "CPKK", "300,1E" -- w polu tekstowym
-    powstawał zanieczyszczony ciąg, a w polu liczbowym wartość PRZEPADAŁA, bo
-    "300,1E" nie jest liczbą.
+    Why this is not cosmetic. An accuracy measurement against a reference set read
+    visually showed seven mismatches for PSE, and they all had a single cause:
+    PSE marks part of the values with a footnote reference written as a SUPERSCRIPT
+    inside the cell: the location "WYP" with footnote M, "CPK" with footnote K,
+    "SE EJ" with F, "Norki" with Y, and the capacities "300,1", "50,1" and "300" with
+    footnote E. A flat read glued them into "WYPM", "CPKK", "300,1E": in the text field
+    a contaminated string was produced, and in the numeric field the value WAS LOST,
+    because "300,1E" is not a number.
 
-    Rozstrzygające jest to, że odnośnik daje się rozpoznać STRUKTURALNIE:
-    openpyxl wystawia komórkę jako ``CellRichText``, a fragment przypisu ma
-    ``font.vertAlign == "superscript"``.  Odcinamy więc po FORMATOWANIU, a nie
-    przez zgadywanie, że końcowa wielka litera "pewnie jest przypisem" -- takie
-    zgadywanie okaleczyłoby prawdziwe nazwy stacji kończące się literą.
-    Sam odnośnik nie jest wyrzucany: wraca w rozszerzeniu ``_przypisy``.
+    What is decisive is that the reference can be recognized STRUCTURALLY:
+    openpyxl exposes the cell as ``CellRichText``, and the footnote fragment has
+    ``font.vertAlign == "superscript"``. So we cut it off based on FORMATTING, not
+    by guessing that a trailing capital letter "is probably a footnote": such
+    guessing would mutilate real station names ending in a letter.
+    The reference itself is not discarded: it comes back in the ``_przypisy`` extension.
     """
     import pandas as pd
     from openpyxl import load_workbook

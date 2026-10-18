@@ -1,7 +1,7 @@
 # gridqueue, SoftwareX code metadata table
 
 Companion to `gridqueue_SoftwareX_manuscript.md`. Fields whose value depends on the packaging
-band carry `⟦PAKIET: …⟧`; fields that require a team decision carry `⟦DECYZJA ZESPOŁU⟧` and are
+band carry `⟦PACKAGE: …⟧`; fields that require a team decision carry `⟦TEAM DECISION⟧` and are
 listed again in the final section.
 
 ## Required Metadata, Current code version
@@ -10,13 +10,13 @@ listed again in the final section.
 |----|------|-------|
 | C1 | Current code version | `1.2.1` (declared identically in `pyproject.toml` and in `gridqueue.__version__`; CI asserts the two agree on every push) |
 | C2 | Permanent link to code / repository used for this code version | https://github.com/s-matysik/gridqueue (tag `v1.2.1`) |
-| C3 | Permanent link to Reproducible Capsule | ⟦DECYZJA ZESPOŁU⟧, archive DOI. The repository is ready for a Zenodo deposit of tag `v1.2.1`; enabling the integration requires the team's account |
+| C3 | Permanent link to Reproducible Capsule | ⟦TEAM DECISION⟧, archive DOI. The repository is ready for a Zenodo deposit of tag `v1.2.1`; enabling the integration requires the team's account |
 | C4 | Legal Code License | Apache-2.0, `LICENSE.txt` at the distribution root. Input data licences are fixed and separate: OpenStreetMap gazetteer under ODbL 1.0; operators' statutory publications under the terms each publisher applies to its own site |
 | C5 | Code versioning system used | git |
 | C6 | Software code languages, tools and services used | Python, `requires-python >= 3.10`; build backend `setuptools.build_meta` (`setuptools>=68`); test runner `pytest` |
 | C7 | Compilation requirements, operating environments and dependencies | No compilation (pure Python). Runtime: `pandas>=2.0`, `pdfplumber>=0.11`, `openpyxl>=3.1`, `requests>=2.31`, `pyarrow>=14`. Test extra: `pytest>=8.0`. Build: `setuptools>=68`. The location resolver needs no third-party string-matching library; matching is implemented in `geoloc.py` |
 | C8 | If available, link to developer documentation / manual | https://s-matysik.github.io/gridqueue/, eight generated pages (schema with legal basis per field, adapters, extraction method, quality rules, measured validation, CLI, limitations). `README.md` at the distribution root duplicates the quick path |
-| C9 | Support email for questions | ⟦DECYZJA ZESPOŁU⟧, corresponding author's institutional address |
+| C9 | Support email for questions | ⟦TEAM DECISION⟧, corresponding author's institutional address |
 
 ## Required Metadata, Software
 
@@ -28,7 +28,7 @@ listed again in the final section.
 | S4 | Computing platforms / Operating Systems | Linux, macOS, Windows × Python 3.10, 3.11, 3.12, 3.13, a twelve-cell matrix exercised by GitHub Actions (`.github/workflows/ci.yml`) on every push and pull request. The measured figures reported in the paper were produced on macOS/arm64 with Python 3.11.15 |
 | S5 | Installation requirements & dependencies | As C7. No GPU, no network access required at run time once the source documents and the gazetteer are local |
 | S6 | If available, link to user manual | `README.md`, plus `examples/research_use_case.py` and `examples/longitudinal_use_case.py`, two runnable research workflows and a Colab notebook that reproduces the longitudinal result in the browser, asserting agreement with the published figures, the longitudinal one additionally reporting linkage precision measured on fields held out of the matching key (administrative processing time by resource class and publisher) that uses the public API only and contains no publisher-specific branch |
-| S7 | Support email for questions | ⟦DECYZJA ZESPOŁU⟧, same address as C9 |
+| S7 | Support email for questions | ⟦TEAM DECISION⟧, same address as C9 |
 
 ## Software characterisation (for the "Software description" section)
 

@@ -1,28 +1,29 @@
-"""Adapter: ESB Networks (IE), mapa zdolności przyłączeniowej sieci.
+"""Adapter: ESB Networks (IE), network connection capacity map.
 
-Publikujący wydaje jeden arkusz obejmujący **całą sieć aż do poziomu stacji
-SN/nn**, więc jest to najliczniejsze źródło w panelu i zarazem jedyne, które
-schodzi poniżej poziomu stacji wysokiego napięcia. Jednostką wiersza jest grupa
-transformatorów w stacji.
+The publisher issues a single sheet covering **the entire network down to MV/LV
+station level**, which makes it the most numerous source in the panel and also the
+only one that goes below high-voltage station level. The row unit is a group of
+transformers at a station.
 
-Dwie jednostki w jednym źródle
+Two units in one source
 ------------------------------
-Publikujący podaje stronę **odbiorczą w MVA** (moc pozorna), a stronę
-**wytwórczą w MW** (moc czynna). Jednostką kanoniczną schematu jest kW mocy
-czynnej, więc:
+The publisher gives the **demand side in MVA** (apparent power), and the
+**generation side in MW** (active power). The canonical unit of the schema is kW
+of active power, so:
 
-* wartości wytwórcze są przeliczane (MW -> kW, ta sama wielkość fizyczna),
-* wartości odbiorcze **nie są przeliczane** i trafiają do pól rozszerzenia
-  z jawnie zapisaną jednostką.
+* generation values are converted (MW -> kW, the same physical quantity),
+* demand values are **not converted** and go into extension fields
+  with the unit explicitly recorded.
 
-Pole `moc_dostepna` niesie zatem dostępną moc **wytwórczą trwałą**, a nie sumę
-obu stron. Zsumowanie MW z MVA dałoby liczbę bez sensu fizycznego, a wybór
-jednej strony bez powiedzenia tego wprost byłby ukryciem decyzji.
+The `moc_dostepna` field therefore carries the available **firm generation**
+capacity, not the sum of both sides. Summing MW with MVA would give a number with
+no physical meaning, and choosing one side without saying so explicitly would be
+hiding the decision.
 
-Źródło podaje współrzędne oraz dwie osobne flagi ograniczenia, dla strony
-odbiorczej i wytwórczej. Do pola `ograniczenie_flaga` wchodzi **alternatywa
-obu**, bo pole schematu jest jedno; obie wartości źródłowe pozostają
-w rozszerzeniach.
+The source gives coordinates and two separate constraint flags, for the demand
+side and the generation side. The `ograniczenie_flaga` field receives the
+**disjunction of both**, because the schema has a single field; both source values
+remain in the extensions.
 """
 
 from __future__ import annotations
@@ -36,7 +37,7 @@ PUBLISHER = "ESB Networks DAC"
 JURISDICTION = "IE"
 ARKUSZ = "Heatmap data"
 
-#: Nagłówek zajmuje dwa wiersze; nazwy właściwe są w drugim.
+#: The header spans two rows; the proper names are in the second one.
 WIERSZ_NAGLOWKA = 2
 
 KOL = {
@@ -68,12 +69,12 @@ KOL = {
 _TAK = {"yes", "y", "true", "constrained", "1"}
 _NIE = {"no", "n", "false", "unconstrained", "0"}
 
-#: Kolumny ograniczenia niosą frazę "Constrained, otherwise capacity available = X kVA"
-#: albo są puste. Przyjmujemy, że pusta komórka oznacza BRAK ograniczenia, a nie brak
-#: deklaracji: kolumna jest wskaźnikiem binarnym, w którym wartość dodatnia niesie
-#: objaśnienie, a ujemna jest wyrażona pustką. Jest to INTERPRETACJA, nie treść źródła
-#: -- publikujący nigdzie tej konwencji nie opisuje -- więc surowa fraza zostaje
-#: w rozszerzeniu, a decyzja jest odnotowana w raporcie adaptera.
+#: The constraint columns carry the phrase "Constrained, otherwise capacity available = X kVA"
+#: or are empty. We assume that an empty cell means NO constraint, not an absence of a
+#: declaration: the column is a binary indicator, where a positive value carries an
+#: explanation, and a negative one is expressed by emptiness. This is an INTERPRETATION, not
+#: content of the source (the publisher nowhere describes this convention), so the raw
+#: phrase remains in the extension, and the decision is recorded in the adapter report.
 _FRAZA_OGRANICZENIA = re.compile(r"constrained", re.IGNORECASE)
 _POJEMNOSC_W_FRAZIE = re.compile(r"=\s*([\d.,]+)\s*kVA", re.IGNORECASE)
 
@@ -96,7 +97,7 @@ def _mw_na_kw(v) -> float | None:
 
 
 def _flaga(v) -> bool | None:
-    """Wskaźnik ograniczenia; pusta komórka to brak ograniczenia (patrz wyżej)."""
+    """Constraint indicator; an empty cell means no constraint (see above)."""
     if v is None or str(v).strip() == "":
         return False
     s = str(v).strip().lower()
@@ -108,10 +109,10 @@ def _flaga(v) -> bool | None:
 
 
 def _pojemnosc_bez_ograniczenia(v) -> float | None:
-    """Z frazy 'Constrained, otherwise capacity available = X kVA' wyjmij X.
+    """Extract X from the phrase 'Constrained, otherwise capacity available = X kVA'.
 
-    Wartość jest w kVA, czyli w mocy pozornej, więc NIE jest przeliczana na kW
-    i zostaje w rozszerzeniu z jednostką w nazwie pola.
+    The value is in kVA, i.e. apparent power, so it is NOT converted to kW
+    and stays in the extension with the unit in the field name.
     """
     if v is None:
         return None
@@ -120,7 +121,7 @@ def _pojemnosc_bez_ograniczenia(v) -> float | None:
 
 
 def _alternatywa(a: bool | None, b: bool | None) -> bool | None:
-    """Alternatywa zachowująca nieokreśloność: None or False -> None, nie False."""
+    """Disjunction preserving indeterminacy: None or False -> None, not False."""
     if a is True or b is True:
         return True
     if a is False and b is False:
@@ -136,26 +137,26 @@ class ESBNetworksAdapter(Adapter):
         "moc_dostepna", "moc_zarezerwowana", "ograniczenie_flaga",
     )
     declared_extensions = {
-        "_jednostka_mocy_odbiorczej": "jednostka strony odbiorczej u publikującego (MVA)",
-        "_klasa_napiecia": "klasa napięcia wg publikującego",
-        "_konfiguracja_transformatorow": "konfiguracja grupy transformatorów",
-        "_moc_zainstalowana_mva": "moc zainstalowana transformatorów",
-        "_odbior_dostepna_mva": "dostępna moc odbiorcza",
-        "_odbior_trwala_mva": "trwała moc odbiorcza",
-        "_odbior_nadrzedna_mva": "dostępna moc odbiorcza stacji nadrzędnej",
-        "_odbior_ograniczenie": "ograniczenie po stronie odbiorczej",
-        "_wytw_ograniczenie": "ograniczenie po stronie wytwórczej",
-        "_odbior_ograniczenie_opis": "surowa fraza ograniczenia po stronie odbiorczej",
-        "_wytw_ograniczenie_opis": "surowa fraza ograniczenia po stronie wytwórczej",
-        "_odbior_bez_ograniczenia_kva": "moc odbiorcza dostępna, gdyby nie ograniczenie",
-        "_wytw_bez_ograniczenia_kva": "moc wytwórcza dostępna, gdyby nie ograniczenie",
-        "_wytw_dostepna_nietrwala_kw": "dostępna moc wytwórcza nietrwała",
-        "_wytw_zakontraktowana_kw": "moc wytwórcza zakontraktowana łącznie",
-        "_wytw_trwala_kw": "trwała moc wytwórcza",
-        "_zasilanie": "linia zasilająca",
-        "_stacja_nadrzedna": "stacja nadrzędna",
-        "_styk_przesylowy": "stacja styku z siecią przesyłową",
-        "_komentarz": "komentarz publikującego",
+        "_jednostka_mocy_odbiorczej": "unit of the demand side at the publisher (MVA)",
+        "_klasa_napiecia": "voltage class per the publisher",
+        "_konfiguracja_transformatorow": "configuration of the transformer group",
+        "_moc_zainstalowana_mva": "installed capacity of the transformers",
+        "_odbior_dostepna_mva": "available demand capacity",
+        "_odbior_trwala_mva": "firm demand capacity",
+        "_odbior_nadrzedna_mva": "available demand capacity of the parent station",
+        "_odbior_ograniczenie": "constraint on the demand side",
+        "_wytw_ograniczenie": "constraint on the generation side",
+        "_odbior_ograniczenie_opis": "raw constraint phrase on the demand side",
+        "_wytw_ograniczenie_opis": "raw constraint phrase on the generation side",
+        "_odbior_bez_ograniczenia_kva": "demand capacity available if not for the constraint",
+        "_wytw_bez_ograniczenia_kva": "generation capacity available if not for the constraint",
+        "_wytw_dostepna_nietrwala_kw": "available non-firm generation capacity",
+        "_wytw_zakontraktowana_kw": "total contracted generation capacity",
+        "_wytw_trwala_kw": "firm generation capacity",
+        "_zasilanie": "feeder line",
+        "_stacja_nadrzedna": "parent station",
+        "_styk_przesylowy": "station of interface with the transmission network",
+        "_komentarz": "publisher's comment",
     }
     detect_patterns = (r"customer.?heatmap", r"esb.?networks", r"heatmap.?data")
 
@@ -202,7 +203,7 @@ class ESBNetworksAdapter(Adapter):
                 "nazwa_wezla": str(stacja).strip(),
                 "wspolrzedne": f"{lat},{lon}" if lat is not None and lon is not None else None,
                 "poziom_napiecia": str(nap).strip() if nap else None,
-                # Strona wytwórcza jest w MW mocy czynnej -- jedyna przeliczalna.
+                # The generation side is in MW of active power, the only one that is convertible.
                 "moc_dostepna": _mw_na_kw(g("wytw_dostepna_trwala_mw")),
                 "moc_zarezerwowana": _mw_na_kw(g("wytw_zakontraktowana_mw")),
                 "ograniczenie_flaga": ogr,
@@ -234,21 +235,22 @@ class ESBNetworksAdapter(Adapter):
         notes = {
             "publikujacy": PUBLISHER,
             "jurysdykcja": JURISDICTION,
-            "tryb_wydania": "arkusz kalkulacyjny na stronie publikującego",
+            "tryb_wydania": "spreadsheet on the publisher's website",
             "wierszy": int(len(df)),
             "wierszy_bez_wspolrzednych": bez_wspolrzednych,
             "wezlow_ograniczonych": ograniczonych,
             "interpretacja_pustej_flagi": (
-                "pusta komórka kolumny ograniczenia czytana jako BRAK ograniczenia; "
-                "publikujący tej konwencji nie opisuje, surowa fraza w rozszerzeniu"
+                "empty cell of the constraint column read as NO constraint; "
+                "the publisher does not describe this convention, raw phrase in the extension"
             ),
             "kolumny_nieznalezione": brakujace,
             "jednostka_strony_wytworczej": "MW",
             "jednostka_strony_odbiorczej": "MVA",
             "uwaga_jednostki": (
-                "Pole moc_dostepna niesie dostępną moc WYTWÓRCZĄ trwałą, przeliczoną z MW "
-                "na kW. Strona odbiorcza jest podana w MVA (moc pozorna) i nie jest "
-                "przeliczana ani sumowana ze stroną wytwórczą; pozostaje w rozszerzeniach."
+                "The moc_dostepna field carries the available firm GENERATION capacity, "
+                "converted from MW to kW. The demand side is given in MVA (apparent power) "
+                "and is not converted nor summed with the generation side; it remains in "
+                "the extensions."
             ),
         }
         return ParseResult(frame=df, report=notes)

@@ -1,34 +1,34 @@
-"""Przykład badawczy: czas rozpatrywania wniosku przyłączeniowego.
+"""Research example: processing time of a connection application.
 
-Pytanie badawcze
-----------------
-Czy czas od złożenia wniosku o przyłączenie do wydania warunków różni się między
-klasami zasobu i między publikującymi?
+Research question
+-----------------
+Does the time from lodging a connection application to the issue of connection
+conditions differ between resource classes and between publishers?
 
-Sens tego przykładu dla oceny narzędzia
----------------------------------------
-Adaptery są specyficzne dla źródła, ale **analiza badawcza już nie**. Poniższy
-kod nie zawiera ani jednej gałęzi zależnej od publikującego: operuje wyłącznie
-na polach wspólnego schematu (`data_wniosku`, `data_warunkow`, `klasa_zasobu`,
-`publikujacy`) i wykonuje się identycznie na wyjściu każdego adaptera. Dokładnie
-to jest produktem harmonizacji, nie sam fakt, że dokument dał się rozłożyć na
-wiersze.
+What this example shows about the tool
+--------------------------------------
+Adapters are source specific, but **the research analysis is not**. The code
+below contains not a single branch that depends on the publisher: it works only
+on the fields of the common schema (`data_wniosku`, `data_warunkow`,
+`klasa_zasobu`, `publikujacy`) and runs identically on the output of every
+adapter. That, and not the mere fact that a document could be broken down into
+rows, is what harmonisation produces.
 
-Dane wejściowe
---------------
-Panel wyprodukowany przez `gridqueue` (Parquet albo CSV), domyślnie
-``gridqueue_panel.parquet`` w katalogu bieżącym. Panel buduje się poleceniem::
+Input data
+----------
+A panel produced by `gridqueue` (Parquet or CSV), by default
+``gridqueue_panel.parquet`` in the current directory. The panel is built with::
 
-    gridqueue parse <dokumenty...> --out gridqueue_panel.parquet
+    gridqueue parse <documents...> --out gridqueue_panel.parquet
 
-Uruchomienie::
+Running::
 
-    python examples/research_use_case.py [ścieżka_do_panelu] [katalog_wyjściowy]
+    python examples/research_use_case.py [path_to_panel] [output_directory]
 
-Wytwarza::
+Produces::
 
-    czas_rozpatrywania.csv   tabela wynikowa (jeden wiersz na publikującego i klasę)
-    czas_rozpatrywania.png   figura
+    czas_rozpatrywania.csv   the result table (one row per publisher and class)
+    czas_rozpatrywania.png   the figure
 """
 
 from __future__ import annotations
@@ -40,20 +40,20 @@ import pandas as pd
 
 from gridqueue import SCHEMA_VERSION, __version__, core_complete_mask
 
-#: Minimalna liczebność grupy, poniżej której mediany nie raportujemy.
+#: Minimum group size below which we do not report medians.
 MIN_N = 30
 
-#: Czytelne nazwy klas zasobu ze słownika kontrolowanego schematu.
+#: Readable names of the resource classes from the controlled vocabulary of the schema.
 NAZWY_KLAS = {
-    "ODB": "odbiór",
-    "PV": "fotowoltaika",
-    "FW": "wiatr",
-    "BESS": "magazyn energii",
-    "GAZ": "gaz",
-    "EW": "woda",
-    "MIX": "instalacja mieszana",
-    "SIEC": "sieć",
-    "BIOGAZ": "biogaz",
+    "ODB": "demand",
+    "PV": "photovoltaics",
+    "FW": "wind",
+    "BESS": "energy storage",
+    "GAZ": "gas",
+    "EW": "hydro",
+    "MIX": "mixed installation",
+    "SIEC": "network",
+    "BIOGAZ": "biogas",
 }
 
 
@@ -64,7 +64,7 @@ def wczytaj_panel(sciezka: Path) -> pd.DataFrame:
 
 
 def czas_rozpatrywania(panel: pd.DataFrame) -> pd.DataFrame:
-    """Czas od złożenia wniosku do wydania warunków, w dniach."""
+    """Time from lodging the application to the issue of conditions, in days."""
     df = panel.copy()
     for kol in ("data_wniosku", "data_warunkow"):
         df[kol] = pd.to_datetime(df[kol], errors="coerce")
@@ -73,11 +73,11 @@ def czas_rozpatrywania(panel: pd.DataFrame) -> pd.DataFrame:
 
 
 def zestawienie(df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
-    """Mediany i rozstępy ćwiartkowe per publikujący i klasa zasobu.
+    """Medians and interquartile ranges per publisher and resource class.
 
-    Wiersze z ujemną różnicą dat są odrzucane i zliczane osobno: niespójność
-    kolejności dat wykrywa reguła R1 kontroli jakości i nie powinna wchodzić do
-    statystyki opisowej jako wartość ujemna.
+    Rows with a negative date difference are dropped and counted separately: an
+    inconsistency in the order of dates is detected by quality rule R1 and should
+    not enter the descriptive statistics as a negative value.
     """
     policzalne = df["czas_dni"].notna()
     ujemne = policzalne & (df["czas_dni"] < 0)
@@ -113,9 +113,10 @@ def rysunek(tab: pd.DataFrame, plik: Path) -> None:
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    # Barwa przypisana NAZWIE publikującego, nie pozycji w posortowanej liście:
-    # inaczej dodanie publikującego przemalowałoby pozostałych, a figura rozeszłaby
-    # się z pozostałymi figurami projektu. Regresja z wydania 1.1.0, przywrócona tu.
+    # The colour is bound to the NAME of the publisher, not to the position in the
+    # sorted list: otherwise adding a publisher would repaint the others and the
+    # figure would drift away from the other figures of the project. A regression
+    # from release 1.1.0, restored here.
     BARWY = {
         "TAURON Dystrybucja S.A.": "#1b5e8c",
         "ENERGA-OPERATOR S.A.": "#2e8b78",
@@ -138,9 +139,9 @@ def rysunek(tab: pd.DataFrame, plik: Path) -> None:
                         for _, r in tab.iterrows()], fontsize=7)
     ax.invert_yaxis()
     ax.set_xlim(0, tab["kwartyl_3"].max() * 1.30)
-    ax.set_xlabel("dni: wniosek → warunki\n"
-                  "kropka = mediana, pasmo = rozstęp ćwiartkowy", fontsize=8)
-    ax.set_title("Przyłączenia odbiorcze rozpatrywane są szybciej niż wytwórcze",
+    ax.set_xlabel("days: application → conditions\n"
+                  "dot = median, band = interquartile range", fontsize=8)
+    ax.set_title("Demand connections are processed faster than generation ones",
                  fontsize=9, loc="left")
     for s in ("top", "right"):
         ax.spines[s].set_visible(False)
@@ -152,8 +153,8 @@ def main(argv: list[str]) -> int:
     panel_path = Path(argv[1]) if len(argv) > 1 else Path("gridqueue_panel.parquet")
     outdir = Path(argv[2]) if len(argv) > 2 else Path(".")
     if not panel_path.exists():
-        print(f"Brak panelu: {panel_path}\n"
-              f"Zbuduj go: gridqueue parse <dokumenty...> --out {panel_path}",
+        print(f"No panel: {panel_path}\n"
+              f"Build it with: gridqueue parse <documents...> --out {panel_path}",
               file=sys.stderr)
         return 2
     outdir.mkdir(parents=True, exist_ok=True)
@@ -170,7 +171,7 @@ def main(argv: list[str]) -> int:
     print()
     kolumny = ["publikujacy", "klasa_opis", "n", "mediana", "kwartyl_1", "kwartyl_3"]
     print(tab[kolumny].to_string(index=False))
-    print(f"\nzapisano: {csv_path} oraz {outdir / 'czas_rozpatrywania.png'}")
+    print(f"\nsaved: {csv_path} and {outdir / 'czas_rozpatrywania.png'}")
     return 0
 
 

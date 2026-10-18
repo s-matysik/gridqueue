@@ -1,40 +1,45 @@
 ---
-title: Metoda wydobycia
+title: Extraction method
 ---
 
-# Metoda wydobycia
+# Extraction method
 
-Zamiast wyrażeń regularnych na spłaszczonym tekście, wydobycie z **położenia słów na stronie**.
+Instead of regular expressions over flattened text, extraction from the **position of the words on
+the page**.
 
-* **`ruled`**, granice kolumn brane z pionowych **krawędzi wektorowych** zapisanych w pliku
-  (TAURON, Stoen, ENERGA). Pusta komórka jest odgrodzona linią, więc nie może zlać się
-  z sąsiednią. W dokumencie ENERGI siatki nie tworzą obiekty linii, lecz 176 cienkich
-  prostokątów, strategia działa na nich poprawnie.
-* **`banded`**, granice z pionowych korytarzy bieli (Boryszew; dokument bez siatki).
-* **arkusz**, PSE czytany wprost z komórek, **wraz z formatowaniem znaku**. Bez tego indeksy
-  górne oznaczające przypisy sklejają się z treścią, a w polach liczbowych niszczą wartość.
-  Odcięcie następuje po formatowaniu, nie po zgadywaniu końca napisu, zgadywanie okaleczyłoby
-  prawdziwe nazwy stacji kończące się literą.
-* Wiersze wielolinijkowe scalane kolumna po kolumnie po numerze porządkowym.
-* Zawijany nagłówek w wąskich kolumnach odczytywany geometrycznym przypisaniem słów nagłówka
-  do kolumn.
+* **`ruled`**, column boundaries taken from the vertical **vector edges** recorded in the file
+  (TAURON, Stoen, ENERGA). An empty cell is fenced off by a line, so it cannot merge with the
+  neighbouring one. In the ENERGA document the grid is not made of line objects but of 176 thin
+  rectangles; the strategy works correctly on those.
+* **`banded`**, boundaries from the vertical corridors of whitespace (Boryszew; a document with no
+  grid).
+* **spreadsheet**, PSE read directly from the cells, **together with character formatting**.
+  Without that, the superscripts marking footnotes merge into the content, and in numeric fields
+  they destroy the value. The truncation happens on the basis of the formatting, not on the basis of
+  guessing where the string ends; guessing would mutilate genuine substation names that end with a
+  letter.
+* Multi-line rows merged column by column following the ordinal number.
+* Wrapped headers in narrow columns read by geometric assignment of the header words to the
+  columns.
 
-## Dlaczego `pdfplumber`
+## Why `pdfplumber`
 
-Daje bezpośredni dostęp do współrzędnych słów i krawędzi wektorowych. `camelot` w trybie lattice
-odtwarza granice kolumn z rastra i wymaga Ghostscriptu, `tabula` wymaga JVM, w obu granica
-kolumny jest **wynikiem detekcji na obrazie**, a nie liczbą z pliku.
+It gives direct access to the coordinates of the words and to the vector edges. `camelot` in lattice
+mode reconstructs the column boundaries from a raster image and requires Ghostscript, `tabula`
+requires a JVM; in both, the column boundary is the **result of detection on an image** rather than
+a number from the file.
 
-## Co to zmieniło, zmierzone
+## What this changed, measured
 
-Audyt zlicza wiersze, w których niepusta wartość stoi w polu, do którego nie może należeć.
-W dokumencie TAURONA: **767 z 10 559 = 7,264%** przy wydobyciu regexowym, **0 z 10 955 = 0,000%**
-przy wydobyciu z układu kolumn. Stary parser **gubił także wiersze**: numery porządkowe w nowym
-wydobyciu biegną 1…10 955 bez luk i duplikatów, czyli odzyskiwał o 396 wierszy mniej.
+The audit counts the rows in which a non-empty value sits in a field it cannot belong to.
+In the TAURON document: **767 of 10 559 = 7,264%** with regex extraction, **0 of 10 955 = 0,000%**
+with extraction from the column layout. The old parser **also lost rows**: in the new extraction the
+ordinal numbers run 1…10 955 with no gaps and no duplicates, which means it recovered 396 rows
+fewer.
 
-Wynik 0,000% należy czytać zgodnie z tym, co mierzy: audyt jest **detektorem wewnętrznej
-sprzeczności typu**, nie porównaniem ze wzorcem. Bezbłędność mierzy zbiór odniesienia -
-zob. [walidacja](walidacja.md).
+The 0,000% result should be read as what it measures: the audit is a **detector of internal type
+inconsistency**, not a comparison against a reference set. Freedom from error is measured by the
+reference set, see [validation](walidacja.md).
 
 ```python
 from gridqueue import audit_column_shift

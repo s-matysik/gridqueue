@@ -1,42 +1,42 @@
-"""Adapter: E-REDES (PT), zdolność przyjęcia krajowej sieci dystrybucyjnej.
+"""Adapter: E-REDES (PT), national distribution network reception capacity.
 
-Źródło jest trzecim trybem wydania w panelu: nie dokument do druku i nie plik
-na stronie, lecz **zbiór na portalu otwartych danych z interfejsem REST**.
-Publikacja jest kwartalna, tak jak polski obowiązek, a jednostką wiersza jest
-podstacja albo punkt cięcia sieci wysokiego napięcia.
+The source is the third release mode in the panel: not a document for printing and not a
+file on a page, but **a dataset on an open data portal with a REST interface**.
+Publication is quarterly, just like the Polish duty, and the row unit is
+a substation or a high-voltage network cutting point.
 
-Co ten adapter wnosi do panelu
-------------------------------
-Pierwsze zagraniczne źródło wypełniające encję **WĘZEŁ**. Dotąd moc dostępną
-w węźle ujawniał wyłącznie jeden publikujący polski, więc kryterium „dostępna
-moc przyłączeniowa" dało się policzyć w jednej jurysdykcji. Źródło portugalskie
-podaje ponadto **skład grupy podstacji**, czyli dokładnie tę informację, która
-w panelu polskim umożliwia przypisanie wniosków do węzła.
+What this adapter contributes to the panel
+------------------------------------------
+The first foreign source populating the **NODE** entity. Until now, available capacity
+at the node was disclosed only by one Polish publisher, so the criterion "available
+connection capacity" could be computed in a single jurisdiction. The Portuguese source
+additionally provides the **composition of the substation group**, which is exactly the
+information that, in the Polish panel, allows applications to be assigned to a node.
 
-Rozstrzygnięcie jednostek, przeczytaj, zanim zaczniesz porównywać
-------------------------------------------------------------------
-Publikujący podaje zdolność przyjęcia i moce przyłączone w **MVA**, czyli
-w mocy pozornej. Jednostką kanoniczną schematu jest **kW mocy czynnej**. Są to
-różne wielkości fizyczne i przeliczenie jednej na drugą wymaga założenia
-o współczynniku mocy, którego publikujący nie podaje.
+Resolving units, read this before you start comparing
+-----------------------------------------------------
+The publisher provides reception capacity and connected capacities in **MVA**, that is,
+in apparent power. The schema's canonical unit is **kW of active power**. These are
+different physical quantities and converting one into the other requires an assumption
+about the power factor, which the publisher does not provide.
 
-Dlatego pole `moc_dostepna` pozostaje **puste**, a wartości w MVA trafiają do
-pól rozszerzenia wraz z jawnie zapisaną jednostką źródłową. Jest to ta sama
-zasada, którą zastosowano wobec publikującego podającego liczbę wolnych miejsc
-przyłączeniowych zamiast mocy: wpisanie liczby w pole o innej jednostce byłoby
-fabrykacją, a nie harmonizacją.
+For this reason the `moc_dostepna` field remains **empty**, and the MVA values go into
+extension fields together with the explicitly recorded source unit. This is the same
+principle that was applied to the publisher reporting the number of free connection
+slots instead of capacity: entering a number in a field with a different unit would be
+fabrication, not harmonization.
 
-Rdzeń encji WĘZEŁ jest mimo to spełniony, bo realizuje go drugi człon
-alternatywy, `ograniczenie_flaga`, ustawiana na podstawie zerowej zdolności
-przyjęcia. Zero zdolności przyjęcia jest wartością ujawnioną i oznacza
-ograniczenie, a nie brak danych.
+The core of the NODE entity is nonetheless satisfied, because it is realized by the
+second branch of the alternative, `ograniczenie_flaga`, set based on zero reception
+capacity. Zero reception capacity is a disclosed value and means a constraint, not a
+missing datum.
 
-Format wejścia
---------------
-Eksport CSV z portalu (separator średnik, nagłówki techniczne, nie etykiety).
-Adapter celowo czyta PLIK, a nie odpytuje interfejsu przy parsowaniu: dzięki
-temu wynik jest odtwarzalny z manifestu z sumą kontrolną, tak jak u pozostałych
-publikujących.
+Input format
+------------
+CSV export from the portal (semicolon separator, technical headers, not labels).
+The adapter deliberately reads a FILE, rather than querying the interface during parsing:
+this makes the result reproducible from a manifest with a checksum, just as with the
+other publishers.
 """
 
 from __future__ import annotations
@@ -48,13 +48,13 @@ from .base import Adapter, ParseResult
 
 PUBLISHER = "E-REDES S.A."
 JURISDICTION = "PT"
-#: Jednostka, w której publikujący podaje moce. NIE jest to jednostka kanoniczna
-#: schematu (kW mocy czynnej) i nie jest na nią przeliczana.
+#: The unit in which the publisher provides capacities. This is NOT the schema's
+#: canonical unit (kW of active power) and it is not converted to it.
 SOURCE_POWER_UNIT = "MVA"
 
-#: Kolumny zdolności przyjęcia w podziale na poziomy napięcia, od najwyższego.
-#: Służą wyłącznie do ustalenia poziomu napięcia, na którym zdolność występuje;
-#: ich wartości nie wchodzą do pola mocy z powodu różnicy jednostek.
+#: Reception capacity columns broken down by voltage level, from the highest.
+#: They serve solely to determine the voltage level at which the capacity occurs;
+#: their values do not go into the capacity field because of the unit difference.
 _KOLUMNY_NAPIEC = [
     ("capacidade_de_recepcao_at_mva_ultimo_trimestre", "AT"),
     ("capacidade_de_recepcao_mt_30kv_mva_ultimo_trimestre", "30 kV"),
@@ -69,7 +69,7 @@ _TYP_INSTALACJI = {
 
 
 def _liczba(v) -> float | None:
-    """Liczba z zapisu portalowego; przecinek dziesiętny dopuszczony."""
+    """Number from the portal notation; decimal comma allowed."""
     if v is None:
         return None
     s = str(v).strip().replace("\xa0", "").replace(" ", "")
@@ -83,7 +83,7 @@ def _liczba(v) -> float | None:
 
 
 def _kwartal_na_date(v) -> str | None:
-    """'2T2026' -> '2026-06-30'. Publikacja kwartalna, dzień ostatni kwartału."""
+    """'2T2026' -> '2026-06-30'. Quarterly publication, last day of the quarter."""
     s = str(v or "").strip().upper()
     if len(s) == 6 and s[1] == "T" and s[0].isdigit() and s[2:].isdigit():
         kw, rok = int(s[0]), int(s[2:])
@@ -101,16 +101,16 @@ class EredesAdapter(Adapter):
         "ograniczenie_flaga", "data_publikacji",
     )
     declared_extensions = {
-        "_jednostka_mocy_zrodlowa": "jednostka, w której publikujący podaje moce (MVA)",
-        "_moc_dostepna_mva": "zdolność przyjęcia SN+WN w MVA, tak jak w źródle",
-        "_moc_przylaczona_mva": "moc przyłączona w MVA",
-        "_moc_zakontraktowana_mva": "moc zakontraktowana w MVA",
-        "_moc_w_potwierdzaniu_mva": "moc w trakcie potwierdzania w MVA",
-        "_typ_instalacji": "podstacja albo punkt cięcia sieci wysokiego napięcia",
-        "_dystrykt": "dystrykt administracyjny",
-        "_gmina": "gmina",
-        "_nuts3": "jednostka statystyczna NUTS 3",
-        "_wezel_rnt": "węzeł sieci przesyłowej, z którym połączona jest podstacja",
+        "_jednostka_mocy_zrodlowa": "unit in which the publisher provides capacities (MVA)",
+        "_moc_dostepna_mva": "reception capacity MV+HV in MVA, as in the source",
+        "_moc_przylaczona_mva": "connected capacity in MVA",
+        "_moc_zakontraktowana_mva": "contracted capacity in MVA",
+        "_moc_w_potwierdzaniu_mva": "capacity in the process of confirmation in MVA",
+        "_typ_instalacji": "substation or high-voltage network cutting point",
+        "_dystrykt": "administrative district",
+        "_gmina": "municipality",
+        "_nuts3": "NUTS 3 statistical unit",
+        "_wezel_rnt": "transmission network node to which the substation is connected",
     }
     detect_patterns = (r"capacidade.?rececao", r"e.?redes", r"\brnd\b")
 
@@ -136,12 +136,12 @@ class EredesAdapter(Adapter):
             rekordy.append({
                 "id_wezla": kod or None,
                 "nazwa_wezla": (w.get("instalacao") or "").strip() or None,
-                # Skład grupy podstacji, odpowiednik listy stacji w wierszu
-                # węzłowym publikującego polskiego, więc trafia w to samo pole.
+                # Composition of the substation group, the equivalent of the station list in the
+                # node row of the Polish publisher, so it goes into the same field.
                 "lokalizacja_tekst": (w.get("grupo_de_subestacoes_rari") or "").strip() or None,
                 "poziom_napiecia": ", ".join(napiecia) or None,
-                "moc_dostepna": None,       # jednostka źródłowa to MVA, patrz nagłówek modułu
-                "moc_zarezerwowana": None,  # jw.
+                "moc_dostepna": None,       # source unit is MVA, see module header
+                "moc_zarezerwowana": None,  # as above.
                 "ograniczenie_flaga": ograniczenie,
                 "data_publikacji": _kwartal_na_date(w.get("data_ultimo_trimestre")),
                 "_encja": "WEZEL",
@@ -165,17 +165,17 @@ class EredesAdapter(Adapter):
         notes = {
             "publikujacy": PUBLISHER,
             "jurysdykcja": JURISDICTION,
-            "tryb_wydania": "portal otwartych danych, eksport CSV z interfejsu REST",
+            "tryb_wydania": "open data portal, CSV export from REST interface",
             "wierszy": int(len(df)),
             "wierszy_bez_kodu_instalacji": bez_kodu,
             "wezlow_o_zerowej_zdolnosci_przyjecia": zerowa,
             "jednostka_mocy_zrodlowa": SOURCE_POWER_UNIT,
             "moc_dostepna_pusta_z_powodu_jednostki": True,
             "uwaga_jednostki": (
-                "Publikujący podaje moce w MVA (moc pozorna); jednostką kanoniczną schematu "
-                "jest kW mocy czynnej. Przeliczenie wymagałoby nieujawnionego współczynnika "
-                "mocy, więc pole moc_dostepna pozostaje puste, a wartości źródłowe są "
-                "w polach rozszerzenia z jawną jednostką."
+                "The publisher provides capacities in MVA (apparent power); the schema's canonical unit "
+                "is kW of active power. Conversion would require an undisclosed power "
+                "factor, so the moc_dostepna field remains empty, and the source values are "
+                "in extension fields with an explicit unit."
             ),
         }
         return ParseResult(frame=df, report=notes)

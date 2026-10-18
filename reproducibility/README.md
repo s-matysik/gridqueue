@@ -1,53 +1,53 @@
-# Pakiet odtwarzalności
+# Reproducibility package
 
-Co tu jest i czego to dowodzi.
+What is here and what it proves.
 
-| plik | zawartość |
+| file | content |
 |---|---|
-| `manifest.csv` | jeden wiersz na dokument źródłowy: publikujący, jurysdykcja, adapter, adres, data pobrania, rozmiar, SHA-256 |
-| `checksums.txt` | te same sumy w formacie `sha256sum -c` |
-| `requirements-lock.txt` | wersje bibliotek odczytane ze środowiska, w którym policzono opublikowane liczby |
-| `environment.yml` | środowisko do odtworzenia od zera |
-| `run_validation.py` | odtwarza liczby pochodne z panelu: pokrycie pól, osiem reguł jakości, kompletność rdzenia |
-| `run_figures.py` | odtwarza trzy figury wyliczane z panelu |
+| `manifest.csv` | one row per source document: publisher, jurisdiction, adapter, address, download date, size, SHA-256 |
+| `checksums.txt` | the same checksums in `sha256sum -c` format |
+| `requirements-lock.txt` | library versions read from the environment in which the published numbers were computed |
+| `environment.yml` | an environment for reproducing the work from scratch |
+| `run_validation.py` | reproduces the derived numbers from the panel: field coverage, the eight quality rules, core completeness |
+| `run_figures.py` | reproduces the three figures that are computed from the panel |
 
-## Dokumenty źródłowe nie są tu redystrybuowane
+## The source documents are not redistributed here
 
-Dwa powody, oba rzeczowe. Część dokumentów jest objęta prawami publikujących, a wszystkie są
-**wymieniane co najmniej raz na kwartał** na mocy art. 7 ust. 8l Prawa energetycznego, kopia
-w repozytorium zestarzałaby się w ciągu trzech miesięcy i zaczęłaby fałszywie sugerować, że
-opisuje stan bieżący.
+Two reasons, both substantive. Some of the documents are covered by the rights of their publishers,
+and all of them are **replaced at least once per quarter** under art. 7(8l) of the Energy Law; a copy
+in the repository would go stale within three months and would start to suggest, falsely, that it
+describes the current state.
 
-Zamiast kopii jest manifest. Dla każdego dokumentu podaje adres, datę pobrania i SHA-256, więc
-osoba odtwarzająca pracę może:
+Instead of a copy there is a manifest. For every document it gives the address, the download date and
+the SHA-256, so a person reproducing the work can:
 
-1. pobrać plik z podanego adresu i sprawdzić sumę, zgodność oznacza identyczne wejście;
-2. stwierdzić niezgodność sumy, co oznacza, że publikujący wydał **inną edycję rejestru**, i wtedy
-   należy oczekiwać innych liczb wierszy. To nie jest awaria odtwarzania, lecz właściwość
-   kwartalnego obowiązku.
+1. download the file from the given address and check the checksum; a match means identical input;
+2. find that the checksum does not match, which means that the publisher has issued **a different
+   edition of the register**, and that different row counts are then to be expected. This is not a
+   failure of reproduction but a property of the quarterly duty.
 
 ```bash
-cd <katalog_z_dokumentami> && sha256sum -c /ścieżka/do/checksums.txt
+cd <directory_with_documents> && sha256sum -c /path/to/checksums.txt
 ```
 
-## Odtworzenie
+## Reproduction
 
 ```bash
 pip install git+https://github.com/s-matysik/gridqueue@v1.0.0
-gridqueue parse <dokumenty...> --out panel.parquet
+gridqueue parse <documents...> --out panel.parquet
 python reproducibility/run_validation.py panel.parquet
 python reproducibility/run_figures.py panel.parquet
 python examples/research_use_case.py panel.parquet
 ```
 
-`run_validation.py` kończy się kodem niezerowym, jeśli suma naruszeń po publikujących nie domyka
-się do liczby panelowej, ta asercja wyłapała realną pomyłkę w wersji 0.3.x, gdzie tabela
-w dokumentacji podwajała wynik.
+`run_validation.py` exits with a non-zero code if the sum of violations across publishers does not
+close to the panel figure; that assertion caught a real mistake in version 0.3.x, where the table in
+the documentation doubled the result.
 
-## Czego te skrypty nie odtwarzają
+## What these scripts do not reproduce
 
-**Dokładności wobec zbioru odniesienia.** Wzorzec powstał przez wzrokowy odczyt renderowanych
-wycinków stron przez człowieka, niezależnie od wyjścia parsera. Jest opublikowany jako artefakt
-pomiarowy i nie da się go wyliczyć kodem, gdyby się dało, nie byłby niezależny.
+**Accuracy against the reference set.** The reference set was produced by a human reading rendered
+page extracts visually, independently of the parser output. It is published as a measurement artefact
+and cannot be computed by code; if it could, it would not be independent.
 
-**Figury architektury.** Jest schematem rysowanym ręcznie i nie ma danych wejściowych.
+**The architecture figure.** It is a hand-drawn diagram and has no input data.

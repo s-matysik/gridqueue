@@ -1,20 +1,20 @@
-"""Adapter: Stoen Operator Sp. z o.o. (PL, obszar Warszawy).
+"""Adapter: Stoen Operator Sp. z o.o. (PL, Warsaw area).
 
-Trzy rozłączne zestawienia, po jednym na punkt obowiązku:
-  * pkt 1 -- podmioty ubiegające się o przyłączenie  (10 kolumn, ~29 stron)
-  * pkt 3 -- złożone wnioski o określenie warunków   (10 kolumn)
-  * pkt 4 -- wydane odmowy określenia warunków       (11 kolumn)
+Three disjoint listings, one per item of the duty:
+  * item 1: entities applying for connection (10 columns, ~29 pages)
+  * item 3: submitted applications for determination of conditions (10 columns)
+  * item 4: issued refusals to determine conditions (11 columns)
 
-Wszystkie trzy mają pełną siatkę liniową i DWUPOZIOMOWY nagłówek powtarzany na
-każdej stronie (drugi poziom rozbija "Lokalizacja" na miejscowość/adres oraz
-"Moc przyłączeniowa [kW]" na Podstawa/Rezerwa).  Typ zestawienia rozpoznajemy po
-treści nagłówka, nie po nazwie pliku.
+All three have a full ruled line grid and a TWO-LEVEL header repeated on
+each page (the second level splits "Lokalizacja" into locality/address and
+"Moc przyłączeniowa [kW]" into Podstawa/Rezerwa). We recognize the listing type by
+the header content, not by the file name.
 
-Uwaga merytoryczna do zapisania w manuskrypcie: Stoen NIE rozróżnia kierunku mocy.
-Kolumna "Podstawa" jest mocą przyłączeniową niezależnie od tego, czy instalacja
-jest odbiorcza czy wytwórcza.  Mapujemy ją na ``moc_pobierana`` (zgodnie ze
-zmierzoną macierzą pokrycia) i deklarujemy brak rozróżnienia jako cechę źródła,
-a nie jako lukę parsera.
+Substantive note to be recorded in the manuscript: Stoen does NOT distinguish the direction
+of power. The "Podstawa" column is the connection capacity irrespective of whether the
+installation is a demand-side or a generation installation. We map it to ``moc_pobierana``
+(according to the measured coverage matrix) and declare the lack of distinction as a feature
+of the source, not as a parser gap.
 """
 
 from __future__ import annotations
@@ -66,13 +66,13 @@ class StoenAdapter(Adapter):
         "data_publikacji",
     )
     declared_extensions = {
-        "_data_zaliczki": "data wpłaty zaliczki",
-        "_rodzaj_podmiotu": "rodzaj klienta (osoba prawna / fizyczna)",
-        "_miejscowosc": "miejscowość wydzielona z lokalizacji",
-        "_adres": "adres wydzielony z lokalizacji",
-        "_zestawienie": "który punkt art. 7 ust. 8l realizuje dany wiersz",
-        "_rodzaj_instalacji_raw": "rodzaj instalacji tak, jak w dokumencie",
-        "_status_raw": "status rozpatrywania wniosku tak, jak w dokumencie",
+        "_data_zaliczki": "date the deposit was paid",
+        "_rodzaj_podmiotu": "type of client (legal entity / natural person)",
+        "_miejscowosc": "locality extracted from the location",
+        "_adres": "address extracted from the location",
+        "_zestawienie": "which item of Art. 7(8l) a given row implements",
+        "_rodzaj_instalacji_raw": "installation type as given in the document",
+        "_status_raw": "application processing status as given in the document",
     }
     detect_patterns = (r"stoen",)
 
@@ -81,7 +81,7 @@ class StoenAdapter(Adapter):
 
     # ------------------------------------------------------------------
     def parse(self, source) -> ParseResult:
-        """``source``: ścieżka do jednego PDF albo lista ścieżek."""
+        """``source``: path to a single PDF or a list of paths."""
         import pandas as pd
 
         sources = [source] if isinstance(source, (str, bytes)) or hasattr(source, "read") \
@@ -94,7 +94,7 @@ class StoenAdapter(Adapter):
         df = pd.concat(frames, ignore_index=True) if frames else self.blank_frame(0)
         report = {
             "publikujacy": self.publisher,
-            "strategia_wydobycia": "ruled (siatka wektorowa), nagłówek dwupoziomowy",
+            "strategia_wydobycia": "ruled (vector grid), two-level header",
             "dokumenty": reports,
             "n_wierszy": int(len(df)),
             "data_publikacji": self.data_publikacji,
@@ -127,7 +127,7 @@ class StoenAdapter(Adapter):
                 if self.data_publikacji is None:
                     self.data_publikacji = _stan_na(page.extract_text() or "")
         if layout is None:
-            raise ValueError(f"nie rozpoznano układu zestawienia Stoen w {src!r}")
+            raise ValueError(f"could not recognize the Stoen listing layout in {src!r}")
 
         cols = LAYOUTS[layout]
         raw = pd.DataFrame(

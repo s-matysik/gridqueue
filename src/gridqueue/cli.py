@@ -1,4 +1,4 @@
-"""Interfejs wiersza poleceń: ``gridqueue parse | validate | export``."""
+"""Command-line interface: ``gridqueue parse | validate | export``."""
 
 from __future__ import annotations
 
@@ -40,7 +40,7 @@ def cmd_parse(args) -> int:
 
     key = args.adapter or (detect_publisher(args.source[0]) if args.source else None)
     if key is None:
-        print("nie rozpoznano publikującego; podaj --adapter", file=sys.stderr)
+        print("publisher not recognized; provide --adapter", file=sys.stderr)
         return 2
     adapter = get_adapter(key)
     source = args.source if len(args.source) > 1 else (args.source[0] if args.source else None)
@@ -107,34 +107,34 @@ def cmd_adapters(args) -> int:
 def build_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(
         prog="gridqueue",
-        description="Harmonizator ustawowych ujawnień przyłączeniowych (art. 7 ust. 8l PE)")
+        description="Harmonizer of statutory connection disclosures (Art. 7(8l) of the Energy Law)")
     ap.add_argument("--version", action="version", version=f"gridqueue {__version__}")
     sub = ap.add_subparsers(dest="cmd", required=True)
 
-    p = sub.add_parser("parse", help="sparsuj dokument publikującego do schematu")
-    p.add_argument("source", nargs="*", help="ścieżka(-i) do dokumentu; brak = pobierz z sieci")
-    p.add_argument("--adapter", choices=sorted(REGISTRY), help="wymuś adapter")
-    p.add_argument("--out", required=True, help="plik wyjściowy (.csv/.parquet/.json)")
-    p.add_argument("--report", help="plik raportu JSON")
+    p = sub.add_parser("parse", help="parse a publisher document into the schema")
+    p.add_argument("source", nargs="*", help="path(s) to the document; none = fetch from the network")
+    p.add_argument("--adapter", choices=sorted(REGISTRY), help="force an adapter")
+    p.add_argument("--out", required=True, help="output file (.csv/.parquet/.json)")
+    p.add_argument("--report", help="JSON report file")
     p.set_defaults(func=cmd_parse)
 
-    p = sub.add_parser("validate", help="waliduj zbiór wobec schematu i reguł jakości")
+    p = sub.add_parser("validate", help="validate a dataset against the schema and quality rules")
     p.add_argument("input")
-    p.add_argument("--out", help="plik raportu JSON")
+    p.add_argument("--out", help="JSON report file")
     p.set_defaults(func=cmd_validate)
 
-    p = sub.add_parser("export", help="złóż panel z wielu zbiorów")
+    p = sub.add_parser("export", help="assemble a panel from multiple datasets")
     p.add_argument("input", nargs="+")
     p.add_argument("--out", required=True)
     p.add_argument("--only-schema", action="store_true",
-                   help="pomiń rozszerzenia (kolumny z przedrostkiem _)")
+                   help="omit extensions (columns with the _ prefix)")
     p.set_defaults(func=cmd_export)
 
-    p = sub.add_parser("schema", help="wypisz specyfikację schematu")
+    p = sub.add_parser("schema", help="print the schema specification")
     p.add_argument("--out")
     p.set_defaults(func=cmd_schema)
 
-    p = sub.add_parser("adapters", help="wypisz deklaracje adapterów")
+    p = sub.add_parser("adapters", help="print adapter declarations")
     p.set_defaults(func=cmd_adapters)
     return ap
 

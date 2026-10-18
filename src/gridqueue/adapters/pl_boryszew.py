@@ -1,19 +1,19 @@
-"""Adapter: Boryszew Green Energy&Gas Sp. z o.o. (Elana, Toruń) -- mały OSD przemysłowy.
+"""Adapter: Boryszew Green Energy&Gas Sp. z o.o. (Elana, Toruń), a small industrial DSO.
 
-Publikacja jest 4-stronicowym dokumentem prozą z tabelami BEZ SIATKI LINIOWEJ.
-Nie ma tu żadnej struktury do odzyskania z linii -- granice kolumn istnieją tylko
-jako pionowe korytarze bieli.  Dlatego ten adapter używa strategii BANDED:
-wykrywa korytarze w rozkładzie pokrycia osi x, a wiersze wielolinijkowe scala po
-numerze porządkowym w pierwszej kolumnie.
+The publication is a 4-page prose document with tables WITHOUT A LINE GRID.
+There is no structure here to recover from lines; column boundaries exist only
+as vertical corridors of white space. Therefore this adapter uses the BANDED strategy:
+it detects corridors in the x-axis coverage distribution, and merges multi-line rows by
+the ordinal number in the first column.
 
-Dokument realizuje wszystkie cztery punkty art. 7 ust. 8l w osobnych sekcjach
-numerowanych w tekście.  Sekcje 1, 3 i 4 to encja WNIOSEK i trafiają do panelu.
-Sekcja 2 to encja WĘZEŁ (dostępna moc przyłączeniowa per stacja na 6 lat) --
-zwracamy ją osobno w raporcie, bo nie ma rdzenia wnioskowego i nie wolno jej
-mieszać z wierszami wnioskowymi bez łamania walidacji schematu.
+The document implements all four points of Art. 7(8l) in separate sections
+numbered in the text. Sections 1, 3 and 4 are the APPLICATION entity and go into the panel.
+Section 2 is the NODE entity (available connection capacity per station for 6 years);
+we return it separately in the report, because it has no application core and must not
+be mixed with application rows without breaking schema validation.
 
-Przypadek ten jest w korpusie istotny jako dolny kraniec jakości ujawnień:
-ten sam obowiązek ustawowy, publikacja bez żadnej struktury maszynowej.
+This case is significant in the corpus as the lower bound of disclosure quality:
+the same statutory duty, published without any machine-readable structure.
 """
 
 from __future__ import annotations
@@ -53,12 +53,12 @@ class BoryszewAdapter(Adapter):
         "data_energizacji", "data_publikacji",
     )
     declared_extensions = {
-        "_rodzaj_podmiotu": "określenie przyłączanego obiektu (osoba prawna/fizyczna)",
-        "_data_zaliczki": "data wpłaty zaliczki",
-        "_sekcja": "punkt art. 7 ust. 8l, z którego pochodzi wiersz",
-        "_rodzaj_instalacji_raw": "rodzaj instalacji tak, jak w dokumencie",
-        "_status_raw": "status rozpatrywania tak, jak w dokumencie",
-        "_uwaga_zrodlowa": "adnotacja publikującego (np. 'Nie dotyczy / istniejące przyłącze')",
+        "_rodzaj_podmiotu": "description of the connected entity (legal person/natural person)",
+        "_data_zaliczki": "date of the deposit payment",
+        "_sekcja": "the point of Art. 7(8l) that the row originates from",
+        "_rodzaj_instalacji_raw": "type of installation exactly as in the document",
+        "_status_raw": "processing status exactly as in the document",
+        "_uwaga_zrodlowa": "publisher's annotation (e.g. 'Nie dotyczy / istniejące przyłącze')",
     }
     detect_patterns = (r"boryszew", r"elana")
 
@@ -107,7 +107,7 @@ class BoryszewAdapter(Adapter):
 
         report = {
             "publikujacy": self.publisher,
-            "strategia_wydobycia": "banded (korytarze bieli; brak siatki liniowej)",
+            "strategia_wydobycia": "banded (white-space corridors; no line grid)",
             "strony": n_pages,
             "sekcje": per_section,
             "n_wierszy": int(len(df)),
@@ -121,7 +121,7 @@ class BoryszewAdapter(Adapter):
         import pandas as pd
 
         cols = LAYOUTS[sec]
-        # linie danych: od pierwszej zaczynającej się numerem porządkowym
+        # data lines: starting at the first one beginning with an ordinal number
         start = next((i for i, ln in enumerate(lines)
                       if ln and _RE_LP.match(ln[0]["text"])), None)
         if start is None:
@@ -134,11 +134,11 @@ class BoryszewAdapter(Adapter):
         n_raw = len(rows)
         width = max((len(r) for r in rows), default=0)
         if width != len(cols):
-            # dopasuj do deklarowanego układu: nadmiarowe kolumny doklej do ostatniej
+            # fit to the declared layout: append excess columns to the last one
             rows = [_fit(r, len(cols)) for r in rows]
         raw = pd.DataFrame([(r + [""] * len(cols))[: len(cols)] for r in rows], columns=cols)
         raw = raw.map(lambda v: re.sub(r"\s+", " ", str(v)).strip())
-        # odrzuć wiersze-zaślepki ("brak" we wszystkich polach poza Lp.)
+        # discard placeholder rows ("brak" in all fields except Lp.)
         body = raw.drop(columns=["lp"])
         keep = ~body.map(lambda v: norm_text(v) in {"", "brak", "-"}).all(axis=1)
         raw = raw[keep].reset_index(drop=True)
@@ -208,7 +208,7 @@ def _data_aktualizacji(text: str) -> Optional[str]:
 
 
 def _parse_wezly(lines: list[list[dict]]) -> list[dict]:
-    """Sekcja 2 (pkt 2): dostępna moc przyłączeniowa per stacja na 6 lat."""
+    """Section 2 (item 2): available connection capacity per station for 6 years."""
     out: list[dict] = []
     years: list[str] = []
     for ln in lines:

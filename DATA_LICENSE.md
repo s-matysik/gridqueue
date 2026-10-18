@@ -1,96 +1,96 @@
-# Status prawny kodu i danych
+# Legal status of the code and of the data
 
-Plik `LICENSE.txt` obejmuje **wyłącznie kod** tego pakietu. Dane, na których kod pracuje,
-i dane, które wytwarza, mają odrębny status i opisujemy go tutaj, bo pomylenie tych warstw
-jest realnym ryzykiem przy ponownym wykorzystaniu.
+The file `LICENSE.txt` covers **the code of this package only**. The data the code works on,
+and the data it produces, have a separate status, and we describe it here, because confusing those
+layers is a real risk on reuse.
 
-## 1. Kod pakietu
+## 1. The code of the package
 
-Apache-2.0, zgodnie z `LICENSE.txt`. Obejmuje `src/`, `tests/`, `examples/`,
-`reproducibility/` i `docs/`.
+Apache-2.0, in accordance with `LICENSE.txt`. It covers `src/`, `tests/`, `examples/`,
+`reproducibility/` and `docs/`.
 
-## 2. Dokumenty źródłowe publikujących
+## 2. The publishers' source documents
 
-Dokumenty wydawane przez operatorów na podstawie art. 7 ust. 8l ustawy Prawo energetyczne
-są **publikacjami urzędowymi wykonywanymi pod obowiązkiem ustawowym**. Pakiet ich
-**nie redystrybuuje**. `reproducibility/manifest.csv` podaje dla każdego dokumentu adres,
-datę pobrania, rozmiar i sumę kontrolną SHA-256, co pozwala **zweryfikować**, że pobrany
-plik jest tym samym, na którym liczono wyniki.
+The documents issued by the operators under Article 7(8l) of the Energy Law
+are **official publications made under a statutory duty**. The package
+**does not redistribute** them. For each document, `reproducibility/manifest.csv` gives the address,
+the date of download, the size and the SHA-256 checksum, which makes it possible to **verify** that
+the downloaded file is the same one on which the results were computed.
 
-Jest to weryfikacja, nie gwarancja odtworzenia. Obowiązek każe wymieniać publikację co
-najmniej raz na kwartał, więc plik pod danym adresem **bywa zastępowany nowszym**.
-Dokładne odtworzenie obliczeniowe jest zatem uwarunkowane dalszą dostępnością archiwalnych
-plików źródłowych u publikujących albo ich zarchiwizowaniem przez użytkownika.
+This is verification, not a guarantee of reproduction. The duty requires the publication to be
+replaced at least once per quarter, so the file at a given address **is sometimes superseded by a
+newer one**. Exact computational reproduction is therefore conditional on the continued availability
+of archival source files at the publishers, or on their being archived by the user.
 
-## 3. Gazeter geometryczny, OpenStreetMap
+## 3. The geometric gazetteer, OpenStreetMap
 
-Gazeter wykorzystywany przez rozwiązywacz lokalizacji pochodzi z OpenStreetMap i podlega
-**Open Database License 1.0**. Oznacza to dla użytkownika trzy obowiązki, których Apache-2.0
-nie obejmuje:
+The gazetteer used by the location resolver comes from OpenStreetMap and is subject to the
+**Open Database License 1.0**. For the user this means three duties that Apache-2.0
+does not cover:
 
-- **atrybucja**, wskazanie OpenStreetMap jako źródła przy każdej publikacji wyników
-  zawierających współrzędne;
-- **share-alike**, udostępnienie bazy pochodnej, jeśli jest publicznie dystrybuowana,
-  na tej samej licencji;
-- **brak ograniczeń technicznych**, nie wolno dystrybuować bazy pochodnej w sposób
-  uniemożliwiający odbiorcy korzystanie z niej na warunkach ODbL.
+- **attribution**, naming OpenStreetMap as the source in every publication of results
+  containing coordinates;
+- **share-alike**, making a derivative database available under the same licence if it is publicly
+  distributed;
+- **no technical restrictions**, a derivative database must not be distributed in a way that
+  prevents the recipient from using it on ODbL terms.
 
-Rozróżnienie istotne w praktyce: *produced work*, na przykład mapa albo tabela wyników -
-wymaga atrybucji, lecz nie uruchamia share-alike; *derivative database*, na przykład panel
-z doklejonymi współrzędnymi, udostępniany dalej, uruchamia share-alike.
+A distinction that matters in practice: a *produced work*, for example a map or a table of results,
+requires attribution but does not trigger share-alike; a *derivative database*, for example a panel
+with coordinates attached, made available onwards, does trigger share-alike.
 
-## 4. Panel wynikowy
+## 4. The resulting panel
 
-Panel wytworzony przez pakiet jest utworem pochodnym od obu powyższych warstw.
-W zakresie, w jakim zawiera **wartości wyprowadzone z gazetera** (pole `wspolrzedne`
-i kolumny diagnostyczne rozwiązywacza), podlega ODbL. W zakresie, w jakim zawiera
-wyłącznie treść przepisaną z dokumentów urzędowych, podlega statusowi tych dokumentów.
-Kolumna `_geo_pewnosc` pozwala te dwie warstwy rozdzielić: wiersze bez rozstrzygniętej
-lokalizacji nie zawierają żadnej treści pochodzącej z OpenStreetMap.
+The panel produced by the package is a work derived from both of the layers above.
+To the extent that it contains **values derived from the gazetteer** (the `wspolrzedne` field
+and the resolver's diagnostic columns), it is subject to ODbL. To the extent that it contains
+only content transcribed from official documents, it is subject to the status of those documents.
+The `_geo_pewnosc` column makes it possible to separate those two layers: rows with no resolved
+location contain no content originating from OpenStreetMap.
 
-## 5. Dane osobowe
+## 5. Personal data
 
-Ujawnienia dotyczą **podmiotów ubiegających się o przyłączenie**, a pole nazwy podmiotu
-zawiera w zdecydowanej większości firmy spółek prawa handlowego. Ustawa nie wyłącza
-jednak osób fizycznych prowadzących działalność, więc nie twierdzimy, że dane osobowe
-w korpusie nie występują.
+The disclosures concern **entities applying for a connection**, and the entity name field
+contains, in the vast majority, the business names of commercial-law companies. The statute does not,
+however, exclude natural persons conducting a business activity, so we do not claim that personal data
+do not occur in the corpus.
 
-Pakiet **nie wykonuje re-identyfikacji** i nie wzbogaca rekordów danymi o osobach
-z żadnego innego źródła. Rozwiązywacz lokalizacji działa na nazwie miejscowości i ulicy
-podanej w dokumencie, nigdy na nazwie podmiotu. Odpowiedzialność za zgodne z prawem
-dalsze wykorzystanie wyjścia, w tym za ewentualną ocenę skutków dla ochrony danych,
-spoczywa na użytkowniku.
+The package **performs no re-identification** and does not enrich the records with data about persons
+from any other source. The location resolver works on the name of the locality and street
+given in the document, never on the name of the entity. Responsibility for lawful
+further use of the output, including for any data protection impact assessment,
+rests with the user.
 
 
-## Dlaczego dokumenty źródłowe nie są dołączone do repozytorium
+## Why the source documents are not included in the repository
 
-Repozytorium zawiera **manifest** dokumentów (adres, data pobrania, rozmiar,
-suma SHA-256) oraz skrypt `reproducibility/fetch_sources.py`, który je pobiera
-i weryfikuje. Nie zawiera samych dokumentów. Powody są dwa i oba są praktyczne,
-a nie ostrożnościowe.
+The repository contains a **manifest** of the documents (address, date of download, size,
+SHA-256 checksum) and the script `reproducibility/fetch_sources.py`, which downloads them
+and verifies them. It does not contain the documents themselves. There are two reasons and both are
+practical rather than precautionary.
 
-**Po pierwsze, statusu prawnego redystrybucji nie rozstrzygamy.** Polskie prawo
-autorskie wyłącza z ochrony materiały urzędowe, ale ujawnienia, o których mowa,
-sporządzają i publikują spółki prowadzące działalność gospodarczą, wykonując
-obowiązek ustawowy, a to, czy mieszczą się one w tej kategorii, nie jest
-przesądzone. Niezależnie od prawa autorskiego do zbiorów danych może mieć
-zastosowanie ochrona *sui generis*. Nie jesteśmy w stanie tego rozstrzygnąć
-i nie udajemy, że jesteśmy; zespół zamierzający dołączyć dokumenty do
-publikacji powinien uzyskać opinię prawną.
+**First, we do not settle the legal status of redistribution.** Polish copyright
+law excludes official materials from protection, but the disclosures in question
+are compiled and published by companies conducting a business activity, discharging
+a statutory duty, and whether they fall within that category is not
+settled. Independently of copyright, *sui generis* protection may apply
+to databases. We are not in a position to settle this
+and we do not pretend to be; a team intending to include the documents in
+a publication should obtain a legal opinion.
 
-**Po drugie, dokumenty są wymieniane.** Obowiązek wyznacza co najmniej
-kwartalną aktualizację, więc kopia złożona w repozytorium po kilku miesiącach
-przedstawiałaby stan, którego już nie ma, i byłaby myląca tym bardziej, im
-bardziej wyglądałaby na aktualną.
+**Second, the documents are replaced.** The duty requires an update at least
+quarterly, so a copy deposited in the repository would, after a few months,
+present a state that no longer exists, and would be the more misleading the
+more current it looked.
 
-Konsekwencję trzeba powiedzieć wprost, bo jest niewygodna: **odtworzenie co do
-bajtu przestaje być możliwe, gdy publikujący wymieni albo przeniesie dokument.**
-Podczas przygotowania wydania 1.3.0 odsyłacz do ujawnienia jednego z operatorów
-przestał prowadzić do pliku i zaczął zwracać stronę serwisu, skrypt pobierający
-rozpoznaje ten przypadek i zgłasza go osobno, zamiast zapisać stronę jako
-dokument. Dlatego sumy kontrolne są w manifeście: niezgodność jest sygnałem, że
-liczby nie będą identyczne z opublikowanymi, a nie usterką do zignorowania.
+The consequence has to be stated openly, because it is inconvenient: **byte-for-byte
+reproduction ceases to be possible once a publisher replaces or moves a document.**
+While release 1.3.0 was being prepared, the link to the disclosure of one of the operators
+stopped leading to the file and began returning a page of the service; the download script
+recognizes that case and reports it separately instead of saving the page as
+a document. That is why the checksums are in the manifest: a mismatch is a signal that
+the figures will not be identical with the published ones, not a fault to be ignored.
 
-Zespołowi przygotowującemu publikację zalecamy **depozyt dokumentów w archiwum
-z trwałym identyfikatorem**, o ile opinia prawna na to pozwoli. Jest to jedyny
-sposób, by odsyłacz w artykule prowadził do tego, co faktycznie analizowano.
+To a team preparing a publication we recommend a **deposit of the documents in an archive
+with a permanent identifier**, provided a legal opinion permits it. That is the only
+way for the link in the paper to lead to what was actually analysed.
