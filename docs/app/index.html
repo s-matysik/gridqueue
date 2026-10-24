@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>gridqueue, run it in your browser</title>
-<meta name="description" content="Turn a statutory grid connection disclosure into a harmonised, row level table. Runs entirely in your browser.">
+<meta name="description" content="Turn statutory grid connection disclosures into harmonised rows, quality checks, analyses and charts. Runs entirely in your browser.">
 <meta name="color-scheme" content="light dark">
 <style>
 :root{
@@ -212,9 +212,56 @@ footer{margin-top:60px;padding-top:24px;border-top:1px solid var(--line);
   .stat .v{font-size:26px}
   .pipe{padding:18px 14px}
 }
+
+/* ---------- v1.6 additions ---------- */
+.slots{display:grid;grid-template-columns:1.4fr 1fr;gap:16px}
+@media (max-width:860px){.slots{grid-template-columns:1fr}}
+.slot{padding:18px 20px}
+.slot h3{font-size:15.5px;margin:0 0 4px;letter-spacing:-.01em}
+.slot .small{margin:0 0 12px}
+.dropzone.mini{padding:26px 16px}
+.dropzone.mini .dz-icon{width:40px;height:40px;border-radius:12px;margin-bottom:10px}
+.dropzone.mini .dz-icon svg{width:20px;height:20px}
+.dropzone.mini .big{font-size:16px}
+.chips{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0 0;min-height:4px}
+.chip{font-size:12.5px;padding:4px 10px;border-radius:999px;background:var(--brand-soft);color:var(--brand-ink);
+      border:1px solid var(--line-2);display:inline-flex;gap:6px;align-items:center}
+.chip button{all:unset;cursor:pointer;font-weight:700;opacity:.7}
+.opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px 18px;margin:16px 0 0}
+.opts label{font-size:12.5px;font-weight:650;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3);display:block;margin-bottom:5px}
+.opts select,.opts input{font:inherit;font-size:14.5px;width:100%;padding:9px 11px;border-radius:10px;
+      border:1px solid var(--line);background:var(--surface-solid);color:var(--ink)}
+.charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(460px,1fr));gap:18px}
+@media (max-width:560px){.charts{grid-template-columns:1fr}}
+.chart{padding:14px 14px 12px;border-radius:var(--r);margin:0}
+.chart.wide{grid-column:1/-1}
+.chart img{display:block;width:100%;height:auto;border-radius:10px;background:#fff}
+.chart figcaption{font-size:13.5px;color:var(--ink-2);margin:10px 4px 8px}
+.chart .btnrow .btn{font-size:13px;padding:7px 12px}
+.skip{font-size:14px;color:var(--ink-3);margin:14px 0 0;padding-left:18px}
+table.parity td:nth-child(n+2),table.parity th:nth-child(n+2){text-align:center;white-space:nowrap}
+.y{color:var(--ok);font-weight:700}.n{color:var(--ink-3)}.p{color:var(--warn);font-weight:650}
+.twocol{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media (max-width:860px){.twocol{grid-template-columns:1fr}}
+
+/* ---------- simple / full mode ---------- */
+body.mode-simple .full-only{display:none !important}
+body.mode-full .simple-only{display:none !important}
+.modebar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:0 0 18px}
+.seg{display:inline-flex;padding:4px;border-radius:999px;background:var(--surface);border:1px solid var(--line);gap:4px}
+.seg button{all:unset;cursor:pointer;font-size:14px;font-weight:650;padding:8px 16px;border-radius:999px;color:var(--ink-2)}
+.seg button[aria-pressed="true"]{background:var(--brand);color:#fff;box-shadow:0 2px 10px rgba(79,70,229,.25)}
+.seg button:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.heads{list-style:none;margin:0 0 18px;padding:18px 22px;display:grid;gap:9px}
+.heads li{font-size:16.5px;line-height:1.45;color:var(--ink);padding-left:26px;position:relative}
+.heads li::before{content:"";position:absolute;left:4px;top:.55em;width:9px;height:9px;border-radius:3px;
+  background:linear-gradient(135deg,var(--brand),var(--brand-2))}
+.chart .plain{font-size:15px;color:var(--ink);margin:12px 4px 6px;line-height:1.45}
+.dropzone.hero-drop{padding:54px 20px}
+.dropzone.hero-drop .big{font-size:21px}
 </style>
 </head>
-<body>
+<body class="mode-simple">
 <div class="aurora" aria-hidden="true"><i></i><i></i><i></i></div>
 <div class="wrap">
 
@@ -223,12 +270,13 @@ footer{margin-top:60px;padding-top:24px;border-top:1px solid var(--line);
     <span class="pill"><span class="d"></span>Runs locally, nothing is uploaded</span>
     <span class="pill">Open source, Apache 2.0</span>
     <span class="pill">Nine publishers, five jurisdictions</span>
+    <span class="pill">Analyses and charts included</span>
   </div>
   <h1>Grid connection registers, <span class="grad">as data you can use</span></h1>
   <p class="lede">Network operators across the European Union must publish the connection capacity
   available at each node, at least quarterly. Most publish it as documents built for printing.
-  <b>Drop one below and get harmonised rows back,</b> with no installation and no upload.</p>
-
+  <b>Drop them below and get harmonised rows, quality checks, analyses and charts back,</b>
+  with no installation and no upload.</p>
   <figure class="pipe">
   <svg viewBox="0 0 920 150" role="img" aria-label="Pipeline: a published document goes through a publisher specific adapter into a 21 field schema, producing rows and a quality report">
     <defs>
@@ -265,8 +313,8 @@ footer{margin-top:60px;padding-top:24px;border-top:1px solid var(--line);
       <g>
         <rect x="702" y="34" width="210" height="82" rx="15" fill="var(--surface-solid)" stroke="var(--line)"/>
         <text x="807" y="66" font-size="14.5" font-weight="650" fill="var(--ink)">Rows you can analyse</text>
-        <text x="807" y="86" font-size="12.5" fill="var(--ink-3)">plus eight quality rules</text>
-        <text x="807" y="103" font-size="12.5" fill="var(--ink-3)">and a validation report</text>
+        <text x="807" y="86" font-size="12.5" fill="var(--ink-3)">quality rules, analyses</text>
+        <text x="807" y="103" font-size="12.5" fill="var(--ink-3)">and charts</text>
       </g>
       <text x="460" y="142" font-size="12" fill="var(--ink-3)" letter-spacing=".06em">
         EVERY STEP RUNS INSIDE THIS BROWSER TAB
@@ -276,7 +324,6 @@ footer{margin-top:60px;padding-top:24px;border-top:1px solid var(--line);
   <figcaption>The schema is the invariant part. Adapters are the part that differs per publisher,
   which is why adding a tenth publisher does not change anything downstream of it.</figcaption>
   </figure>
-
 </header>
 
 <section>
@@ -285,22 +332,22 @@ footer{margin-top:60px;padding-top:24px;border-top:1px solid var(--line);
       <path d="M12 3l7 3v6c0 4.2-2.9 7.8-7 9-4.1-1.2-7-4.8-7-9V6l7-3z" stroke-linejoin="round"/>
       <path d="M9.2 12.2l2 2 3.6-3.9" stroke-linecap="round" stroke-linejoin="round"/>
     </svg>
-    <p><b>Your document never leaves this computer.</b> The page loads the real
+    <p><b>Your documents never leave this computer.</b> The page loads the real
     <span class="mono">gridqueue</span> package into a Python interpreter compiled to WebAssembly and
-    runs it locally. There is no server to upload anything to. It is the same package, at the same
-    version, that produced the results in the accompanying article, so what you see here matches the
-    command line output by construction.</p>
+    runs it locally. There is no server to upload anything to. The charts are drawn by the same
+    <span class="mono">gridqueue.plots</span> functions as on the command line and in the notebook,
+    from the same numbers, so they match by construction.</p>
   </div>
 
   <div class="glass boot" id="boot">
     <div class="title"><span id="bootBadge" class="badge run">Starting</span>
       <span id="bootTitle">Preparing the interpreter</span></div>
-    <p class="hint" id="bootHint">First run downloads the interpreter and the libraries, about 30 MB.
+    <p class="hint" id="bootHint">First run downloads the interpreter and the libraries, about 45 MB.
       Later visits start from the browser cache.</p>
     <div class="bar"><i id="bar"></i></div>
     <ul class="steps" id="steps">
       <li data-step="0"><span class="dot"></span>WebAssembly interpreter</li>
-      <li data-step="1"><span class="dot"></span>Data and imaging libraries</li>
+      <li data-step="1"><span class="dot"></span>Data, imaging and charting libraries</li>
       <li data-step="2"><span class="dot"></span>PDF and spreadsheet readers</li>
       <li data-step="3"><span class="dot"></span>gridqueue package</li>
     </ul>
@@ -309,42 +356,104 @@ footer{margin-top:60px;padding-top:24px;border-top:1px solid var(--line);
 </section>
 
 <section>
-  <h2>Give it a document</h2>
-  <div class="dropzone" id="drop" role="button" tabindex="0" aria-disabled="true"
-       aria-label="Drop a disclosure file, or click to choose one">
-    <div class="dz-icon">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-        <path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M4 15v3.5A1.5 1.5 0 005.5 20h13a1.5 1.5 0 001.5-1.5V15" stroke-linecap="round"/>
-      </svg>
+  <h2>Give it documents</h2>
+  <div class="modebar">
+    <div class="seg" role="group" aria-label="View">
+      <button id="mSimple" aria-pressed="true">Simple, with charts</button>
+      <button id="mFull" aria-pressed="false">Full, every option</button>
     </div>
-    <p class="big" id="dropBig">Drop a disclosure file here</p>
-    <p class="sub" id="dropSub">PDF, XLSX or CSV, as published by one of the nine supported publishers</p>
-    <input type="file" id="file" accept=".pdf,.xlsx,.xls,.csv" class="vis-hidden">
+    <span class="small simple-only">Drop the published documents. The page recognises the publisher and, for two
+    editions of one register, compares them. You get the main charts and one download.</span>
+    <span class="small full-only">Every input and option: later edition, gazetteer, adapter, group size, and every table.</span>
   </div>
 
-  <div class="or">or</div>
+  <div class="glass slot simple-only">
+    <div class="dropzone hero-drop" id="dropS" role="button" tabindex="0" aria-disabled="true"
+         aria-label="Drop disclosure files, or click to choose them">
+      <div class="dz-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M4 15v3.5A1.5 1.5 0 005.5 20h13a1.5 1.5 0 001.5-1.5V15" stroke-linecap="round"/></svg></div>
+      <p class="big" id="dropSBig">Preparing, one moment</p>
+      <p class="sub">PDF or XLSX as published: one disclosure, all documents of one edition, or two editions</p>
+      <input type="file" id="fileS" accept=".pdf,.xlsx,.xls,.csv" multiple class="vis-hidden">
+    </div>
+    <div class="chips" id="chipsS"></div>
+    <div class="btnrow" style="margin-top:14px">
+      <button id="demoS" class="btn" disabled>Try it on synthetic data</button>
+      <button id="demoS2" class="btn" disabled>Try two synthetic editions</button>
+    </div>
+  </div>
 
-  <div class="btnrow">
-    <button id="demo" class="btn" disabled>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true">
-        <path d="M8 5.5v13l10-6.5-10-6.5z" stroke-linejoin="round"/></svg>
-      Run a synthetic example
-    </button>
-    <span class="small">No real disclosure needed. Shows the schema and the eight quality rules.</span>
+  <div class="slots full-only">
+    <div class="glass slot">
+      <h3>Disclosure documents</h3>
+      <p class="small">One or more files: several documents of one edition (ENERGA, PSE and Stoen
+      split theirs), or editions of several publishers, which are stacked into one panel.</p>
+      <div class="dropzone" id="dropA" role="button" tabindex="0" aria-disabled="true"
+           aria-label="Drop disclosure files, or click to choose them">
+        <div class="dz-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M4 15v3.5A1.5 1.5 0 005.5 20h13a1.5 1.5 0 001.5-1.5V15" stroke-linecap="round"/></svg></div>
+        <p class="big" id="dropBig">Preparing, one moment</p>
+        <p class="sub">PDF, XLSX or CSV, as published, several at once</p>
+        <input type="file" id="fileA" accept=".pdf,.xlsx,.xls,.csv" multiple class="vis-hidden">
+      </div>
+      <div class="chips" id="chipsA"></div>
+    </div>
+    <div style="display:grid;gap:16px">
+      <div class="glass slot">
+        <h3>Later edition <span class="small">(optional)</span></h3>
+        <p class="small">The same register at a later date. Adds flows, status transitions and the
+        linkage audit between the two editions.</p>
+        <div class="dropzone mini" id="dropB" role="button" tabindex="0" aria-disabled="true">
+          <div class="dz-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg></div>
+          <p class="big">Drop the later edition</p>
+          <input type="file" id="fileB" accept=".pdf,.xlsx,.xls,.csv" multiple class="vis-hidden">
+        </div>
+        <div class="chips" id="chipsB"></div>
+      </div>
+      <div class="glass slot">
+        <h3>Gazetteer <span class="small">(optional)</span></h3>
+        <p class="small">A JSON gazetteer with coordinates, in the layout read by
+        <span class="mono">resolver_from_gazeter_json</span>. Adds coordinates and the reason
+        wherever none can be given.</p>
+        <div class="dropzone mini" id="dropG" role="button" tabindex="0" aria-disabled="true">
+          <div class="dz-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-6-5.3-6-10a6 6 0 1112 0c0 4.7-6 10-6 10z"/><circle cx="12" cy="11" r="2"/></svg></div>
+          <p class="big">Drop a gazetteer JSON</p>
+          <input type="file" id="fileG" accept=".json" class="vis-hidden">
+        </div>
+        <div class="chips" id="chipsG"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="glass slot full-only" style="margin-top:16px">
+    <div class="opts">
+      <div><label for="adapter">Adapter</label><select id="adapter"><option value="auto">detect from the file</option></select></div>
+      <div><label for="labA">Label of the edition</label><input id="labA" placeholder="e.g. 2026-07-31"></div>
+      <div><label for="labB">Label of the later edition</label><input id="labB" placeholder="e.g. 2026-08-31"></div>
+      <div><label for="minn">Minimum group size, curves</label><input id="minn" type="number" value="30" min="5"></div>
+    </div>
+    <div class="btnrow" style="margin-top:18px">
+      <button id="run" class="btn primary" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><path d="M8 5.5v13l10-6.5-10-6.5z" stroke-linejoin="round"/></svg>
+        Analyse the documents</button>
+      <button id="demo" class="btn" disabled>Synthetic panel</button>
+      <button id="demo2" class="btn" disabled>Synthetic two editions</button>
+      <span class="small">The synthetic data are generated by <span class="mono">gridqueue.examples</span>
+      and describe no real grid.</span>
+    </div>
   </div>
 
   <div class="callout note" style="margin-top:28px">
     <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
       <circle cx="12" cy="12" r="9"/><path d="M12 7.6v5.2" stroke-linecap="round"/>
-      <circle cx="12" cy="16.4" r="1" fill="currentColor" stroke="none"/>
-    </svg>
+      <circle cx="12" cy="16.4" r="1" fill="currentColor" stroke="none"/></svg>
     <p><b>No sample document ships with this page.</b> The disclosures are produced by commercial
     undertakings discharging a statutory duty, their status for redistribution is unsettled, and
     publishers replace them at least quarterly, so a bundled copy would misrepresent the register
     within months. Fetch a current edition from the publisher instead.</p>
   </div>
-
   <ul class="pub">
     <li><span class="cc">PL</span><a href="https://www.pse.pl" rel="noopener">PSE</a></li>
     <li><span class="cc">PL</span><a href="https://www.tauron-dystrybucja.pl" rel="noopener">TAURON Dystrybucja</a></li>
@@ -357,25 +466,57 @@ footer{margin-top:60px;padding-top:24px;border-top:1px solid var(--line);
     <li><span class="cc">GB</span><a href="https://connecteddata.nationalgrid.co.uk" rel="noopener">National Grid</a></li>
   </ul>
   <p class="small" style="margin-top:14px">Detection uses the file name first and, for PDFs, the text
-  of the first page. Keep the name the publisher gave the file.</p>
+  of the first page. Keep the name the publisher gave the file, or choose the adapter above. A CSV
+  written by gridqueue itself is read with the adapter <span class="mono">harmonised table</span>.</p>
 </section>
 
 <div id="out" hidden>
 <section>
   <h2>Result</h2>
-  <div class="stats" id="stats"></div>
+  <ul class="heads glass simple-only" id="heads"></ul>
+  <div class="stats full-only" id="stats"></div>
   <div class="btnrow">
-    <button id="dlcsv" class="btn primary" disabled>
+    <button id="dlzip" class="btn primary">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true">
-        <path d="M12 4v11m0 0l-4-4m4 4l4-4" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M5 19h14" stroke-linecap="round"/></svg>
-      Harmonised table, CSV
-    </button>
-    <button id="dljson" class="btn" disabled>Validation report, JSON</button>
+        <path d="M12 4v11m0 0l-4-4m4 4l4-4" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 19h14" stroke-linecap="round"/></svg>
+      Everything, ZIP (charts 300 dpi PNG + SVG, data, report)</button>
+    <button id="dlcsv" class="btn">Harmonised table, CSV</button>
+    <button id="toFull" class="btn simple-only">See every table and option</button>
+    <button id="dlxlsx" class="btn">Workbook, XLSX</button>
+    <button id="dljson" class="btn full-only">Report, JSON</button>
   </div>
 </section>
 
 <section>
+  <h2>Charts</h2>
+  <div class="charts" id="charts"></div>
+  <ul class="skip" id="skipped"></ul>
+</section>
+
+<section id="secCmp" class="full-only" hidden>
+  <h2>Two editions</h2>
+  <div class="stats" id="cmpstats"></div>
+  <div class="glass tablecard"><div class="tablescroll"><table id="ttab"></table></div>
+    <div class="tfoot">Status transitions among linked rows: rows are the earlier edition, columns the later one.</div></div>
+</section>
+
+<section class="full-only">
+  <h2>Analyses</h2>
+  <div class="twocol">
+    <div>
+      <p class="small">Time from application to connection conditions, per resource class
+      (Kaplan-Meier, open applications censored at the as-at date, 95 % Greenwood interval of the median).</p>
+      <div class="glass tablecard"><div class="tablescroll"><table id="kmtab"></table></div></div>
+    </div>
+    <div>
+      <p class="small">Node loading: requested capacity of the active queue over the declared free
+      capacity. Undefined where the publisher declares zero free capacity.</p>
+      <div class="glass tablecard"><div class="tablescroll"><table id="nltab"></table></div></div>
+    </div>
+  </div>
+</section>
+
+<section class="full-only">
   <h2>Harmonised rows</h2>
   <div class="glass tablecard">
     <div class="tablescroll"><table id="tab"></table></div>
@@ -383,27 +524,52 @@ footer{margin-top:60px;padding-top:24px;border-top:1px solid var(--line);
   </div>
 </section>
 
-<section>
-  <h2>Quality rules</h2>
+<section class="full-only">
+  <h2>Quality, validation and column shift</h2>
   <p class="small">Every rule returns a count, never an exception. A violation is a property of the
   disclosure, not a fault in the software, which is why the count is reported rather than raised.</p>
   <div class="glass tablecard"><div class="tablescroll"><table id="qtab"></table></div></div>
+  <div class="twocol" style="margin-top:16px">
+    <div class="glass tablecard"><div class="tablescroll"><table id="vtab"></table></div><div class="tfoot">Schema validation, <span class="mono">validate_frame</span></div></div>
+    <div class="glass tablecard"><div class="tablescroll"><table id="stab"></table></div><div class="tfoot">Column shift audit, <span class="mono">audit_column_shift</span></div></div>
+  </div>
 </section>
 
-<section>
+<section class="full-only">
   <h2>Parse report</h2>
-  <p class="small">Returned verbatim by the adapter, including whatever it could not resolve.</p>
+  <p class="small">Returned verbatim by each adapter call, including whatever it could not resolve.</p>
   <div class="glass tablecard"><div class="tablescroll"><table id="rtab"></table></div></div>
 </section>
 </div>
 
 <section>
-  <h2>What this page will not do</h2>
-  <p>It handles one document at a time. It does not geocode, because the gazetteer is too large to
-  send to a browser, does not compare editions over time, and does not export Parquet. For those,
-  install the package with <span class="mono">pip install gridqueue</span>, or open the
-  <a href="../colab.html">Colab notebook</a>, which reproduces the longitudinal analysis from the
-  article and stops if the figures disagree with the published ones.</p>
+  <h2>What runs where</h2>
+  <p>The page, the notebook and the command line are three ways into one package. What the page
+  cannot do follows from the browser, not from a reduced copy of the code.</p>
+  <div class="glass tablecard"><div class="tablescroll"><table class="parity">
+  <thead><tr><th>Function</th><th>Python library</th><th>Command line</th><th>Colab</th><th>This page</th></tr></thead>
+  <tbody>
+  <tr><td>Parse a disclosure, nine adapters</td><td class="y">yes</td><td class="y">yes</td><td class="y">yes</td><td class="y">yes</td></tr>
+  <tr><td>Several files and publishers in one panel</td><td class="y">yes</td><td class="y">yes</td><td class="y">yes</td><td class="y">yes</td></tr>
+  <tr><td>Fetch a disclosure from the publisher's server</td><td class="y">yes</td><td class="y">yes</td><td class="y">yes</td><td class="n">no<sup>1</sup></td></tr>
+  <tr><td>Schema validation, eight quality rules, column shift audit</td><td class="y">yes</td><td class="y">yes</td><td class="y">yes</td><td class="y">yes</td></tr>
+  <tr><td>Coordinates from a gazetteer, with the reason where there are none</td><td class="y">yes</td><td class="n">no</td><td class="y">yes</td><td class="y">yes<sup>2</sup></td></tr>
+  <tr><td>Processing time, Kaplan-Meier with censoring</td><td class="y">yes</td><td class="p">charts</td><td class="y">yes</td><td class="y">yes</td></tr>
+  <tr><td>Node loading against declared free capacity</td><td class="y">yes</td><td class="p">charts</td><td class="y">yes</td><td class="y">yes</td></tr>
+  <tr><td>Two editions: flows, transitions, linkage precision and sensitivity</td><td class="y">yes</td><td class="y">yes</td><td class="y">yes</td><td class="y">yes</td></tr>
+  <tr><td>Charts, eleven kinds, PNG and SVG</td><td class="y">yes</td><td class="y">yes</td><td class="y">yes</td><td class="y">yes</td></tr>
+  <tr><td>Export CSV, XLSX, JSON</td><td class="y">yes</td><td class="y">yes</td><td class="y">yes</td><td class="y">yes</td></tr>
+  <tr><td>Simple view: drop documents, get the main charts</td><td class="n">n/a</td><td class="n">n/a</td><td class="n">n/a</td><td class="y">yes</td></tr>
+  <tr><td>Export Parquet</td><td class="y">yes</td><td class="y">yes</td><td class="y">yes</td><td class="n">no<sup>3</sup></td></tr>
+  <tr><td>Reproduce the article's longitudinal figures, with a check</td><td class="y">yes</td><td class="y">yes</td><td class="y">yes</td><td class="p">manual</td></tr>
+  </tbody></table></div>
+  <div class="tfoot"><sup>1</sup> Publishers' servers do not allow requests from other web pages
+  (CORS), so the page cannot download for you; download the file and drop it here.
+  <sup>2</sup> With a gazetteer you provide; the national gazetteers are too large to ship with a web page.
+  <sup>3</sup> The Parquet engine has no WebAssembly build; use the CSV or XLSX export, or the notebook.</div></div>
+  <p class="small" style="margin-top:16px">For everything at once, open the
+  <a href="https://colab.research.google.com/github/s-matysik/gridqueue/blob/main/notebooks/gridqueue_colab.ipynb">Colab notebook</a>,
+  or install the package with <span class="mono">pip install "gridqueue[plot] @ git+https://github.com/s-matysik/gridqueue@v1.6.0"</span>.</p>
 </section>
 
 <footer>
@@ -411,50 +577,339 @@ footer{margin-top:60px;padding-top:24px;border-top:1px solid var(--line);
   <a href="../">Documentation</a>
   <span id="vers" class="mono"></span>
 </footer>
-
 </div>
 
+<script type="text/python" id="bridge">
+import io, json, os, base64, zipfile, tempfile
+os.environ.setdefault("MPLBACKEND", "agg")
+import pandas as pd
+import gridqueue as G
+from gridqueue import plots as P, examples as X
+
+_STATE = {}
+
+def _clean(v):
+    if isinstance(v, dict):
+        return {str(k): _clean(x) for k, x in v.items()}
+    if isinstance(v, (list, tuple)):
+        return [_clean(x) for x in v]
+    if isinstance(v, float) and v != v:
+        return None
+    if isinstance(v, (str, int, float, bool)) or v is None:
+        return v
+    try:
+        import numpy as np
+        if isinstance(v, np.generic):
+            return _clean(v.item())
+    except Exception:
+        pass
+    return str(v)
+
+def _records(df, n=None):
+    d = df if n is None else df.head(n)
+    d = d.astype(object).where(pd.notna(d), None)
+    return _clean(d.to_dict("records"))
+
+def _load(paths, adapter):
+    if not paths:
+        return None, []
+    if adapter == "harmonised":
+        frames = [pd.read_csv(p, low_memory=False) if p.lower().endswith(".csv") else pd.read_excel(p)
+                  for p in paths]
+        return pd.concat(frames, ignore_index=True), [
+            {"adapter": "harmonised table", "files": [os.path.basename(p)], "rows": int(len(f)), "report": {}}
+            for p, f in zip(paths, frames)]
+    return G.parse_sources(paths, adapter=None if adapter in ("", "auto") else adapter)
+
+def _png(fig, dpi=150):
+    b = io.BytesIO()
+    fig.savefig(b, format="png", dpi=dpi, bbox_inches="tight", facecolor="white")
+    return b.getvalue()
+
+def _svg(fig):
+    b = io.StringIO()
+    fig.savefig(b, format="svg", bbox_inches="tight", facecolor="white")
+    return b.getvalue()
+
+CAPTIONS = {
+  "overview": "First look: field coverage, quality rules, stage of the proceeding and requested capacity.",
+  "field_coverage": "Share of rows in which each schema field is populated; '-' marks a field the publisher does not disclose.",
+  "quality_rules": "Violations of the eight quality rules, evaluated per publisher. A count of disclosure defects, not software errors.",
+  "column_shift": "Rows in which a value stands in a field it cannot belong to. Zero is the expected result of a correct extraction.",
+  "status_distribution": "Applications by stage of the proceeding, as shares within each publisher.",
+  "capacity_by_class": "Requested capacity of applications still in the queue, by resource class and voltage level.",
+  "processing_time": "Kaplan-Meier curves of the time to connection conditions; open applications are censored at the as-at date, not dropped.",
+  "node_loading_generation": "Requested generation capacity of the active queue over the declared free capacity of each node.",
+  "node_loading_demand": "Requested demand capacity of the active queue over the declared free capacity of each node.",
+  "location_resolution": "Where a coordinate comes from, and the stated reason where there is none.",
+  "edition_comparison": "Two editions: flows of rows, status transitions among linked rows, and linkage precision and sensitivity.",
+}
+
+# Plain-language captions for the simple view: what the chart answers, not how it is built.
+PLAIN = {
+  "edition_comparison": "What changed between the two editions: applications that appeared, applications that disappeared, and applications that moved to another stage.",
+  "status_distribution": "Where the applications stand: still waiting, conditions issued, contract signed, or refused.",
+  "capacity_by_class": "How much capacity is being asked for, and for what: solar, wind, storage or consumers.",
+  "processing_time": "How long applicants wait for connection conditions. Each curve falls as applications get their conditions; the dot marks the day by which half of them had.",
+  "node_loading_generation": "Where the grid is full for new generation: a bar above the dashed line is a node where the queue already asks for more than the operator declares free.",
+  "node_loading_demand": "Where the grid is full for new consumers: a bar above the dashed line is a node where the queue already asks for more than the operator declares free.",
+  "quality_rules": "Defects in the published document itself, such as dates in the wrong order or duplicate identifiers. They are counted, not corrected.",
+  "field_coverage": "What the publisher discloses and what it leaves out.",
+}
+SIMPLE_ORDER = ["edition_comparison", "status_distribution", "capacity_by_class", "processing_time",
+                "node_loading_generation", "node_loading_demand", "quality_rules", "field_coverage"]
+
+def _coverage(df):
+    app = df[df["_encja"].fillna("WNIOSEK") != "WEZEL"] if "_encja" in df else df
+    return min(float(app[c].notna().mean()) if c in app and len(app) else 0.0 for c in ("data_wniosku", "data_warunkow"))
+
+def _headlines(df, km, nodes, cmp_, min_cov):
+    """Short sentences with the main numbers, for the simple view. Every number is computed."""
+    out = []
+    app = df[df["_encja"].fillna("WNIOSEK") != "WEZEL"] if "_encja" in df else df
+    pubs = [P.publisher_label(p) for p in app["publikujacy"].dropna().unique()] if "publikujacy" in app else []
+    asat = sorted(app["data_publikacji"].dropna().astype(str).unique()) if "data_publikacji" in app else []
+    out.append(f"{len(app):,} applications" + (f" from {', '.join(pubs)}" if pubs else "")
+               + (f", as at {asat[-1]}" if asat else "") + ".")
+    if "status_procesu" in app:
+        act = app[app["status_procesu"].isin(P.ACTIVE_STATUSES)]
+        gen = act[~act["klasa_zasobu"].isin(["ODB", "SIEC"])] if "klasa_zasobu" in act else act
+        w = pd.to_numeric(gen["moc_wprowadzana"], errors="coerce") if "moc_wprowadzana" in gen else pd.Series(dtype=float)
+        if len(act):
+            mw = float(w[w > 0].sum()) / 1000.0 if len(w) else 0.0
+            out.append(f"{len(act):,} are still in the queue" + (
+                f"; generation and storage in the queue ask to feed in {mw:,.0f} MW." if mw > 0 else "."))
+    if len(km) and _coverage(df) >= min_cov:
+        top = km.sort_values("n", ascending=False).head(3)
+        parts = [f"{P.CLASS_LABELS.get(r.grupa, r.grupa)} {r.mediana:.0f} days" for r in top.itertuples()
+                 if r.mediana == r.mediana]
+        if parts:
+            out.append("Half of the applications had their connection conditions within: " + "; ".join(parts) + ".")
+    for nl in nodes:
+        if nl.get("chart") and nl["defined"]:
+            q = "the 110 kV queue" if nl["queue"].startswith("110") else "the queue"
+            out.append(f"{nl['direction'].capitalize()}: at {nl['above_1']} of {nl['defined']} nodes "
+                       f"{q} already exceeds the free capacity the operator declares.")
+    if cmp_:
+        x = cmp_["delta"]
+        out.append(f"Between the editions {x['nowych']:,} applications appeared, {x['ubylych']:,} disappeared "
+                   f"and {x['zmian_statusu']:,} changed stage.")
+    return out
+
+def _core(df, df_b, reports, gaz_path, label_a, label_b, min_n, min_cov, synthetic=""):
+    import matplotlib
+    matplotlib.use("agg")
+    if df is None or not len(df):
+        raise ValueError("the documents produced no rows")
+    if synthetic == "panel" and not gaz_path:
+        gaz_path = os.path.join(tempfile.gettempdir(), "synthetic_gazetteer.json")
+        with open(gaz_path, "w", encoding="utf-8") as fh:
+            json.dump(X.synthetic_gazetteer(), fh)
+    geo = None
+    if gaz_path:
+        df = G.geocode_frame(df, G.resolver_from_gazeter_json(gaz_path))
+        geo = {"with_point": int(df["wspolrzedne"].notna().sum()), "rows": int(len(df)),
+               "reasons": _clean(df.loc[df["wspolrzedne"].isna(), "_geo_powod"].value_counts().head(12).to_dict())}
+    out = {"package": G.__version__, "schema": G.SCHEMA_VERSION, "rows": int(len(df)),
+           "cols": int(df.shape[1]), "parse_reports": _clean(reports), "geocoding": geo,
+           "label_a": label_a or "A", "label_b": label_b or "B"}
+    pubs = df["publikujacy"].dropna().astype(str).unique().tolist() if "publikujacy" in df else []
+    out["publishers"] = [P.publisher_label(p) for p in pubs]
+    q = G.run_quality(df).as_dict(); out["quality"] = _clean(q)
+    out["violations"] = int(q.get("naruszen_lacznie", 0))
+    out["validation"] = _clean(G.validate_frame(df))
+    out["column_shift"] = _clean(G.audit_column_shift(df).as_dict())
+    fields = [f for f in G.FIELDS if f in df.columns]
+    filled = {f: int(df[f].notna().sum()) for f in fields}
+    out["schema_filled"] = sum(1 for v in filled.values() if v > 0); out["schema_total"] = len(G.FIELDS)
+    out["preview_cols"] = [f for f in fields if filled[f] > 0][:14]
+    out["preview"] = _records(df[out["preview_cols"]], 200)
+    km = G.kaplan_meier_by_group(df, min_n=min_n)
+    out["km"] = _records(km)
+    app = df[df["_encja"].fillna("WNIOSEK") != "WEZEL"] if "_encja" in df else df
+    cov = _coverage(df)
+    nodes, nl_figs = [], {}
+    if "_encja" in df and (df["_encja"] == "WEZEL").any() and (df["_encja"] != "WEZEL").any():
+        mapa = G.station_node_map(df)
+        if len(mapa):
+            przyp = G.assign_to_nodes(df, mapa)
+            has110 = "poziom_napiecia" in df and df["poziom_napiecia"].astype("string").str.contains("110", na=False).any()
+            variants = ((("110 kV queue", "110"),) if has110 else ()) + (("all voltages", None),)
+            for pole, nm in (("moc_wprowadzana", "generation"), ("moc_pobierana", "demand")):
+                for i, (var, nap) in enumerate(variants):
+                    L = G.node_loading(przyp, pole_mocy=pole, napiecie=nap)
+                    v = pd.to_numeric(L["obciazenie"], errors="coerce")
+                    rec = {"direction": nm, "queue": var, "nodes": int(len(L)), "defined": int(v.notna().sum()),
+                           "above_1": int((v > 1).sum()),
+                           "median": None if v.dropna().empty else round(float(v.median()), 3),
+                           "chart": i == 0}
+                    nodes.append(rec)
+                    if i == 0 and v.notna().any():
+                        # the chart shows the first variant: the 110 kV queue where the
+                        # publisher discloses voltage (the base variant of the article)
+                        nl_figs["node_loading_" + nm] = P.plot_node_loading(L, title=(
+                            f"Node loading, {nm} direction, {var}: median {v.median():.3f}, "
+                            f"{int((v > 1).sum())} of {int(v.notna().sum())} above 1"))
+    out["node_loading"] = nodes
+    cmp_ = None
+    if df_b is not None:
+        d = G.compare_editions(df, df_b, out["label_a"], out["label_b"])
+        a = G.linkage_audit(df, df_b); r = G.linkage_recall(df, df_b)
+        tr = d.przejscia
+        cmp_ = {"delta": _clean(d.as_dict()), "audit": _clean(a.as_dict()), "recall": _clean(r.as_dict()),
+                "transitions": _clean(tr.reset_index().rename(columns={tr.index.name or "index": "from"}).to_dict("records")) if tr is not None else []}
+        _STATE["cmp"] = (d, a, r)
+    out["comparison"] = cmp_
+    figs = {"overview": P.plot_overview(df), "field_coverage": P.plot_field_coverage(df),
+            "quality_rules": P.plot_quality(df), "column_shift": P.plot_column_shift(df)}
+    if "status_procesu" in app and app["status_procesu"].notna().any():
+        figs["status_distribution"] = P.plot_status_distribution(df, normalize=True)
+    if "klasa_zasobu" in app and app["klasa_zasobu"].notna().any():
+        figs["capacity_by_class"] = P.plot_capacity_by_class(df)
+    skipped = []
+    if len(km) and cov >= min_cov:
+        figs["processing_time"] = P.plot_processing_time(df, min_n=min_n)
+    elif len(km):
+        skipped.append(f"processing time: both dates populated in {cov*100:.1f} % of applications, below the {min_cov*100:.0f} % criterion")
+    else:
+        skipped.append(f"processing time: no group of {min_n} applications carrying both dates")
+    figs.update(nl_figs)
+    if not nodes:
+        skipped.append("node loading: needs node rows (free capacity) and application rows in one panel")
+    figs["location_resolution"] = P.plot_location_resolution(df)
+    if cmp_ is not None:
+        figs["edition_comparison"] = P.plot_edition_comparison(*_STATE["cmp"])
+    _STATE["figs"] = figs; _STATE["df"] = df; _STATE["df_b"] = df_b
+    out["charts"] = [{"name": k, "caption": CAPTIONS.get(k, ""), "plain": PLAIN.get(k, ""),
+                      "png": base64.b64encode(_png(f)).decode("ascii")} for k, f in figs.items()]
+    out["simple_order"] = [k for k in SIMPLE_ORDER if k in figs]
+    out["skipped"] = skipped
+    out["headlines"] = _headlines(df_b if df_b is not None else df, km if df_b is None else
+                                  G.kaplan_meier_by_group(df_b, min_n=min_n), nodes, cmp_, min_cov)
+    rep = {k: out[k] for k in ("package", "schema", "rows", "parse_reports", "quality", "validation",
+                               "column_shift", "km", "node_loading", "comparison", "geocoding", "skipped", "headlines")}
+    _STATE["report"] = json.dumps(rep, ensure_ascii=False, indent=1, default=str)
+    return json.dumps(out, ensure_ascii=False, default=str)
+
+def analyse(paths_a, paths_b, adapter, gaz_path, label_a, label_b, synthetic, min_n, min_cov):
+    """Full view: every input and option chosen by the user."""
+    reports, df_b = [], None
+    if synthetic == "panel":
+        df = X.synthetic_panel()
+        reports = [{"adapter": "synthetic", "files": [], "rows": int(len(df)),
+                    "report": {"source": "synthetic panel from gridqueue.examples, not a real disclosure"}}]
+    elif synthetic == "editions":
+        df, df_b = X.synthetic_editions(); label_a, label_b = label_a or "May", label_b or "June"
+        reports = [{"adapter": "synthetic", "files": [], "rows": int(len(df)),
+                    "report": {"source": "two synthetic editions from gridqueue.examples, not a real register"}}]
+    else:
+        df, reports = _load(paths_a, adapter)
+        if paths_b:
+            df_b, rb = _load(paths_b, adapter)
+            for r in rb:
+                r["edition"] = "later"
+            reports += rb
+    return _core(df, df_b, reports, gaz_path, label_a, label_b, min_n, min_cov, synthetic)
+
+def analyse_simple(paths, synthetic):
+    """Simple view: documents only. Editions of one register are recognised by their dates."""
+    if synthetic == "editions":
+        a, b = X.synthetic_editions()
+        rep = [{"adapter": "synthetic", "files": [], "rows": int(len(a) + len(b)),
+                "report": {"source": "two synthetic editions from gridqueue.examples, not a real register"}}]
+        return _core(a, b, rep, None, "May", "June", 30, 0.8)
+    if synthetic == "panel":
+        df = X.synthetic_panel()
+        rep = [{"adapter": "synthetic", "files": [], "rows": int(len(df)),
+                "report": {"source": "synthetic panel from gridqueue.examples, not a real disclosure"}}]
+        return _core(df, None, rep, None, "", "", 30, 0.8, "panel")
+    df, reports = _load(paths, "auto")
+    eds = G.split_editions(df)
+    if len(eds) >= 2:
+        (la, a), (lb, b) = eds[-2], eds[-1]
+        return _core(a, b, reports, None, la, lb, 30, 0.8)
+    return _core(df, None, reports, None, "", "", 30, 0.8)
+
+def export(kind, path):
+    df = _STATE["df"]
+    if kind == "csv":
+        df.to_csv(path, index=False)
+    elif kind == "xlsx":
+        with pd.ExcelWriter(path, engine="openpyxl") as w:
+            df.to_excel(w, sheet_name="panel", index=False)
+            if _STATE.get("df_b") is not None:
+                _STATE["df_b"].to_excel(w, sheet_name="later_edition", index=False)
+            G.run_quality(df).as_frame().to_excel(w, sheet_name="quality", index=False)
+            G.kaplan_meier_by_group(df).to_excel(w, sheet_name="processing_time", index=False)
+    elif kind == "json":
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(_STATE["report"])
+    elif kind == "zip":
+        with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
+            for k, f in _STATE["figs"].items():
+                z.writestr(f"charts/{k}.png", _png(f, dpi=300))
+                z.writestr(f"charts/{k}.svg", _svg(f))
+            z.writestr("data/panel_gridqueue.csv", df.to_csv(index=False))
+            if _STATE.get("df_b") is not None:
+                z.writestr("data/later_edition_gridqueue.csv", _STATE["df_b"].to_csv(index=False))
+            z.writestr("report.json", _STATE["report"])
+    return path
+
+def chart(name, fmt, path):
+    f = _STATE["figs"][name]
+    if fmt == "svg":
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(_svg(f))
+    else:
+        with open(path, "wb") as fh:
+            fh.write(_png(f, dpi=300))
+    return path
+</script>
 <script src="https://cdn.jsdelivr.net/pyodide/v0.28.3/full/pyodide.js"></script>
 <script>
+const WHEEL = "gridqueue-1.6.0-py3-none-any.whl";
 const $ = (id) => document.getElementById(id);
-let py = null, ready = false;
+let py = null, ready = false, busy = false;
+const files = { A: [], B: [], G: [], S: [] };
+let last = null;
+function setMode(m){
+  document.body.classList.toggle("mode-simple", m === "simple");
+  document.body.classList.toggle("mode-full", m === "full");
+  $("mSimple").setAttribute("aria-pressed", m === "simple"); $("mFull").setAttribute("aria-pressed", m === "full");
+  try { localStorage.setItem("gq-mode", m); } catch(e) {}
+  if (last) renderCharts(last);
+}
+const mode = () => document.body.classList.contains("mode-full") ? "full" : "simple";
 
+function esc(s){ return String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
 function log(msg, cls){
-  const d = document.createElement("div");
-  if (cls) d.className = cls;
-  d.textContent = msg;
-  $("log").appendChild(d);
-  $("log").scrollTop = $("log").scrollHeight;
+  const d = document.createElement("div"); if (cls) d.className = cls;
+  d.textContent = msg; $("log").appendChild(d); $("log").scrollTop = $("log").scrollHeight;
 }
 function step(i, state){
-  const li = document.querySelector(`.steps li[data-step="${i}"]`);
-  if (li) li.className = state;
-  const done = document.querySelectorAll(".steps li.done").length;
-  $("bar").style.width = Math.round(done / 4 * 100) + "%";
+  const li = document.querySelector(`.steps li[data-step="${i}"]`); if (li) li.className = state;
+  $("bar").style.width = Math.round(document.querySelectorAll(".steps li.done").length / 4 * 100) + "%";
 }
 function bootState(badgeText, badgeCls, title, hint){
-  $("bootBadge").textContent = badgeText;
-  $("bootBadge").className = "badge " + badgeCls;
-  $("bootTitle").textContent = title;
-  if (hint !== undefined) $("bootHint").innerHTML = hint;
+  $("bootBadge").textContent = badgeText; $("bootBadge").className = "badge " + badgeCls;
+  $("bootTitle").textContent = title; if (hint !== undefined) $("bootHint").innerHTML = hint;
 }
 function arm(on){
   ready = on;
-  $("drop").setAttribute("aria-disabled", on ? "false" : "true");
-  $("demo").disabled = !on;
-  $("dropBig").textContent = on ? "Drop a disclosure file here" : "Preparing, one moment";
+  for (const k of ["dropA","dropB","dropG","dropS"]) $(k).setAttribute("aria-disabled", on ? "false" : "true");
+  for (const k of ["demo","demo2","demoS","demoS2"]) $(k).disabled = !on;
+  $("dropSBig").textContent = on ? "Drop the documents here" : "Preparing, one moment";
+  $("run").disabled = !on || files.A.length === 0;
+  $("dropBig").textContent = on ? "Drop disclosure files here" : "Preparing, one moment";
 }
 
 async function boot(){
   try{
-    step(0, "active");
-    log("starting WebAssembly interpreter");
+    step(0, "active"); log("starting WebAssembly interpreter");
     py = await loadPyodide({ indexURL: "https://cdn.jsdelivr.net/pyodide/v0.28.3/full/" });
-    step(0, "done"); step(1, "active");
-    log("loading pandas and imaging libraries");
-    await py.loadPackage(["pandas", "Pillow", "cryptography", "charset-normalizer", "micropip"]);
-    step(1, "done"); step(2, "active");
-    log("installing the PDF and spreadsheet readers");
+    step(0, "done"); step(1, "active"); log("loading pandas, imaging and charting libraries");
+    await py.loadPackage(["pandas", "Pillow", "cryptography", "charset-normalizer", "micropip", "matplotlib"]);
+    step(1, "done"); step(2, "active"); log("installing the PDF and spreadsheet readers");
     // pdfplumber is installed without its own dependency resolution on purpose: it pins a Pillow
     // newer than the one shipped here and requires pypdfium2, a binary package with no build for
     // this platform. pypdfium2 is imported lazily by pdfplumber, only when rendering a page to an
@@ -465,25 +920,26 @@ await micropip.install("pdfminer.six")
 await micropip.install("openpyxl")
 await micropip.install("pdfplumber", deps=False)
 `);
-    step(2, "done"); step(3, "active");
-    log("installing gridqueue");
+    step(2, "done"); step(3, "active"); log("installing gridqueue");
     // Absolute URL built from the page location: micropip resolves a bare relative path
     // against the interpreter's working directory, not against this document.
-    py.globals.set("_wheel", new URL("gridqueue-1.5.2-py3-none-any.whl", location.href).href);
+    py.globals.set("_wheel", new URL(WHEEL, location.href).href);
     await py.runPythonAsync(`
 import micropip
 await micropip.install(_wheel, deps=False)
-import gridqueue
 `);
+    await py.runPythonAsync($("bridge").textContent);
     step(3, "done");
     const v = await py.runPythonAsync(
-      `import gridqueue; f"{gridqueue.__version__}|{gridqueue.SCHEMA_VERSION}|{len(gridqueue.REGISTRY)}"`);
-    const [pkg, schema, nad] = v.split("|");
-    $("vers").textContent = `gridqueue ${pkg}, schema ${schema}, ${nad} adapters`;
+      `import gridqueue; "|".join([gridqueue.__version__, gridqueue.SCHEMA_VERSION, ",".join(sorted(gridqueue.REGISTRY))])`);
+    const [pkg, schema, keys] = v.split("|");
+    const sel = $("adapter");
+    for (const k of keys.split(",")) sel.insertAdjacentHTML("beforeend", `<option value="${k}">${k}</option>`);
+    sel.insertAdjacentHTML("beforeend", `<option value="harmonised">harmonised table (CSV/XLSX from gridqueue)</option>`);
+    $("vers").textContent = `gridqueue ${pkg}, schema ${schema}, ${keys.split(",").length} adapters`;
     bootState("Ready", "ok", `gridqueue ${pkg} is loaded and running locally`,
-      `Schema version ${schema}, ${nad} adapters. Nothing is sent anywhere.`);
-    arm(true);
-    log("ready");
+      `Schema version ${schema}, ${keys.split(",").length} adapters, charts enabled. Nothing is sent anywhere.`);
+    arm(true); log("ready");
   }catch(e){
     bootState("Failed", "err", "The interpreter could not start",
       "Open Diagnostics below for the reason. A corporate proxy that rewrites certificates is the usual cause.");
@@ -491,160 +947,207 @@ import gridqueue
   }
 }
 
-const fmt = (n) => Number(n).toLocaleString("en-US");
+const fmt = (n) => (n === null || n === undefined) ? "n/a" : Number(n).toLocaleString("en-US");
+const pct = (x, d=2) => (x === null || x === undefined) ? "n/a" : (100 * x).toFixed(d) + " %";
 function countUp(el, target){
   const dur = 620, t0 = performance.now();
-  const tick = (t) => {
-    const p = Math.min(1, (t - t0) / dur);
-    const e = 1 - Math.pow(1 - p, 3);
-    el.textContent = fmt(Math.round(target * e));
-    if (p < 1) requestAnimationFrame(tick);
-  };
+  const tick = (t) => { const p = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - p, 3);
+    el.textContent = fmt(Math.round(target * e)); if (p < 1) requestAnimationFrame(tick); };
   requestAnimationFrame(tick);
 }
-function stats(items){
-  $("stats").innerHTML = items.map(([k, v, kind]) =>
-    `<div class="stat glass"><p class="k">${k}</p>`
-    + `<div class="v${kind === "text" ? " sm" : ""}" ${kind === "num" ? `data-to="${v}"` : ""}>`
-    + `${kind === "num" ? "0" : v}</div></div>`).join("");
-  document.querySelectorAll('#stats .v[data-to]').forEach(el => countUp(el, Number(el.dataset.to)));
+function stats(el, items){
+  el.innerHTML = items.map(([k, v, kind]) =>
+    `<div class="stat glass"><p class="k">${k}</p><div class="v${kind === "text" ? " sm" : ""}" `
+    + `${kind === "num" ? `data-to="${v}"` : ""}>${kind === "num" ? "0" : v}</div></div>`).join("");
+  el.querySelectorAll('.v[data-to]').forEach(x => countUp(x, Number(x.dataset.to)));
 }
-function table(el, cols, rows, numCols){
-  const th = cols.map(c => `<th class="${numCols && numCols.has(c) ? "num" : ""}">${c}</th>`).join("");
+function table(el, cols, rows, numCols, blankText){
+  const th = cols.map(c => `<th class="${numCols && numCols.has(c) ? "num" : ""}">${esc(c)}</th>`).join("");
   const tr = rows.map(r => "<tr>" + cols.map(c => {
-    const v = r[c];
-    const blank = (v === null || v === undefined || v === "");
+    const v = r[c], blank = (v === null || v === undefined || v === "");
     const cls = (numCols && numCols.has(c) ? "num " : "") + (blank ? "nil" : "");
-    return `<td class="${cls.trim()}">${blank ? "not disclosed" : String(v)}</td>`;
+    const txt = blank ? (blankText || "not disclosed")
+      : (typeof v === "number" && !Number.isInteger(v) ? v.toFixed(3) : (typeof v === "object" ? JSON.stringify(v) : String(v)));
+    return `<td class="${cls.trim()}">${esc(txt)}</td>`;
   }).join("") + "</tr>").join("");
   el.innerHTML = `<thead><tr>${th}</tr></thead><tbody>${tr}</tbody>`;
 }
-function download(name, text, mime){
-  const b = new Blob([text], { type: mime });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(b); a.download = name; a.click();
-  URL.revokeObjectURL(a.href);
+function kv(el, obj){ table(el, ["field","value"], Object.entries(obj || {}).map(([k,v]) => ({field:k, value:v})), null, "none"); }
+function download(name, data, mime){
+  const b = new Blob([data], { type: mime }), a = document.createElement("a");
+  a.href = URL.createObjectURL(b); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+async function pyExport(kind, name, mime){
+  const path = "/out/" + name;
+  py.FS.mkdirTree("/out");
+  py.globals.set("_k", kind); py.globals.set("_p", path);
+  await py.runPythonAsync("export(_k, _p)");
+  download(name, py.FS.readFile(path), mime);
+}
+async function pyChart(chart, fmt_){
+  const path = `/out/${chart}.${fmt_}`; py.FS.mkdirTree("/out");
+  py.globals.set("_c", chart); py.globals.set("_f", fmt_); py.globals.set("_p", path);
+  await py.runPythonAsync("chart(_c, _f, _p)");
+  download(`${chart}.${fmt_}`, py.FS.readFile(path), fmt_ === "svg" ? "image/svg+xml" : "image/png");
 }
 
-async function runOn(filename, bytes){
-  if (!ready) { log("still loading, try again in a moment"); return; }
-  $("out").hidden = true;
-  bootState("Working", "run", `Parsing ${filename}`, "Large documents take a while in a browser.");
+function chipsFor(slot){
+  $("chips" + slot).innerHTML = files[slot].map((f, i) =>
+    `<span class="chip">${esc(f.name)}<button aria-label="remove" data-s="${slot}" data-i="${i}">&times;</button></span>`).join("");
+  $("chips" + slot).querySelectorAll("button").forEach(b => b.onclick = (e) => {
+    e.stopPropagation(); files[b.dataset.s].splice(Number(b.dataset.i), 1); chipsFor(b.dataset.s); arm(ready); });
+  if (slot === "S") $("chipsS").querySelectorAll("button").forEach(b => b.remove());
+  arm(ready);
+}
+async function addFiles(slot, list){
+  const arr = [];
+  for (const f of list) arr.push({ name: f.name, bytes: new Uint8Array(await f.arrayBuffer()) });
+  // simple view: each drop is a new analysis; full view: files accumulate in their slot
+  files[slot] = slot === "G" ? arr.slice(0, 1) : (slot === "S" ? arr : files[slot].concat(arr));
+  chipsFor(slot);
+  if (slot === "S" && arr.length) runSimple(null);
+}
+function wire(slot){
+  const dz = $("drop" + slot), inp = $("file" + slot);
+  const pick = () => { if (ready) inp.click(); };
+  dz.addEventListener("click", pick);
+  dz.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(); }});
+  dz.addEventListener("dragover", (e) => { e.preventDefault(); if (ready) dz.classList.add("armed"); });
+  dz.addEventListener("dragleave", () => dz.classList.remove("armed"));
+  dz.addEventListener("drop", (e) => { e.preventDefault(); dz.classList.remove("armed");
+    if (ready && e.dataTransfer.files.length) addFiles(slot, e.dataTransfer.files); });
+  inp.addEventListener("change", () => { if (inp.files.length) addFiles(slot, inp.files); inp.value = ""; });
+}
+
+function writeSlot(slot){
+  const dir = "/in/" + slot; py.FS.mkdirTree(dir);
+  for (const n of py.FS.readdir(dir)) if (n !== "." && n !== "..") py.FS.unlink(dir + "/" + n);
+  return files[slot].map(f => { const p = dir + "/" + f.name; py.FS.writeFile(p, f.bytes); return p; });
+}
+
+async function runSimple(synthetic){
+  if (!ready || busy) return;
+  busy = true; $("out").hidden = true;
+  const what = synthetic === "panel" ? "a synthetic panel" : synthetic === "editions" ? "two synthetic editions"
+    : `${files.S.length} document(s)`;
+  bootState("Working", "run", `Analysing ${what}`, "A large PDF takes a minute or more in a browser; the charts follow.");
   try{
-    if (bytes) py.FS.writeFile("/" + filename, bytes);
-    py.globals.set("_fname", filename);
-    py.globals.set("_synthetic", bytes ? false : true);
-    const res = await py.runPythonAsync(`
-import json, pandas as pd, gridqueue as G
-
-if _synthetic:
-    # Built as its own frame and reindexed onto the schema columns. Assigning into an
-    # empty frame writes strings into float columns, which pandas 3 refuses, and
-    # concatenating with an empty frame changes dtype resolution in the same version.
-    df = pd.DataFrame([
-        {"id_wniosku": "SYN-1", "lokalizacja_tekst": "Example substation",
-         "klasa_zasobu": "ODB", "status_procesu": "WARUNKI_WYDANE",
-         "poziom_napiecia": "SN", "moc_pobierana": 1500.0,
-         "data_wniosku": "2025-02-03", "data_warunkow": "2025-06-18"},
-        {"id_wniosku": "SYN-2", "lokalizacja_tekst": "Example substation",
-         "klasa_zasobu": "PV", "status_procesu": "WNIOSEK_ZLOZONY",
-         "poziom_napiecia": "SN", "moc_wprowadzana": 980.0,
-         "data_wniosku": "2025-04-21"},
-    ]).reindex(columns=list(G.empty_frame().columns))
-    report = {"source": "synthetic example built from the schema, not a real disclosure",
-              "rows": int(len(df))}
-    publisher = "(none, synthetic)"
-else:
-    publisher = G.detect_publisher("/" + _fname)
-    if publisher is None:
-        raise ValueError(
-            "No adapter recognised this file. The file name and, for PDFs, the first page are "
-            "used for detection. Supported publishers are listed on this page.")
-    out = G.get_adapter(publisher).parse("/" + _fname)
-    df, report = out.frame, dict(out.report)
-
-q = G.run_quality(df).as_dict()
-schema_fields = [f for f in G.FIELDS if f in df.columns]
-filled = {f: int(df[f].notna().sum()) for f in schema_fields}
-preview_cols = [f for f in schema_fields if filled[f] > 0][:12]
-prev = df[preview_cols].head(200).where(pd.notna(df[preview_cols].head(200)), None)
-
-json.dumps({
-  "publisher": publisher,
-  "rows": int(len(df)),
-  "cols": int(df.shape[1]),
-  "schema_filled": sum(1 for v in filled.values() if v > 0),
-  "schema_total": len(G.FIELDS),
-  "violations": int(q.get("naruszen_lacznie", 0)),
-  "preview_cols": preview_cols,
-  "preview": prev.to_dict("records"),
-  "quality": q.get("reguly", []),
-  "report": {k: (v if isinstance(v, (str, int, float, bool, type(None))) else str(v))
-             for k, v in report.items()},
-  "csv": df.to_csv(index=False),
-  "validation": json.dumps({"report": {k: str(v) for k, v in report.items()},
-                            "quality": q,
-                            "package": G.__version__,
-                            "schema": G.SCHEMA_VERSION}, ensure_ascii=False, indent=1),
-}, ensure_ascii=False, default=str)
-`);
-    const d = JSON.parse(res);
-
-    stats([
-      ["Publisher", d.publisher, "text"],
-      ["Rows", d.rows, "num"],
-      ["Schema fields populated",
-       `${d.schema_filled}<span class="of"> of ${d.schema_total}</span>`, "text"],
-      ["Columns", d.cols, "num"],
-      ["Quality violations", d.violations, "num"],
-    ]);
-
-    const numeric = new Set(["moc_pobierana","moc_wprowadzana","moc_dostepna","moc_zarezerwowana",
-                             "pozycja_w_kolejce"]);
-    table($("tab"), d.preview_cols, d.preview, numeric);
-    $("tabnote").textContent =
-      `First ${fmt(Math.min(200, d.rows))} of ${fmt(d.rows)} rows, and the ${d.preview_cols.length} `
-      + `schema fields this publisher populates. The full table is in the CSV download.`;
-
-    const qcols = Object.keys(d.quality[0] || {}).filter(k => typeof d.quality[0][k] !== "object");
-    table($("qtab"), qcols, d.quality, new Set(["naruszenia","udzial"]));
-
-    table($("rtab"), ["field", "value"],
-          Object.entries(d.report).map(([k, v]) => ({ field: k, value: v })));
-
-    $("dlcsv").disabled = false; $("dljson").disabled = false;
-    const stem = filename.replace(/\.[^.]+$/, "");
-    $("dlcsv").onclick = () => download(stem + "_gridqueue.csv", d.csv, "text/csv");
-    $("dljson").onclick = () => download(stem + "_validation.json", d.validation, "application/json");
-
-    $("out").hidden = false;
-    bootState("Done", "ok", `Parsed ${filename}`,
-      `Adapter <span class="mono">${d.publisher}</span>, ${fmt(d.rows)} rows. Drop another file to run again.`);
-    $("out").scrollIntoView({ behavior: "smooth", block: "start" });
+    const ps = synthetic ? [] : writeSlot("S");
+    py.globals.set("_s", py.toPy(ps)); py.globals.set("_syn", synthetic || "");
+    const res = await py.runPythonAsync("analyse_simple(list(_s), _syn)");
+    render(JSON.parse(res));
+    bootState("Done", "ok", `Analysed ${what}`, "Drop other documents at any time, or switch to the full view for every table.");
   }catch(e){
-    bootState("Failed", "err", `Could not parse ${filename}`,
-      "Open Diagnostics below. A file renamed away from the publisher's own name is the usual cause.");
+    bootState("Failed", "err", "Could not analyse the documents",
+      "Open Diagnostics below. A file renamed away from the publisher's own name is the usual cause; the full view lets you choose the adapter.");
     log(String(e), "err");
-  }
+  }finally{ busy = false; }
 }
 
-const drop = $("drop"), fileIn = $("file");
-const pick = () => { if (ready) fileIn.click(); };
-drop.addEventListener("click", pick);
-drop.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(); }});
-drop.addEventListener("dragover", (e) => { e.preventDefault(); if (ready) drop.classList.add("armed"); });
-drop.addEventListener("dragleave", () => drop.classList.remove("armed"));
-drop.addEventListener("drop", async (e) => {
-  e.preventDefault(); drop.classList.remove("armed");
-  const f = e.dataTransfer.files[0];
-  if (f) runOn(f.name, new Uint8Array(await f.arrayBuffer()));
-});
-fileIn.addEventListener("change", async () => {
-  const f = fileIn.files[0];
-  if (f) runOn(f.name, new Uint8Array(await f.arrayBuffer()));
-});
-$("demo").addEventListener("click", () => runOn("synthetic_example", null));
+async function run(synthetic){
+  if (!ready || busy) return;
+  busy = true; $("out").hidden = true;
+  const what = synthetic === "panel" ? "a synthetic panel" : synthetic === "editions" ? "two synthetic editions"
+    : `${files.A.length} document(s)` + (files.B.length ? ` and a later edition` : "");
+  bootState("Working", "run", `Analysing ${what}`, "Large PDF documents take a while in a browser; charts follow the parse.");
+  try{
+    const pa = synthetic ? [] : writeSlot("A"), pb = synthetic ? [] : writeSlot("B");
+    const pg = (!synthetic || synthetic === "panel") && files.G.length ? writeSlot("G")[0] : null;
+    py.globals.set("_a", py.toPy(pa)); py.globals.set("_b", py.toPy(pb)); py.globals.set("_g", pg);
+    py.globals.set("_ad", $("adapter").value); py.globals.set("_la", $("labA").value); py.globals.set("_lb", $("labB").value);
+    py.globals.set("_syn", synthetic || ""); py.globals.set("_mn", Number($("minn").value) || 30);
+    const res = await py.runPythonAsync("analyse(list(_a), list(_b), _ad, _g, _la, _lb, _syn, int(_mn), 0.8)");
+    render(JSON.parse(res));
+    bootState("Done", "ok", `Analysed ${what}`, `${fmt(JSON.parse(res).rows)} rows. Change the inputs and run again at any time.`);
+  }catch(e){
+    bootState("Failed", "err", "Could not analyse the input",
+      "Open Diagnostics below. A file renamed away from the publisher's own name is the usual cause; choose the adapter explicitly.");
+    log(String(e), "err");
+  }finally{ busy = false; }
+}
 
+function renderCharts(d){
+  const wide = new Set(["overview", "edition_comparison"]);
+  const simple = mode() === "simple";
+  const byName = Object.fromEntries(d.charts.map(c => [c.name, c]));
+  const list = simple ? (d.simple_order || []).map(n => byName[n]).filter(Boolean) : d.charts;
+  $("charts").innerHTML = list.map(c =>
+    `<figure class="chart glass${wide.has(c.name) ? " wide" : ""}">`
+    + `<img alt="${esc(c.caption)}" src="data:image/png;base64,${c.png}">`
+    + (simple && c.plain ? `<p class="plain">${esc(c.plain)}</p>` : `<figcaption>${esc(c.caption)}</figcaption>`)
+    + `<div class="btnrow"><button class="btn" data-c="${c.name}" data-f="png">PNG, 300 dpi</button>`
+    + `<button class="btn" data-c="${c.name}" data-f="svg">SVG</button></div></figure>`).join("");
+  $("charts").querySelectorAll("button").forEach(b => b.onclick = () => pyChart(b.dataset.c, b.dataset.f));
+  $("skipped").innerHTML = d.skipped.map(s => `<li>Not drawn, ${esc(s)}.</li>`).join("");
+}
+
+function render(d){
+  stats($("stats"), [
+    ["Publishers", d.publishers.length ? d.publishers.map(esc).join(", ") : "not stated", "text"],
+    ["Rows", d.rows, "num"],
+    ["Schema fields populated", `${d.schema_filled}<span class="of"> of ${d.schema_total}</span>`, "text"],
+    ["Quality violations", d.violations, "num"],
+    ["Charts", d.charts.length, "num"],
+  ]);
+  last = d;
+  $("heads").innerHTML = (d.headlines || []).map(s => `<li>${esc(s)}</li>`).join("");
+  renderCharts(d);
+
+  if (d.comparison){
+    const x = d.comparison.delta, a = d.comparison.audit, r = d.comparison.recall;
+    stats($("cmpstats"), [
+      ["Linked rows", x.wspolnych, "num"], ["New", x.nowych, "num"], ["Absent", x.ubylych, "num"],
+      ["Status changes", x.zmian_statusu, "num"],
+      ["Forward share", pct(x.udzial_przejsc_w_przod), "text"],
+      ["Linkage precision", `${pct(a.precyzja_dolna)} to ${pct(a.precyzja_gorna)}`, "text"],
+      ["Key sensitivity", r.czulosc_klucza === null ? "n/a" : Number(r.czulosc_klucza).toFixed(4), "text"],
+    ]);
+    const tr = d.comparison.transitions; const cols = tr.length ? Object.keys(tr[0]) : [];
+    table($("ttab"), cols, tr, new Set(cols.slice(1)), "0");
+    $("secCmp").hidden = false;
+  } else { $("secCmp").hidden = true; }
+
+  const kmc = ["grupa","n","zdarzen","cenzurowanych","udzial_cenzurowanych","mediana","mediana_dolna","mediana_gorna"];
+  if (d.km.length) table($("kmtab"), kmc, d.km, new Set(kmc.slice(1)), "not reached");
+  else $("kmtab").innerHTML = `<tbody><tr><td class="nil">No group of the minimum size carries both dates.</td></tr></tbody>`;
+  if (d.node_loading.length) table($("nltab"), ["direction","queue","nodes","defined","above_1","median"], d.node_loading,
+                                   new Set(["nodes","defined","above_1","median"]), "n/a");
+  else $("nltab").innerHTML = `<tbody><tr><td class="nil">The panel carries no node rows with declared free capacity.</td></tr></tbody>`;
+
+  const numeric = new Set(["moc_pobierana","moc_wprowadzana","moc_dostepna","moc_zarezerwowana","pozycja_w_kolejce"]);
+  table($("tab"), d.preview_cols, d.preview, numeric);
+  $("tabnote").textContent = `First ${fmt(Math.min(200, d.rows))} of ${fmt(d.rows)} rows, and the `
+    + `${d.preview_cols.length} schema fields populated. The full table is in the downloads.`;
+  const q = d.quality.reguly || [];
+  const qcols = Object.keys(q[0] || {}).filter(k => typeof q[0][k] !== "object");
+  table($("qtab"), qcols, q, new Set(["naruszenia","udzial"]));
+  kv($("vtab"), d.validation);
+  const s = Object.assign({}, d.column_shift); delete s.przyklady; kv($("stab"), s);
+  table($("rtab"), ["adapter","edition","files","rows","report"],
+        d.parse_reports.map(r => ({ adapter: r.adapter, edition: r.edition || "panel", files: (r.files || []).join(", "),
+                                    rows: r.rows, report: r.report })), new Set(["rows"]), "-");
+
+  const stem = (d.label_a || "gridqueue").replace(/[^\w.-]+/g, "_");
+  $("dlzip").onclick = () => pyExport("zip", `${stem}_gridqueue.zip`, "application/zip");
+  $("dlcsv").onclick = () => pyExport("csv", `${stem}_gridqueue.csv`, "text/csv");
+  $("dlxlsx").onclick = () => pyExport("xlsx", `${stem}_gridqueue.xlsx`,
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+  $("dljson").onclick = () => pyExport("json", `${stem}_report.json`, "application/json");
+  $("out").hidden = false;
+  $("out").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+for (const s of ["A","B","G","S"]) wire(s);
+$("demoS").addEventListener("click", () => runSimple("panel"));
+$("demoS2").addEventListener("click", () => runSimple("editions"));
+$("mSimple").addEventListener("click", () => setMode("simple"));
+$("mFull").addEventListener("click", () => setMode("full"));
+$("toFull").addEventListener("click", () => { setMode("full"); $("out").scrollIntoView({ behavior: "smooth" }); });
+let saved = "simple"; try { saved = localStorage.getItem("gq-mode") || "simple"; } catch(e) {}
+setMode(saved);
+$("run").addEventListener("click", () => run(null));
+$("demo").addEventListener("click", () => run("panel"));
+$("demo2").addEventListener("click", () => run("editions"));
 arm(false);
 boot();
 </script>

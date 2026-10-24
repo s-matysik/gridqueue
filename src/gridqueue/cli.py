@@ -1,4 +1,4 @@
-"""Command-line interface: ``gridqueue parse | validate | export``."""
+"""Command-line interface: ``gridqueue parse | validate | export | compare | plot``."""
 
 from __future__ import annotations
 
@@ -91,6 +91,42 @@ def cmd_export(args) -> int:
     return 0
 
 
+def cmd_compare(args) -> int:
+    from .longitudinal import (NODE_KEY_FIELDS, DEFAULT_KEY_FIELDS, compare_editions,
+                               linkage_audit, linkage_recall)
+
+    a, b = _read_table(args.edition_a), _read_table(args.edition_b)
+    fields = NODE_KEY_FIELDS if args.node_key else DEFAULT_KEY_FIELDS
+    delta = compare_editions(a, b, args.label_a, args.label_b, fields=fields)
+    out = {"klucz": list(fields), "porownanie": delta.as_dict(),
+           "audyt_dopasowania": linkage_audit(a, b, fields=fields).as_dict(),
+           "czulosc_dopasowania": linkage_recall(a, b, fields=fields).as_dict()}
+    text = json.dumps(out, ensure_ascii=False, indent=2, default=str)
+    if args.out:
+        Path(args.out).write_text(text, encoding="utf-8")
+    if args.transitions:
+        delta.przejscia.to_csv(args.transitions)
+    print(text)
+    return 0
+
+
+def cmd_plot(args) -> int:
+    try:
+        from .plots import save_all
+    except ImportError as e:  # pragma: no cover
+        print(str(e), file=sys.stderr)
+        return 2
+    df = _read_table(args.input)
+    b = _read_table(args.edition_b) if args.edition_b else None
+    saved = save_all(df, args.out, edition_b=b, labels=(args.label_a, args.label_b),
+                     formats=[f.strip() for f in args.format.split(",") if f.strip()],
+                     dpi=args.dpi, min_n=args.min_n, min_coverage=args.min_coverage)
+    skipped = saved.pop("_skipped", [])
+    print(json.dumps({"zapisane": {k: [str(p) for p in v] for k, v in saved.items()},
+                      "pominiete": skipped}, ensure_ascii=False, indent=2))
+    return 0
+
+
 def cmd_schema(args) -> int:
     t = schema_table()
     if args.out:
@@ -129,6 +165,32 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--only-schema", action="store_true",
                    help="omit extensions (columns with the _ prefix)")
     p.set_defaults(func=cmd_export)
+
+    p = sub.add_parser("compare", help="compare two editions of one register (flows, transitions, "
+                                       "linkage precision and sensitivity)")
+    p.add_argument("edition_a", help="earlier edition (.parquet/.csv in the schema)")
+    p.add_argument("edition_b", help="later edition")
+    p.add_argument("--label-a", default="A")
+    p.add_argument("--label-b", default="B")
+    p.add_argument("--node-key", action="store_true",
+                   help="use the node key (publikujacy, id_wezla) for NODE-entity registers")
+    p.add_argument("--out", help="JSON report file")
+    p.add_argument("--transitions", help="CSV file for the status transition matrix")
+    p.set_defaults(func=cmd_compare)
+
+    p = sub.add_parser("plot", help="draw every chart the dataset supports (needs matplotlib)")
+    p.add_argument("input", help="dataset in the schema (.parquet/.csv)")
+    p.add_argument("--edition-b", help="a later edition: adds the edition-comparison chart")
+    p.add_argument("--label-a", default="A")
+    p.add_argument("--label-b", default="B")
+    p.add_argument("--out", required=True, help="output directory")
+    p.add_argument("--format", default="png", help="comma-separated: png,svg,pdf")
+    p.add_argument("--dpi", type=int, default=200)
+    p.add_argument("--min-n", type=int, default=30,
+                   help="minimum group size for the processing-time curves")
+    p.add_argument("--min-coverage", type=float, default=0.8,
+                   help="minimum share of applications carrying both dates (default 0.8)")
+    p.set_defaults(func=cmd_plot)
 
     p = sub.add_parser("schema", help="print the schema specification")
     p.add_argument("--out")

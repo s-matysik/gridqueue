@@ -17,7 +17,7 @@ from .adapters.ie_esbnetworks import ESBNetworksAdapter
 from .adapters.pt_eredes import EredesAdapter
 from .adapters.uk_nationalgrid import NationalGridAdapter
 
-__all__ = ["REGISTRY", "get_adapter", "detect_publisher", "declarations"]
+__all__ = ["REGISTRY", "get_adapter", "detect_publisher", "declarations", "parse_sources"]
 
 REGISTRY: dict[str, Type[Adapter]] = {
     "pl_tauron": TauronAdapter,
@@ -68,3 +68,77 @@ def detect_publisher(source, *, sniff_bytes: int = 4000) -> Optional[str]:
 def declarations() -> list[dict]:
     """Declarations of optional fields of all registered publishers."""
     return [cls().declaration() for cls in REGISTRY.values()]
+
+
+
+def parse_sources(sources, adapter: Optional[str] = None):
+    """Parse any number of documents, of one or several publishers, into one panel.
+
+    Each file is assigned to a publisher by :func:`detect_publisher` (or to ``adapter`` when
+    given) and parsed **on its own, by a fresh adapter instance**, so that every document keeps
+    the as-at date it states. This matters twice: a publisher that splits one edition into
+    several documents (ENERGA-OPERATOR's applications as at 30 June and node capacities as at
+    31 August 2026) keeps both dates, and two editions of one register dropped together are
+    never stamped with a single date. The node and application rows of one publisher still end
+    up in one panel, which is all that :func:`~gridqueue.analysis.station_node_map` needs.
+
+    Returns ``(frame, reports)``: the concatenated frame in the schema and one
+    ``{"adapter", "files", "rows", "data_publikacji", "report"}`` entry per file. A file no
+    adapter recognises raises ``ValueError`` naming it, rather than being skipped silently.
+    """
+    import pandas as pd
+
+    paths = [sources] if isinstance(sources, (str, Path)) else list(sources)
+    keys = []
+    for p in paths:
+        key = adapter or detect_publisher(p)
+        if key is None:
+            raise ValueError(f"no adapter recognised {Path(str(p)).name!r}; keep the file "
+                             f"name the publisher gave it, or choose the adapter explicitly")
+        keys.append(key)
+    frames, reports = [], []
+    for key, p in zip(keys, paths):
+        res = get_adapter(key).parse(p)
+        frames.append(res.frame)
+        dates = res.frame["data_publikacji"].dropna().astype(str).unique().tolist() \
+            if "data_publikacji" in res.frame else []
+        reports.append({"adapter": key, "files": [Path(str(p)).name], "rows": int(len(res.frame)),
+                        "data_publikacji": dates[0] if len(dates) == 1 else dates,
+                        "report": dict(res.report)})
+    frame = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
+    return frame, reports
+
+
+def split_editions(df):
+    """Split a panel into editions of one register by the as-at date of its application rows.
+
+    Returns ``[(date, frame), ...]`` ordered by date when the panel holds exactly one
+    publisher whose application rows carry two or more publication dates; otherwise a
+    single ``(None, df)``. Node rows (``_encja == "WEZEL"``) go to the edition whose
+    application date is nearest to their own, later on a tie, because a publisher may date its
+    node and application documents of one edition differently.
+    """
+    import pandas as pd
+
+    if "data_publikacji" not in df or df.empty:
+        return [(None, df)]
+    is_node = df["_encja"].astype("string").fillna("WNIOSEK").str.upper().eq("WEZEL") \
+        if "_encja" in df else pd.Series(False, index=df.index)
+    pubs = df["publikujacy"].dropna().unique() if "publikujacy" in df else []
+    dates = sorted(df.loc[~is_node, "data_publikacji"].dropna().astype(str).unique())
+    if len(pubs) != 1 or len(dates) < 2:
+        return [(None, df)]
+    d = pd.to_datetime(pd.Series(dates))
+    own = df["data_publikacji"].astype(str)
+
+    def edition_of(v):
+        if v in dates:
+            return v
+        t = pd.to_datetime(v, errors="coerce")
+        if pd.isna(t):
+            return dates[-1]
+        gap = (d - t).abs()
+        return dates[max(i for i in range(len(dates)) if gap[i] == gap.min())]
+
+    lab = own.map(edition_of)
+    return [(x, df[lab == x].reset_index(drop=True)) for x in dates]

@@ -14,28 +14,33 @@ without an accelerator.
 
 1. installs the package from a **tagged release**, not from the main branch, so the result does not
    depend on the current state of the repository;
-2. downloads two consecutive editions of the disclosure directly from the publisher and prints the
-   checksums;
-3. recognizes the publisher **from the content of the document** and extracts the rows of the common
-   schema;
-4. evaluates the eight quality control rules;
+2. downloads two consecutive editions of the transmission operator's disclosure directly from the
+   publisher and prints the checksums;
+3. recognizes the publisher **from the content of the document**, extracts the rows of the common
+   schema and validates them;
+4. evaluates the eight quality control rules and the column-shift audit;
 5. computes the queue flows between the editions together with the **linkage precision** on the
-   fields held out of the key;
+   fields held out of the key and the **key sensitivity**;
 6. compares the reproduced figures with those published in the paper and **aborts execution on a
-   divergence**.
+   divergence**;
+7. downloads ENERGA-OPERATOR's three documents of one edition and reproduces the processing-time
+   strata (Kaplan-Meier with censoring) and the node loading of the paper, with the same check;
+8. runs the location resolver on a synthetic gazetteer, draws every chart and packs the results into
+   one archive.
 
-Point six is the counterpart of the assertions in the `reproducibility/` directory. A divergence need
-not mean an error, the publisher may have replaced the edition, but it has to be visible rather than
-passed over in silence.
+Points six and seven are the counterpart of the assertions in the `reproducibility/` directory. A
+divergence need not mean an error, the publisher may have replaced the edition, but it has to be
+visible rather than passed over in silence. Point seven parses PDF documents and adds several
+minutes; it can be switched off with `RUN_ENERGA = False`.
 
 ## What the notebook does not do
 
 It does not reproduce the extraction accuracy against the reference set, because that set requires a
-human reading. It does not resolve coordinates, because the geometric gazetteer is a separate
-download and is subject to ODbL, and the notebook should not quietly draw the user into licensing
-duties. It also does not run the cross-sectional example on this publisher, because **it does not
-meet the date coverage criterion** set before the result was computed; the notebook shows this
-openly instead of computing a median on a dozen or so percent of the records.
+human reading. It does not use the national geometric gazetteer, which is a separate download subject
+to ODbL; the resolver is shown on a synthetic gazetteer, and one line points it at your own. It does
+not compute processing times for the transmission operator, because that publisher **does not meet
+the date coverage criterion** set before the result was computed; the notebook shows this openly
+instead of computing a median on a dozen or so percent of the records.
 
 ## When a download fails
 
