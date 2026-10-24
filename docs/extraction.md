@@ -32,17 +32,17 @@ a number from the file.
 ## What this changed, measured
 
 The audit counts the rows in which a non-empty value sits in a field it cannot belong to.
-In the TAURON document: **767 of 10 559 = 7,264%** with regex extraction, **0 of 10 955 = 0,000%**
+In the TAURON document: **767 of 10,559 = 7.264%** with regex extraction, **0 of 10,955 = 0.000%**
 with extraction from the column layout. The old parser **also lost rows**: in the new extraction the
-ordinal numbers run 1…10 955 with no gaps and no duplicates, which means it recovered 396 rows
+ordinal numbers run 1…10,955 with no gaps and no duplicates, which means it recovered 396 rows
 fewer.
 
-The 0,000% result should be read as what it measures: the audit is a **detector of internal type
+The 0.000% result should be read as what it measures: the audit is a **detector of internal type
 inconsistency**, not a comparison against a reference set. Freedom from error is measured by the
-reference set, see [validation](walidacja.md).
+reference set, see [validation](validation.md).
 
 ```python
 from gridqueue import audit_column_shift
 a = audit_column_shift(df)
-a.udzial, a.n_wierszy, a.szczegoly[:3]
+a.share, a.n_rows, a.details[:3]
 ```

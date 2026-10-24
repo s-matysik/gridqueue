@@ -28,7 +28,7 @@ practice.
 from gridqueue.adapters.base import Adapter, ParseResult
 
 class MojAdapter(Adapter):
-    klucz = "pl_moj_operator"
+    key = "pl_moj_operator"
     publikujacy = "Nazwa Operatora S.A."
     jurysdykcja = "PL"
     detekcja = [r"moj_operator", r"nazwa_operatora"]   # file name patterns
@@ -58,9 +58,9 @@ settles the rest. When neither settles it, `None` is returned, with no guessing.
 The third jurisdiction in the panel and the third mode of issue: **a dataset on an open
 data portal with a REST interface**, published quarterly. The unit of a row is a
 substation or a cut point of the high voltage network; there are 469 rows and all of them
-belong to the WĘZEŁ entity.
+belong to the NODE entity.
 
-What this adapter contributes that was not there before: **the first foreign source of the WĘZEŁ
+What this adapter contributes that was not there before: **the first foreign source of the NODE
 entity**. Until now the node rows came only from two Polish publishers, so the
 criterion "available connection capacity" could be computed in one jurisdiction.
 The Portuguese source additionally reports the **composition of the substation group**, exactly the
@@ -88,13 +88,13 @@ This is the same principle that was applied to the publisher reporting a count o
 free connection slots instead of a capacity: entering a count of slots into a field with a different
 unit would be fabrication, not harmonization.
 
-The core of the WĘZEŁ entity is nevertheless satisfied, because it is discharged by the second member of
+The core of the NODE entity is nevertheless satisfied, because it is discharged by the second member of
 the alternative, `ograniczenie_flaga`, set on the basis of a zero reception capability. Zero is
 a **disclosed** value and means a constraint; an empty cell means non-disclosure
 and does not set the flag. This concerns 222 of 469 nodes.
 
 That settlement is at the same time an observational finding: **both jurisdictions satisfy
-the core of the WĘZEŁ entity through different members of the same alternative**, Poland with available
+the core of the NODE entity through different members of the same alternative**, Poland with available
 capacity, Portugal with the constraint flag. The conditional core, introduced in version 1.0 for
 a Polish category error, turned out to be the condition for absorbing a foreign jurisdiction.
 
@@ -102,7 +102,7 @@ a Polish category error, turned out to be the condition for absorbing a foreign 
 from gridqueue import get_adapter
 r = get_adapter("pt_eredes").parse("pt_eredes_capacidade_rececao_rnd_2T2026.csv")
 r.frame[["id_wezla", "nazwa_wezla", "lokalizacja_tekst", "ograniczenie_flaga"]]
-r.report["uwaga_jednostki"]
+r.report["note_units"]
 ```
 
 ## e-Distribución (Spain), `es_edistribucion`
@@ -115,7 +115,7 @@ Article 5(4) of Decree 1183/2020 and Article 12 of Circular 1/2021 of the regula
 in a legal construction identical to the Polish one: a statutory duty, a fixed frequency, the format
 left to the publisher.
 
-The issue of 1 August 2025: 28 pages, **1 838 rows of the WĘZEŁ entity**, all declared fields
+The issue of 1 August 2025: 28 pages, **1,838 rows of the NODE entity**, all declared fields
 populated at 100 %, including **the geographic coordinates of every substation**,
 which no Polish publisher does. The capacities are in **MW of active power**, so conversion
 to the canonical kW is an ordinary change of order of magnitude.
@@ -125,7 +125,7 @@ to the canonical kW is an ordinary change of order of magnitude.
 The header has cells merged at two levels and suggests that the columns "Con permiso de AyC"
 and "En trámite con capacidad" belong to the group of **accepted and unsettled** capacity.
 The arithmetic of the document settles it. Eleven subcolumns, nine substation items plus those two,
-sum to the **occupied** capacity, in exactly **1 838 of 1 838 rows, in both editions
+sum to the **occupied** capacity, in exactly **1,838 of 1,838 rows, in both editions
 checked**; the technology breakdown sums to the accepted and unsettled capacity in
 all rows with a non-zero value. Both groups are therefore **components** rather than
 alternative breakdowns. Taking the header on trust would have given a silent transposition of two
@@ -136,16 +136,16 @@ capacity fields.
 For this publisher there is **no reference set read independently of the parser**, so the extraction
 accuracy cannot be measured the way it was measured for the Polish publishers. Arithmetic closure
 is a substitute piece of evidence: for the sum of eleven cells to agree with the twelfth, all
-twelve have to be read correctly. Across two editions that gives **3 676 independent
+twelve have to be read correctly. Across two editions that gives **3,676 independent
 checks, all of them closed**. This is evidence of **consistency of reading, not a measurement of
 accuracy**, weaker than a reference set, but checkable on every new edition, without an annotator's
-work. The adapter report gives it in the field `tozsamosc_sumy_mocy_zajetej`.
+work. The adapter report gives it in the field `identity_sum_occupied_capacity`.
 
 ## ESB Networks (Ireland), `ie_esbnetworks`
 
-The largest source in the panel: **46 527 rows**, the only one going below the level of high
+The largest source in the panel: **46,527 rows**, the only one going below the level of high
 voltage substations all the way down to MV/LV substations. The unit of a row is a group of
-transformers at a substation. Coordinates are present in 46 525 rows.
+transformers at a substation. Coordinates are present in 46,525 rows.
 
 ### Two units in one file
 

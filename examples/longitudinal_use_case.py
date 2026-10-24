@@ -19,9 +19,9 @@ Running::
 
 Produces::
 
-    przeplywy_kolejki.csv        summary of the flows
-    przejscia_statusu.csv        matrix of status transitions
-    przejscia_statusu.png        figure of the transition matrix
+    queue_flows.csv           summary of the flows
+    status_transitions.csv    matrix of status transitions
+    status_transitions.png    figure of the transition matrix
 """
 
 from __future__ import annotations
@@ -35,7 +35,7 @@ from gridqueue import (SCHEMA_VERSION, STATUS_ORDER, TERMINAL_NEGATIVE,
                        __version__, compare_editions, detect_publisher,
                        get_adapter, linkage_audit)
 
-OPIS = {
+DESCRIPTION = {
     "WNIOSEK_ZLOZONY": "application lodged",
     "WNIOSEK_NIEKOMPLETNY": "application incomplete",
     "W_TRAKCIE_ANALIZY": "under analysis",
@@ -48,27 +48,27 @@ OPIS = {
 }
 
 
-def wczytaj(sciezka: Path) -> pd.DataFrame:
+def load(path: Path) -> pd.DataFrame:
     """Load an edition, recognising the publisher from the document."""
-    klucz = detect_publisher(str(sciezka))
-    if klucz is None:
-        raise SystemExit(f"publisher not recognised for {sciezka}")
-    return get_adapter(klucz).parse(str(sciezka)).frame
+    key = detect_publisher(str(path))
+    if key is None:
+        raise SystemExit(f"publisher not recognised for {path}")
+    return get_adapter(key).parse(str(path)).frame
 
 
-def figura(tr: pd.DataFrame, plik: Path, etykiety: tuple[str, str]) -> None:
+def fig(tr: pd.DataFrame, file_name: Path, labels: tuple[str, str]) -> None:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     import numpy as np
 
-    porzadek = [s for s in list(STATUS_ORDER) + sorted(TERMINAL_NEGATIVE)]
-    idx = [s for s in porzadek if s in tr.index]
-    kol = [s for s in porzadek if s in tr.columns]
-    M = tr.reindex(index=idx, columns=kol, fill_value=0).astype(int).values
+    order = [s for s in list(STATUS_ORDER) + sorted(TERMINAL_NEGATIVE)]
+    idx = [s for s in order if s in tr.index]
+    col = [s for s in order if s in tr.columns]
+    M = tr.reindex(index=idx, columns=col, fill_value=0).astype(int).values
     Mz = M.copy()
     for i, a in enumerate(idx):
-        for j, b in enumerate(kol):
+        for j, b in enumerate(col):
             if a == b:
                 Mz[i, j] = 0
 
@@ -76,24 +76,24 @@ def figura(tr: pd.DataFrame, plik: Path, etykiety: tuple[str, str]) -> None:
     ax.imshow(Mz, cmap="Blues", aspect="auto",
               vmin=0, vmax=max(1, Mz.max()))
     for i in range(len(idx)):
-        for j in range(len(kol)):
+        for j in range(len(col)):
             if M[i, j] == 0:
                 continue
-            trwa = idx[i] == kol[j]
+            ongoing = idx[i] == col[j]
             ax.text(j, i, f"{M[i, j]}", ha="center", va="center", fontsize=6.5,
-                    color="#9aa5ad" if trwa else
+                    color="#9aa5ad" if ongoing else
                     ("#ffffff" if Mz[i, j] > Mz.max() * 0.6 else "#222222"))
-    ax.set_xticks(range(len(kol)))
-    ax.set_xticklabels([OPIS.get(s, s) for s in kol], rotation=40,
+    ax.set_xticks(range(len(col)))
+    ax.set_xticklabels([DESCRIPTION.get(s, s) for s in col], rotation=40,
                        ha="right", fontsize=6.5)
     ax.set_yticks(range(len(idx)))
-    ax.set_yticklabels([OPIS.get(s, s) for s in idx], fontsize=6.5)
-    ax.set_xlabel(f"status in edition {etykiety[1]}", fontsize=7.5)
-    ax.set_ylabel(f"status in edition {etykiety[0]}", fontsize=7.5)
+    ax.set_yticklabels([DESCRIPTION.get(s, s) for s in idx], fontsize=6.5)
+    ax.set_xlabel(f"status in edition {labels[1]}", fontsize=7.5)
+    ax.set_ylabel(f"status in edition {labels[0]}", fontsize=7.5)
     ax.set_title("Status transitions run in step with the order of the proceedings,\n"
                  "which independently confirms the linkage by the content key",
                  fontsize=8, loc="left")
-    ax.set_xticks(np.arange(-.5, len(kol), 1), minor=True)
+    ax.set_xticks(np.arange(-.5, len(col), 1), minor=True)
     ax.set_yticks(np.arange(-.5, len(idx), 1), minor=True)
     ax.grid(which="minor", color="#ffffff", lw=0.8)
     ax.tick_params(which="minor", length=0)
@@ -101,7 +101,7 @@ def figura(tr: pd.DataFrame, plik: Path, etykiety: tuple[str, str]) -> None:
     for s in ax.spines.values():
         s.set_visible(False)
     fig.tight_layout()
-    fig.savefig(plik, dpi=300, bbox_inches="tight")
+    fig.savefig(file_name, dpi=300, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -115,48 +115,48 @@ def main(argv: list[str]) -> int:
     out = Path(argv[5]) if len(argv) > 5 else Path(".")
     out.mkdir(parents=True, exist_ok=True)
 
-    a, b = wczytaj(pa), wczytaj(pb)
+    a, b = load(pa), load(pb)
     d = compare_editions(a, b, ea, eb)
-    podsum = d.as_dict()
-    podsum["gridqueue"] = __version__
-    podsum["schema_version"] = SCHEMA_VERSION
+    summary = d.as_dict()
+    summary["gridqueue"] = __version__
+    summary["schema_version"] = SCHEMA_VERSION
 
-    audyt = linkage_audit(a, b)
-    podsum.update({f"audyt_{k}": v for k, v in audyt.as_dict().items() if k != "par"})
-    audyt.rozbieznosci.to_csv(out / "audyt_dopasowania_rozbieznosci.csv", index=False)
+    audit = linkage_audit(a, b)
+    summary.update({f"audit_{k}": v for k, v in audit.as_dict().items() if k != "pairs"})
+    audit.discrepancies.to_csv(out / "linkage_audit_discrepancies.csv", index=False)
 
-    pd.DataFrame([podsum]).to_csv(out / "przeplywy_kolejki.csv", index=False)
-    d.przejscia.to_csv(out / "przejscia_statusu.csv")
-    figura(d.przejscia, out / "przejscia_statusu.png", (ea, eb))
+    pd.DataFrame([summary]).to_csv(out / "queue_flows.csv", index=False)
+    d.transitions.to_csv(out / "status_transitions.csv")
+    fig(d.transitions, out / "status_transitions.png", (ea, eb))
 
-    for k, v in podsum.items():
+    for k, v in summary.items():
         print(f"{k}: {v}")
     print()
     print("Interpretation:")
-    u = d.udzial_przejsc_w_przod
+    u = d.forward_share
     if u is not None:
-        print(f"  {u * 100:.2f} % of transitions run in step with the order of the "
+        print(f"  {u * 100:.2f}% of transitions run in step with the order of the "
               "proceedings; this is an independent test of the linkage by the content "
               "key, because a key that linked at random would not produce that order.")
-    if not podsum["migawka_monotoniczna"]:
-        print(f"  The register is NOT a monotone snapshot: {podsum['nowe_zamkniete']} "
-              f"rows appear already in a closed state, and {podsum['ubyle_czynne']} "
+    if not summary["monotone_snapshot"]:
+        print(f"  The register is NOT a monotone snapshot: {summary['new_closed']} "
+              f"rows appear already in a closed state, and {summary['gone_active']} "
               "rows with an active status disappear. The difference between editions "
               "must not be read as a change in the state of the queue alone.")
-    pa = audyt.precyzja_dolna * 100
-    pg = audyt.precyzja_gorna * 100
+    pa = audit.precision_lower * 100
+    pg = audit.precision_upper * 100
     print(f"  Linkage precision assessed on the fields EXCLUDED from the key "
           f"(entity name, object name, application date, breakdown of capacity by technology) "
-          f"is {pa:.2f}-{pg:.2f} % over all {audyt.par} pairs: "
-          f"{audyt.potwierdzonych} confirmed, {audyt.niepewnych} uncertain, "
-          f"{audyt.falszywych} false. This is not validation against an external truth, "
+          f"is {pa:.2f}-{pg:.2f}% over all {audit.pairs} pairs: "
+          f"{audit.confirmed} confirmed, {audit.uncertain} uncertain, "
+          f"{audit.false_matches} false. This is not validation against an external truth, "
           f"because there is none for this register; the key does not force these fields "
           f"to agree, so their agreement is independent evidence.")
     print(f"  Rows dropped from the linkage as ambiguous: "
-          f"{podsum['odrzuconych_jako_niejednoznaczne_a']} and "
-          f"{podsum['odrzuconych_jako_niejednoznaczne_b']}; "
-          f"in key collision there stand {podsum['wierszy_w_kolizji_a']} and "
-          f"{podsum['wierszy_w_kolizji_b']} rows respectively.")
+          f"{summary['rejected_as_ambiguous_a']} and "
+          f"{summary['rejected_as_ambiguous_b']}; "
+          f"in key collision there stand {summary['rows_in_collision_a']} and "
+          f"{summary['rows_in_collision_b']} rows respectively.")
 
     print(f"\nsaved to: {out}")
     return 0

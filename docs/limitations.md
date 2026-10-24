@@ -65,7 +65,7 @@ among the remaining publishers**.
   publish a dictionary of the codes, so the resolver returns missing-with-reason. **It does not
   guess.** Obtaining the substation code dictionaries would in a single step turn this register from
   an aspatial one into a spatial one.
-* A street name does not determine a point, see [validation](walidacja.md).
+* A street name does not determine a point, see [validation](validation.md).
 
 ## Transferability
 

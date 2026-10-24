@@ -17,10 +17,14 @@ public, but it is not processable.
 
 `gridqueue` turns those publications into one set of rows with **measured accuracy**.
 
-Release 1.6.0: **nine adapters in five jurisdictions** (Poland, Spain, Ireland, Portugal, Great
+Release 1.7.0: **nine adapters in five jurisdictions** (Poland, Spain, Ireland, Portugal, Great
 Britain), all 21 schema fields populated by at least one publisher, quality rules, a longitudinal
 module with a linkage audit, processing times with censoring, node loading, a location resolver and
 **charts for every result**. Documentation: **https://s-matysik.github.io/gridqueue/**
+
+The code and documentation are in English. Schema field names and codes (`id_wniosku`,
+`WARUNKI_WYDANE`, ...) keep the wording of the Polish statute, because they are the data format of
+the panel; their English meaning is in the [glossary](https://s-matysik.github.io/gridqueue/schema.html#glossary-of-field-and-code-names).
 
 ## Three ways to run it
 
@@ -75,7 +79,7 @@ resolver is shown on a synthetic gazetteer, with a one-line change to use your o
 One command, with no compilation and no external services:
 
 ```bash
-pip install "gridqueue[plot] @ git+https://github.com/s-matysik/gridqueue@v1.6.0"
+pip install "gridqueue[plot] @ git+https://github.com/s-matysik/gridqueue@v1.7.0"
 ```
 
 The `plot` extra adds matplotlib for the charts; without it everything else works.
@@ -98,19 +102,19 @@ from gridqueue import get_adapter, run_quality, validate_frame, audit_column_shi
 
 res = get_adapter("pl_tauron").parse("tauron_informacja.pdf")
 df = res.frame                       # frame in the 21-field schema
-print(res.report["n_wierszy"])       # 10955
-print(audit_column_shift(df).udzial) # 0.0, share of rows with shifted columns
-print(run_quality(df).as_dict()["naruszen_lacznie"])
+print(res.report["n_rows"])       # 10955
+print(audit_column_shift(df).share) # 0.0, share of rows with shifted columns
+print(run_quality(df).as_dict()["violations_total"])
 ```
 
 A row with a resolved location:
 
 ```python
 from gridqueue import resolver_from_osm_json
-r = resolver_from_osm_json("ulice_warszawa.json")
+r = resolver_from_osm_json("streets_warsaw.json")
 res = r.resolve("WARSZAWA, WINCENTEGO ŚW.")
-print(res.matched, res.pewnosc)      # Świętego Wincentego REVERSED
-print(r.resolve("SKB3").powod)       # kod_stacji_bez_slownika, we do not guess
+print(res.matched, res.confidence)      # Świętego Wincentego REVERSED
+print(r.resolve("SKB3").reason)       # kod_stacji_bez_slownika, we do not guess
 ```
 
 ## CLI
@@ -120,7 +124,7 @@ gridqueue schema                                   # specification of the 21 fie
 gridqueue adapters                                 # publisher declarations
 gridqueue parse tauron.pdf --out tauron.parquet --report tauron.json
 gridqueue parse --adapter uk_nationalgrid --out uk.parquet   # downloads from the CKAN catalogue
-gridqueue validate tauron.parquet --out walidacja.json
+gridqueue validate tauron.parquet --out validation.json
 gridqueue export tauron.parquet stoen.parquet --out panel.parquet --only-schema
 gridqueue compare pse_07.parquet pse_08.parquet --label-a 2026-07-31 --label-b 2026-08-31 --out delta.json
 gridqueue plot energa.parquet --out charts/ --format png,svg         # every chart the data supports
@@ -141,7 +145,7 @@ skipped node with the reason), never as zero.
 | `plot_column_shift` | rows in which a value stands in a field it cannot belong to |
 | `plot_status_distribution` | applications by stage of the proceeding |
 | `plot_capacity_by_class` | requested capacity of the active queue by resource class and voltage |
-| `plot_processing_time` | Kaplan-Meier curves with censoring and a 95 % band |
+| `plot_processing_time` | Kaplan-Meier curves with censoring and a 95% band |
 | `plot_node_loading` | queue over declared free capacity, per node, log scale |
 | `plot_edition_flows`, `plot_transitions`, `plot_linkage_audit`, `plot_edition_comparison` | two editions |
 | `plot_location_resolution` | where a coordinate comes from, and the reason where it does not |
@@ -151,7 +155,7 @@ skipped node with the reason), never as zero.
 ```python
 from gridqueue import parse_sources, plots
 
-panel, reports = parse_sources(["wnioski.pdf", "moc_odbiorcza.pdf", "moc_wytworcza.pdf"])
+panel, reports = parse_sources(["applications.pdf", "demand_capacity.pdf", "generation_capacity.pdf"])
 plots.plot_processing_time(panel, by="klasa_zasobu")     # displays in Jupyter / Colab
 plots.save_all(panel, "charts/", formats=("png", "svg"), dpi=300)
 ```
@@ -215,16 +219,16 @@ status transition matrix:
 ```python
 from gridqueue import compare_editions, linkage_audit, get_adapter
 
-a = get_adapter("pl_pse").parse("edycja_2026_07_31.xlsx").frame
-b = get_adapter("pl_pse").parse("edycja_2026_08_31.xlsx").frame
+a = get_adapter("pl_pse").parse("edition_2026_07_31.xlsx").frame
+b = get_adapter("pl_pse").parse("edition_2026_08_31.xlsx").frame
 d = compare_editions(a, b, "2026-07-31", "2026-08-31")
-d.as_dict()["udzial_przejsc_w_przod"]   # 0.9828
-d.as_dict()["migawka_monotoniczna"]     # False
+d.as_dict()["forward_share"]   # 0.9828
+d.as_dict()["monotone_snapshot"]     # False
 
 linkage_audit(a, b).as_dict()           # linkage precision: 0.9888-0.9963
 ```
 
-Two results on the pair of PSE editions, July to August 2026. **98,28 % of the status transitions run
+Two results on the pair of PSE editions, July to August 2026. **98.28% of the status transitions run
 in accordance with the order of the proceeding**, which is an independent test of the key's linkage,
 because a key matching at random would not have produced that order. And the second: **the register is
 not a monotonic snapshot**, 13 rows appear already in a closed state, and 33 rows with an active status
@@ -234,10 +238,10 @@ queue alone, and the tool reports this with a flag instead of letting the user f
 Since the register has no persistent identifier, the linkage itself also requires checking.
 `linkage_audit` compares every pair on nine fields **excluded from the key**; the key does not
 enforce their agreement, so the agreement is independent evidence. Across all 804 pairs the
-precision is **98,88-99,63 %**: 795 pairs confirmed, 6 uncertain, 3 false.
+precision is **98.88-99.63%**: 795 pairs confirmed, 6 uncertain, 3 false.
 
 ```bash
-python examples/longitudinal_use_case.py edycja_A.xlsx edycja_B.xlsx 2026-07-31 2026-08-31
+python examples/longitudinal_use_case.py edition_A.xlsx edition_B.xlsx 2026-07-31 2026-08-31
 ```
 
 ## Reproducibility
@@ -261,7 +265,7 @@ declares injected capacity, a consuming one consumed capacity, and point 2 of th
 discharged with available capacity and sometimes with a count of free connection slots. In version 0.3.x
 the core unconditionally required consumed capacity and applied the requirements of the application
 entity to node rows as well, which turned a property of the schema into an apparent violation of the
-disclosure; violations of that rule numbered 5 390 (28,044 %) against **771 (4,011 %)** now.
+disclosure; violations of that rule numbered 5,390 (28.044%) against **771 (4.011%)** now.
 
 ## Tests
 
@@ -289,10 +293,10 @@ detected by comparing the output with the reference set read from the document.
   the codes, so the resolver returns missing with the reason `kod_stacji_bez_slownika`. It does not
   guess.
 * **None of the publishers reports coordinates.** The `wspolrzedne` field is populated by
-  derivation from the place name against a gazetteer with geometry (13 149 names in 25 localities):
-  1 225 of 19 220 panel rows. The evidential value of this field is therefore different from that of
+  derivation from the place name against a gazetteer with geometry (13,149 names in 25 localities):
+  1,225 of 19,220 panel rows. The evidential value of this field is therefore different from that of
   the fields transcribed from the document, and it is described as such in the result.
-* A street name does not determine a point: 431 of 6 057 Warsaw names (7,12%) have disjoint components
+* A street name does not determine a point: 431 of 6,057 Warsaw names (7.12%) have disjoint components
   more than 2 km apart. The register gives the street but not the district, so **this ambiguity cannot
   be removed from the published data**. Every result carries the number of components and their spread,
   so that the recipient can filter such rows out.

@@ -14,8 +14,8 @@ def test_censoring_uses_the_rows_own_publication_date():
         {"_encja": "WEZEL", "data_publikacji": "2026-08-31"},
     ])
     pt = G.processing_time(df)
-    assert pt.loc[0, "czas_dni"] == (pd.Timestamp("2026-06-30") - pd.Timestamp("2026-01-01")).days
-    assert pt.loc[0, "zdarzenie"] == 0 and pt.loc[1, "zdarzenie"] == 1
+    assert pt.loc[0, "time_days"] == (pd.Timestamp("2026-06-30") - pd.Timestamp("2026-01-01")).days
+    assert pt.loc[0, "event"] == 0 and pt.loc[1, "event"] == 1
 
 
 def test_censoring_per_publisher_in_a_panel():
@@ -24,13 +24,13 @@ def test_censoring_per_publisher_in_a_panel():
         {"publikujacy": "B", "data_wniosku": "2026-01-01", "data_publikacji": "2026-06-30"},
     ]).assign(data_warunkow=None)
     pt = G.processing_time(df)
-    assert list(pt["czas_dni"]) == [89, 180]
+    assert list(pt["time_days"]) == [89, 180]
 
 
 def test_explicit_as_at_date_applies_to_every_row():
     df = pd.DataFrame([{"data_wniosku": "2026-01-01", "data_publikacji": "2026-03-31",
                         "data_warunkow": None}])
-    assert G.processing_time(df, na_dzien="2026-01-11")["czas_dni"].iloc[0] == 10
+    assert G.processing_time(df, as_at="2026-01-11")["time_days"].iloc[0] == 10
 
 
 def test_node_loading_voltage_filter():
@@ -43,9 +43,9 @@ def test_node_loading_voltage_filter():
          "status_procesu": "WARUNKI_WYDANE", "poziom_napiecia": "SN"},
     ]
     df = pd.DataFrame(rows)
-    przyp = G.assign_to_nodes(df, G.station_node_map(df))
-    assert G.node_loading(przyp, napiecie="110")["obciazenie"].iloc[0] == 3.0
-    assert G.node_loading(przyp)["obciazenie"].iloc[0] == 3.5
+    assigned = G.assign_to_nodes(df, G.station_node_map(df))
+    assert G.node_loading(assigned, voltage="110")["loading"].iloc[0] == 3.0
+    assert G.node_loading(assigned)["loading"].iloc[0] == 3.5
 
 
 def test_split_editions_by_application_date():

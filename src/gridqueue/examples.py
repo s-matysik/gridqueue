@@ -57,11 +57,11 @@ def synthetic_panel(n: int = 600, *, seed: int = 7, as_at: str = "2026-06-30",
     rows = []
     for i in range(n):
         pub = SYNTHETIC_PUBLISHERS[0] if rng.random() < 0.6 else SYNTHETIC_PUBLISHERS[1]
-        klasa = _pick(rng, _CLASSES)
+        resource_class = _pick(rng, _CLASSES)
         filed = asat - timedelta(days=rng.randint(20, 900))
-        wait = int(rng.expovariate(1 / _MEDIAN_DAYS[klasa]) * 1.1) + 14
+        wait = int(rng.expovariate(1 / _MEDIAN_DAYS[resource_class]) * 1.1) + 14
         cond = filed + timedelta(days=wait)
-        r = {"id_wniosku": f"SYN-{i:05d}", "publikujacy": pub, "klasa_zasobu": klasa,
+        r = {"id_wniosku": f"SYN-{i:05d}", "publikujacy": pub, "klasa_zasobu": resource_class,
              "data_wniosku": _iso(filed), "data_publikacji": as_at, "_encja": "WNIOSEK"}
         grp = rng.randint(1, len(_STATIONS))
         stn = rng.choice(_STATIONS[grp])
@@ -71,8 +71,8 @@ def synthetic_panel(n: int = 600, *, seed: int = 7, as_at: str = "2026-06-30",
         else:
             r["lokalizacja_tekst"] = f"{town.title()}, {rng.choice(_STREETS)}"
         r["poziom_napiecia"] = "SN" if rng.random() < 0.7 else "110 kV"
-        mw = round(rng.lognormvariate(0.4 if klasa != "ODB" else -0.3, 1.0), 3)
-        r["moc_pobierana" if klasa == "ODB" else "moc_wprowadzana"] = round(mw * 1000, 1)
+        mw = round(rng.lognormvariate(0.4 if resource_class != "ODB" else -0.3, 1.0), 3)
+        r["moc_pobierana" if resource_class == "ODB" else "moc_wprowadzana"] = round(mw * 1000, 1)
         if cond <= asat:
             r["data_warunkow"] = _iso(cond)
             u = rng.random()
@@ -88,7 +88,7 @@ def synthetic_panel(n: int = 600, *, seed: int = 7, as_at: str = "2026-06-30",
             if u < 0.08:
                 r["status_procesu"] = "ODMOWA"
                 r["data_odmowy"] = _iso(filed + timedelta(days=rng.randint(20, 120)))
-                r["powod_odmowy"] = "brak warunkow technicznych"
+                r["powod_odmowy"] = "no technical conditions for connection"
             elif u < 0.14:
                 r["status_procesu"] = "WNIOSEK_NIEKOMPLETNY"
             else:
@@ -96,10 +96,10 @@ def synthetic_panel(n: int = 600, *, seed: int = 7, as_at: str = "2026-06-30",
         rows.append(r)
     if with_nodes:
         for grp, stations in _STATIONS.items():
-            for kier in ("wytworcza", "odbiorcza"):
+            for direction_label in ("wytworcza", "odbiorcza"):
                 free = 0.0 if grp == 8 else round(rng.uniform(2, 60) * 1000, 1)
-                rows.append({"_encja": "WEZEL", "id_wezla": f"N{grp}-{kier[0].upper()}",
-                             "nazwa_wezla": stations[0], "_nr_grupy": grp, "_kierunek": kier,
+                rows.append({"_encja": "WEZEL", "id_wezla": f"N{grp}-{direction_label[0].upper()}",
+                             "nazwa_wezla": stations[0], "_nr_grupy": grp, "_kierunek": direction_label,
                              "lokalizacja_tekst": ", ".join(stations), "moc_dostepna": free,
                              "publikujacy": SYNTHETIC_PUBLISHERS[0],
                              "data_publikacji": as_at})
@@ -116,7 +116,7 @@ _FORWARD = {"W_TRAKCIE_ANALIZY": "WARUNKI_WYDANE", "WNIOSEK_NIEKOMPLETNY": "W_TR
 def synthetic_editions(n: int = 400, *, seed: int = 11) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Two consecutive synthetic editions of one register (applications only).
 
-    Between them about 6 % of rows disappear, 5 % are added, 8 % advance one stage, and a
+    Between them about 6% of rows disappear, 5% are added, 8% advance one stage, and a
     handful move backwards, so the flows, the transition matrix and the linkage audit all
     have something to show.
     """
@@ -156,11 +156,11 @@ def synthetic_gazetteer() -> dict:
     """A small gazetteer in the layout read by :func:`~gridqueue.geoloc.resolver_from_gazeter_json`."""
     out = {}
     for k, (lat, lon) in _TOWNS.items():
-        ulice = {}
+        streets = {}
         for j, st in enumerate(_STREETS):
             if k == "LAKEVIEW" and j > 2:
                 continue  # streets missing from the gazetteer, to show an honest "no candidate"
-            ulice[st] = {"lat": round(lat + 0.004 * (j - 2), 6),
+            streets[st] = {"lat": round(lat + 0.004 * (j - 2), 6),
                          "lon": round(lon + 0.006 * (j - 2), 6), "dlugosc_m": 400 + 150 * j}
-        out[k] = {"nazwa": k.title(), "lat": lat, "lon": lon, "ulice": ulice}
+        out[k] = {"nazwa": k.title(), "lat": lat, "lon": lon, "ulice": streets}
     return {"miejscowosci": out}

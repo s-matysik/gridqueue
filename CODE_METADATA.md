@@ -8,8 +8,8 @@ listed again in the final section.
 
 | Nr | Item | Value |
 |----|------|-------|
-| C1 | Current code version | `1.6.0` (declared identically in `pyproject.toml` and in `gridqueue.__version__`; CI asserts the two agree on every push) |
-| C2 | Permanent link to code / repository used for this code version | https://github.com/s-matysik/gridqueue (tag `v1.6.0`) |
+| C1 | Current code version | `1.7.0` (declared identically in `pyproject.toml` and in `gridqueue.__version__`; CI asserts the two agree on every push) |
+| C2 | Permanent link to code / repository used for this code version | https://github.com/s-matysik/gridqueue (tag `v1.7.0`) |
 | C3 | Permanent link to Reproducible Capsule | ⟦TEAM DECISION⟧, archive DOI. The repository is ready for a Zenodo deposit of tag `v1.6.0`; enabling the integration requires the team's account |
 | C4 | Legal Code License | Apache-2.0, `LICENSE.txt` at the distribution root. Input data licences are fixed and separate: OpenStreetMap gazetteer under ODbL 1.0; operators' statutory publications under the terms each publisher applies to its own site |
 | C5 | Code versioning system used | git |
@@ -22,8 +22,8 @@ listed again in the final section.
 
 | Nr | Item | Value |
 |----|------|-------|
-| S1 | Current software version | `1.6.0`, matching C1 |
-| S2 | Permanent link to executables of this version | Source distribution only, `gridqueue-1.6.0.tar.gz`, pure Python, no binaries, no compiled extensions |
+| S1 | Current software version | `1.7.0`, matching C1 |
+| S2 | Permanent link to executables of this version | Source distribution only, `gridqueue-1.7.0.tar.gz`, pure Python, no binaries, no compiled extensions |
 | S3 | Legal Software License | Apache-2.0, same licence as C4 |
 | S4 | Computing platforms / Operating Systems | Linux, macOS, Windows × Python 3.10, 3.11, 3.12, 3.13, a twelve-cell matrix exercised by GitHub Actions (`.github/workflows/ci.yml`) on every push and pull request. The measured figures reported in the paper were produced on macOS/arm64 with Python 3.11.15 |
 | S5 | Installation requirements & dependencies | As C7. No GPU, no network access required at run time once the source documents and the gazetteer are local |
@@ -54,7 +54,7 @@ not.
    NODE, point 2); mandatory core of 5 fields, 16 optional and declared per publisher; canonical
    units kW, ISO-8601 dates, WGS84 coordinates; controlled vocabularies of 12 resource classes and
    11 process statuses. Verified by measured coverage across the six packaged row-level sources
-   (`gridqueue_macierz_pokrycia_6publ.csv`): ENERGA-OPERATOR 17/21, PSE 17/21, TAURON 15/21,
+   (`gridqueue_coverage_matrix_6publ.csv`): ENERGA-OPERATOR 17/21, PSE 17/21, TAURON 15/21,
    Stoen 13/21, National Grid (GB) 10/21, Boryszew 8/21. **All 21 schema fields are populated
    somewhere in the 19,220-row panel.** `moc_dostepna` is closed from sources by 96 ENERGA node
    rows (0-175,000 kW); PSE discharges the same obligation point as a **count of free connection
@@ -63,7 +63,7 @@ not.
    populated by derivation from the place name, not by disclosure: no publisher reports coordinates.
    Extensions across publishers are complementary, not conflicting.
    **Resolved in 1.0.** The core no longer requires `moc_pobierana` unconditionally. It requires the
-   row's OWN entity core: for a WNIOSEK row four unconditional fields plus **at least one** of
+   row's OWN entity core: for a APPLICATION row four unconditional fields plus **at least one** of
    (`moc_pobierana`, `moc_wprowadzana`); for a WEZEL row `id_wezla` plus at least one of
    (`moc_dostepna`, `ograniczenie_flaga`). Rule R7 therefore fell from 5,390 violations (28.044%)
    to 771 (4.011%), and rows with a complete core rose from 13,830 to 18,449 of 19,220. What remains
@@ -81,8 +81,8 @@ not.
    1,179 resolved, 98.81%; without the intersection rule 1,095 of 1,179 = 92.88%; without both the
    inverted-order and the intersection rule 1,041 of 1,179 = 88.30%.
    Coordinate coverage after the gazetteer was rebuilt with geometry (13,149 street names in 25
-   localities, 292 address points, OpenStreetMap under ODbL): **1,225 of 19,220 panel rows = 6.374%**
-, Stoen 1,217 of 1,236 = 98.463% (Warsaw 1,167 of 1,179 = 98.982%; outside Warsaw 50 of 57 =
+   localities, 292 address points, OpenStreetMap under ODbL): **1,225 of 19,220 panel rows = 6.374%**:
+   Stoen 1,217 of 1,236 = 98.463% (Warsaw 1,167 of 1,179 = 98.982%; outside Warsaw 50 of 57 =
    87.719%), Boryszew 8 of 8, and **zero for TAURON, PSE, ENERGA and National Grid**, each with a
    recorded reason. **No publisher discloses coordinates**; the field is derived from the place name,
    which is why the manuscript reports it separately from transcribed fields. Verification against
@@ -113,7 +113,7 @@ blocker is server-side client filtering, the site returns a rejection page to th
 control the operator put in place deliberately, so it was not attempted. Electricity North West:
 rows behind the same access control as UK Power Networks; metadata only.
 
-**Size.** Read from the built source distribution `gridqueue-1.6.0.tar.gz`: 7 core modules under `src/gridqueue`, 2,125 lines, `geoloc.py` 672, `schema.py` 480, `quality.py` 370, `layout.py` 353, `cli.py` 148, `registry.py` 64, `__init__.py` 38, and 9 adapter modules, 1,777 lines (`pl_pse.py` 303, `pl_energa.py` 282, `_ptpiree.py` 278, `pl_boryszew.py` 232, `pl_stoen.py` 194, `uk_nationalgrid.py` 166, `pl_tauron.py` 161, `base.py` 156, `__init__.py` 5); 3,902 lines in total under `src`. `_ptpiree.py` is shared by the PSE and ENERGA adapters because both publishers fill the same agreed industry template, one as a spreadsheet and one as a print document. Tests: 7 files, 1,040 lines (`test_geoloc_wspolrzedne.py` 280, `test_schema.py` 164, `test_pse_energa.py` 147, `test_adapters.py` 144, `test_quality.py` 124, `test_geoloc.py` 95, `test_layout.py` 86). Runnable workflows shipped alongside the package: `examples/research_use_case.py` 168 lines, and `reproducibility/` 382 lines (`run_figures.py` 248, `run_validation.py` 134). `python -m pytest -q`: **153 passed, 2 skipped (155 collected), 0 failed, 0 errors**, the two skips are the PSE and ENERGA integration tests, which require the source documents and are skipped when those are absent from the working tree. The twelve-cell OS × Python matrix in CI runs the same suite.
+**Size.** Read from the built source distribution `gridqueue-1.7.0.tar.gz`: 7 core modules under `src/gridqueue`, 2,125 lines, `geoloc.py` 672, `schema.py` 480, `quality.py` 370, `layout.py` 353, `cli.py` 148, `registry.py` 64, `__init__.py` 38, and 9 adapter modules, 1,777 lines (`pl_pse.py` 303, `pl_energa.py` 282, `_ptpiree.py` 278, `pl_boryszew.py` 232, `pl_stoen.py` 194, `uk_nationalgrid.py` 166, `pl_tauron.py` 161, `base.py` 156, `__init__.py` 5); 3,902 lines in total under `src`. `_ptpiree.py` is shared by the PSE and ENERGA adapters because both publishers fill the same agreed industry template, one as a spreadsheet and one as a print document. Tests: 7 files, 1,040 lines (`test_geoloc_coordinates.py` 280, `test_schema.py` 164, `test_pse_energa.py` 147, `test_adapters.py` 144, `test_quality.py` 124, `test_geoloc.py` 95, `test_layout.py` 86). Runnable workflows shipped alongside the package: `examples/research_use_case.py` 168 lines, and `reproducibility/` 382 lines (`run_figures.py` 248, `run_validation.py` 134). `python -m pytest -q`: **153 passed, 2 skipped (155 collected), 0 failed, 0 errors**, the two skips are the PSE and ENERGA integration tests, which require the source documents and are skipped when those are absent from the working tree. The twelve-cell OS × Python matrix in CI runs the same suite.
 
 **Functionalities.** Document ingest with per-row provenance; layout-based extraction; unit
 normalisation to the canonical kW (MW→kW, with the source unit retained in an extension column); resource-class and process-status vocabulary mapping; composite-date

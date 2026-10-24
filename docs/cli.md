@@ -9,7 +9,7 @@ gridqueue schema                                   # specification of the 21 fie
 gridqueue adapters                                 # publisher declarations
 gridqueue parse tauron.pdf --out tauron.parquet --report tauron.json
 gridqueue parse --adapter uk_nationalgrid --out uk.parquet   # downloads from the CKAN catalogue
-gridqueue validate tauron.parquet --out walidacja.json
+gridqueue validate tauron.parquet --out validation.json
 gridqueue export tauron.parquet stoen.parquet --out panel.parquet --only-schema
 gridqueue compare pse_07.parquet pse_08.parquet --label-a 2026-07-31 --label-b 2026-08-31 \
     --out delta.json --transitions transitions.csv
@@ -32,7 +32,7 @@ columns carrying the `_` prefix.
 matrix, the linkage precision on the fields held out of the key and the key sensitivity.
 `--node-key` uses the node key for node-level registers.
 
-`plot` draws every chart the dataset supports (see [Charts](wykresy.md)); with `--edition-b` it adds
+`plot` draws every chart the dataset supports (see [Charts](charts.md)); with `--edition-b` it adds
 the comparison of two editions. Charts that need data the disclosure does not carry are skipped and
 listed with the reason. It needs the `plot` extra (matplotlib).
 

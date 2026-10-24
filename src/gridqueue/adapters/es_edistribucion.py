@@ -61,20 +61,20 @@ JURISDICTION = "ES"
 
 #: Column indices in the extracted table. Fixed on the August 2025 edition
 #: and verified by sums; see the module header.
-K_WSPOLNOTA, K_PROWINCJA, K_GMINA, K_PODSTACJA = 0, 1, 2, 3
-K_SZEROKOSC, K_DLUGOSC, K_NAPIECIE = 4, 5, 6
-K_DOSTEPNA, K_ZAJETA_TOTAL = 7, 8
-K_POZYCJE = tuple(range(9, 18))          # breakdown of occupied capacity by station position
-K_ZAJETA_Z_POZWOLENIEM, K_ZAJETA_W_TOKU = 18, 19
-K_PRZYJETA_TOTAL = 20                     # accepted and unresolved
-K_TECHNOLOGIE = (21, 22, 23, 24, 25)
-K_SCC, K_WEZEL_PRZESYLOWY, K_KOMENTARZ = 26, 27, 28
-SZEROKOSC_WIERSZA = 29
+K_COMMUNITY, K_PROVINCE, K_MUNICIPALITY, K_SUBSTATION = 0, 1, 2, 3
+K_LATITUDE, K_LONGITUDE, K_VOLTAGE = 4, 5, 6
+K_AVAILABLE, K_OCCUPIED_TOTAL = 7, 8
+K_ITEMS = tuple(range(9, 18))          # breakdown of occupied capacity by station position
+K_OCCUPIED_WITH_PERMIT, K_OCCUPIED_IN_PROGRESS = 18, 19
+K_ACCEPTED_TOTAL = 20                     # accepted and unresolved
+K_TECHNOLOGIES = (21, 22, 23, 24, 25)
+K_SCC, K_TRANSMISSION_NODE, K_COMMENT = 26, 27, 28
+ROW_WIDTH = 29
 
-_WSPOLNOTA = re.compile(r"^\d{2}\s*-\s*")
+_COMMUNITY = re.compile(r"^\d{2}\s*-\s*")
 
 
-def _liczba(v) -> float | None:
+def _count(v) -> float | None:
     """Number in Spanish notation: decimal comma, thousands dot."""
     if v is None:
         return None
@@ -88,23 +88,23 @@ def _liczba(v) -> float | None:
         return None
 
 
-def _mw_na_kw(v) -> float | None:
+def _mw_per_kw(v) -> float | None:
     """MW of active power -> kW of active power. A change of order of magnitude, not of physical quantity."""
-    x = _liczba(v)
+    x = _count(v)
     return None if x is None else x * 1000.0
 
 
-def _data_z_nazwy(nazwa: str) -> str | None:
+def _date_from_name(name: str) -> str | None:
     """'EDRD_Capacidad_de_Acceso_2025_08_01.pdf' -> '2025-08-01'.
 
     The date is taken from the file name, not from the title page, because the name is
     machine-readable and decidable, while the title page gives it in words, in Spanish.
     """
-    m = re.search(r"(\d{4})[_-](\d{2})[_-](\d{2})", nazwa)
+    m = re.search(r"(\d{4})[_-](\d{2})[_-](\d{2})", name)
     return f"{m.group(1)}-{m.group(2)}-{m.group(3)}" if m else None
 
 
-def suma_skladnikow_mocy_zajetej(wiersze) -> "tuple[int, int]":
+def total_occupied_capacity_components(rows) -> "tuple[int, int]":
     """How many rows close the arithmetic identity of the document.
 
     The eleven subcolumns of occupied capacity (nine station positions plus "with
@@ -117,20 +117,20 @@ def suma_skladnikow_mocy_zajetej(wiersze) -> "tuple[int, int]":
     reading, weaker than a reference, but checkable on every edition, because it requires
     all twelve cells of the block to be read correctly.
     """
-    domkniete = 0
-    for w in wiersze:
-        if not w or len(w) != SZEROKOSC_WIERSZA:
+    closed = 0
+    for w in rows:
+        if not w or len(w) != ROW_WIDTH:
             continue
-        laczna = _liczba(w[K_ZAJETA_TOTAL])
-        if laczna is None:
+        total_cap = _count(w[K_OCCUPIED_TOTAL])
+        if total_cap is None:
             continue
-        skladniki = [_liczba(w[i]) or 0.0
-                     for i in (*K_POZYCJE, K_ZAJETA_Z_POZWOLENIEM, K_ZAJETA_W_TOKU)]
-        if round(sum(skladniki), 2) == round(laczna, 2):
-            domkniete += 1
-    return domkniete, sum(1 for w in wiersze
-                          if w and len(w) == SZEROKOSC_WIERSZA
-                          and _liczba(w[K_ZAJETA_TOTAL]) is not None)
+        components = [_count(w[i]) or 0.0
+                     for i in (*K_ITEMS, K_OCCUPIED_WITH_PERMIT, K_OCCUPIED_IN_PROGRESS)]
+        if round(sum(components), 2) == round(total_cap, 2):
+            closed += 1
+    return closed, sum(1 for w in rows
+                          if w and len(w) == ROW_WIDTH
+                          and _count(w[K_OCCUPIED_TOTAL]) is not None)
 
 
 class EDistribucionAdapter(Adapter):
@@ -158,78 +158,78 @@ class EDistribucionAdapter(Adapter):
         import pdfplumber
 
         path = Path(str(source))
-        data_pub = _data_z_nazwy(path.name)
+        date_published = _date_from_name(path.name)
 
-        surowe, stron = [], 0
+        raw, pages = [], 0
         with pdfplumber.open(path) as pdf:
-            stron = len(pdf.pages)
-            for strona in pdf.pages:
-                for tabela in strona.extract_tables():
-                    for wiersz in tabela:
-                        if (wiersz and len(wiersz) == SZEROKOSC_WIERSZA
-                                and _WSPOLNOTA.match(str(wiersz[K_WSPOLNOTA] or ""))):
-                            surowe.append(wiersz)
+            pages = len(pdf.pages)
+            for page in pdf.pages:
+                for table in page.extract_tables():
+                    for row in table:
+                        if (row and len(row) == ROW_WIDTH
+                                and _COMMUNITY.match(str(row[K_COMMUNITY] or ""))):
+                            raw.append(row)
 
-        domkniete, sprawdzonych = suma_skladnikow_mocy_zajetej(surowe)
-        rekordy, ograniczonych, bez_wspolrzednych = [], 0, 0
-        for w in surowe:
+        closed, checked = total_occupied_capacity_components(raw)
+        records, limited, without_coordinates = [], 0, 0
+        for w in raw:
             def kom(i):
                 v = w[i]
                 return None if v is None or str(v).strip() == "" else str(v).strip()
 
-            lat, lon = _liczba(w[K_SZEROKOSC]), _liczba(w[K_DLUGOSC])
+            lat, lon = _count(w[K_LATITUDE]), _count(w[K_LONGITUDE])
             if lat is None or lon is None:
-                bez_wspolrzednych += 1
+                without_coordinates += 1
             scc = (kom(K_SCC) or "").upper()
-            ogr = {"SI": True, "SÍ": True, "NO": False}.get(scc)
-            if ogr:
-                ograniczonych += 1
-            napiecie = kom(K_NAPIECIE)
-            podstacja = kom(K_PODSTACJA)
+            limit = {"SI": True, "SÍ": True, "NO": False}.get(scc)
+            if limit:
+                limited += 1
+            voltage = kom(K_VOLTAGE)
+            substation = kom(K_SUBSTATION)
 
-            tech = {i: _mw_na_kw(w[i]) for i in K_TECHNOLOGIE}
-            poz = {i: _mw_na_kw(w[i]) for i in K_POZYCJE}
+            tech = {i: _mw_per_kw(w[i]) for i in K_TECHNOLOGIES}
+            positions = {i: _mw_per_kw(w[i]) for i in K_ITEMS}
 
-            rekordy.append({
+            records.append({
                 # The identifier must distinguish between voltage levels of the same substation:
                 # the publisher issues a separate row for each level.
-                "id_wezla": f"{podstacja}|{napiecie}" if podstacja and napiecie else podstacja,
-                "nazwa_wezla": podstacja,
-                "lokalizacja_tekst": ", ".join(x for x in (kom(K_GMINA), kom(K_PROWINCJA)) if x) or None,
+                "id_wezla": f"{substation}|{voltage}" if substation and voltage else substation,
+                "nazwa_wezla": substation,
+                "lokalizacja_tekst": ", ".join(x for x in (kom(K_MUNICIPALITY), kom(K_PROVINCE)) if x) or None,
                 "wspolrzedne": f"{lat},{lon}" if lat is not None and lon is not None else None,
-                "poziom_napiecia": f"{napiecie} kV" if napiecie else None,
-                "moc_dostepna": _mw_na_kw(w[K_DOSTEPNA]),
-                "moc_zarezerwowana": _mw_na_kw(w[K_ZAJETA_TOTAL]),
-                "ograniczenie_flaga": ogr,
-                "data_publikacji": data_pub,
+                "poziom_napiecia": f"{voltage} kV" if voltage else None,
+                "moc_dostepna": _mw_per_kw(w[K_AVAILABLE]),
+                "moc_zarezerwowana": _mw_per_kw(w[K_OCCUPIED_TOTAL]),
+                "ograniczenie_flaga": limit,
+                "data_publikacji": date_published,
                 "_encja": "WEZEL",
-                "_wspolnota_autonomiczna": kom(K_WSPOLNOTA),
-                "_prowincja": kom(K_PROWINCJA),
-                "_moc_przyjeta_nierozstrzygnieta_kw": _mw_na_kw(w[K_PRZYJETA_TOTAL]),
-                "_moc_zajeta_z_pozwoleniem_kw": _mw_na_kw(w[K_ZAJETA_Z_POZWOLENIEM]),
-                "_moc_zajeta_w_toku_kw": _mw_na_kw(w[K_ZAJETA_W_TOKU]),
+                "_wspolnota_autonomiczna": kom(K_COMMUNITY),
+                "_prowincja": kom(K_PROVINCE),
+                "_moc_przyjeta_nierozstrzygnieta_kw": _mw_per_kw(w[K_ACCEPTED_TOTAL]),
+                "_moc_zajeta_z_pozwoleniem_kw": _mw_per_kw(w[K_OCCUPIED_WITH_PERMIT]),
+                "_moc_zajeta_w_toku_kw": _mw_per_kw(w[K_OCCUPIED_IN_PROGRESS]),
                 "_rozbicie_technologiczne_kw": ";".join(
                     f"{i}={v:.1f}" for i, v in tech.items() if v) or None,
                 "_rozbicie_pozycyjne_kw": ";".join(
-                    f"{i}={v:.1f}" for i, v in poz.items() if v) or None,
-                "_wezel_przesylowy": kom(K_WEZEL_PRZESYLOWY),
-                "_komentarz": kom(K_KOMENTARZ),
+                    f"{i}={v:.1f}" for i, v in positions.items() if v) or None,
+                "_wezel_przesylowy": kom(K_TRANSMISSION_NODE),
+                "_komentarz": kom(K_COMMENT),
             })
 
-        df = self.finalize(pd.DataFrame(rekordy), document=path.name)
+        df = self.finalize(pd.DataFrame(records), document=path.name)
         notes = {
-            "publikujacy": PUBLISHER,
-            "jurysdykcja": JURISDICTION,
-            "tryb_wydania": "document intended for print, monthly edition",
-            "stron": stron,
-            "wierszy": int(len(df)),
-            "wezlow_ograniczonych_przez_Scc": ograniczonych,
-            "wierszy_bez_wspolrzednych": bez_wspolrzednych,
-            "jednostka_mocy_zrodlowa": "MW",
-            "przeliczenie": "MW -> kW, both quantities are active power",
-            "data_publikacji": data_pub,
-            "tozsamosc_sumy_mocy_zajetej": f"{domkniete}/{sprawdzonych}",
-            "uwaga_tozsamosc": (
+            "publisher": PUBLISHER,
+            "jurisdiction": JURISDICTION,
+            "release_mode": "document intended for print, monthly edition",
+            "pages": pages,
+            "rows": int(len(df)),
+            "nodes_limited_by_Scc": limited,
+            "rows_without_coordinates": without_coordinates,
+            "source_capacity_unit": "MW",
+            "recalculation": "MW -> kW, both quantities are active power",
+            "data_publikacji": date_published,
+            "identity_sum_occupied_capacity": f"{closed}/{checked}",
+            "note_identity": (
                 "The eleven subcolumns of occupied capacity sum up to the total value. "
                 "This is evidence of the CONSISTENCY of reading, not a measurement of accuracy against "
                 "a reference read independently of the parser; this publisher has no "

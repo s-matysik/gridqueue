@@ -21,7 +21,7 @@ from typing import Any, Optional
 
 from ..schema import FIELDS, META_COLUMNS, canonical_date, canonical_power_kw
 
-__all__ = ["Adapter", "ParseResult", "harmonize_klasa", "harmonize_status", "norm_text"]
+__all__ = ["Adapter", "ParseResult", "harmonize_class", "harmonize_status", "norm_text"]
 
 
 @dataclass
@@ -73,10 +73,10 @@ class Adapter:
 
     def declaration(self) -> dict[str, Any]:
         return {
-            "publikujacy": self.publisher,
-            "jurysdykcja": self.jurisdiction,
-            "pola_deklarowane": list(self.declared_fields),
-            "rozszerzenia": dict(self.declared_extensions),
+            "publisher": self.publisher,
+            "jurisdiction": self.jurisdiction,
+            "declared_fields": list(self.declared_fields),
+            "extensions": dict(self.declared_extensions),
         }
 
 
@@ -101,7 +101,7 @@ def norm_text(s: Any) -> str:
 
 #: mapping of installation type designations to the controlled vocabulary.
 #: TAURON's abbreviations come from the legend on the last page of its document.
-_KLASA_MAP: tuple[tuple[str, str], ...] = (
+_CLASS_MAP: tuple[tuple[str, str], ...] = (
     (r"^pv$|fotowolta|^solar$", "PV"),
     (r"^fw$|^mfw$|farma wiatrow|^wind$", "FW"),
     (r"^ew$|elektrownia wodn|^hydro$", "EW"),
@@ -138,11 +138,11 @@ _STATUS_MAP: tuple[tuple[str, str], ...] = (
 )
 
 
-def harmonize_klasa(raw: Any) -> str:
+def harmonize_class(raw: Any) -> str:
     t = norm_text(raw)
     if not t:
         return "NIEOKRESLONA"
-    for rx, out in _KLASA_MAP:
+    for rx, out in _CLASS_MAP:
         if re.search(rx, t):
             return out
     return "INNE"

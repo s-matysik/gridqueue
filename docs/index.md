@@ -5,7 +5,7 @@ title: gridqueue
 # gridqueue
 
 Harmonizer of statutory grid-connection disclosures for the electricity network.
-Version **1.6.0** · [repository](https://github.com/s-matysik/gridqueue) ·
+Version **1.7.0** · [repository](https://github.com/s-matysik/gridqueue) ·
 [run in the browser](app/) · [open in Colab](https://colab.research.google.com/github/s-matysik/gridqueue/blob/main/notebooks/gridqueue_colab.ipynb)
 
 > **In English.** `gridqueue` parses the statutory grid-connection disclosures that Polish
@@ -53,16 +53,17 @@ confidence level and a placement accuracy level.
 
 * [**Run in the browser**](app/) with no installation: the same library in a WebAssembly
   interpreter, the document processed locally and sent nowhere
-* [The 21-field schema](schemat.md)
-* [Adapters and how to add a publisher](adaptery.md)
-* [Extraction method](wydobycie.md)
-* [Quality control rules](jakosc.md)
-* [Measured validation](walidacja.md)
-* [Longitudinal analysis, comparison of editions](wzdluzna.md)
-* [Charts](wykresy.md): every result as a figure, in the library, the command line, Colab and the browser
+* [The 21-field schema](schema.md)
+* [Adapters and how to add a publisher](adapters.md)
+* [Extraction method](extraction.md)
+* [Quality control rules](quality.md)
+* [Measured validation](validation.md)
+* [Longitudinal analysis, comparison of editions](longitudinal.md)
+* [Charts](charts.md): every result as a figure, in the library, the command line, Colab and the browser
 * [Running in Google Colab](colab.md)
 * [Command line](cli.md)
-* [Limitations](ograniczenia.md)
+* [Limitations](limitations.md)
+* [Renamed identifiers in 1.7.0](renamed.md)
 
 ## Installation
 
@@ -80,8 +81,8 @@ from gridqueue import get_adapter, run_quality, audit_column_shift
 
 res = get_adapter("pl_tauron").parse("tauron_informacja.pdf")
 df = res.frame                        # frame in the 21-field schema
-res.report["n_wierszy"]               # 10955
-audit_column_shift(df).udzial         # 0.0
-run_quality(df).as_dict()["naruszen_lacznie"]
+res.report["n_rows"]               # 10955
+audit_column_shift(df).share         # 0.0
+run_quality(df).as_dict()["violations_total"]
 ```
-- [Analytical layer](analiza.md)
+- [Analytical layer](analysis.md)

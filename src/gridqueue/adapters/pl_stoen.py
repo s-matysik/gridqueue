@@ -24,22 +24,22 @@ from typing import Any, Optional
 
 from ..layout import detect_ruled_columns, extract_ruled_page
 from ..schema import canonical_date, canonical_power_kw
-from .base import Adapter, ParseResult, harmonize_klasa, harmonize_status, norm_text
+from .base import Adapter, ParseResult, harmonize_class, harmonize_status, norm_text
 
 _RE_LP = re.compile(r"^\d+\.?$")
 
 LAYOUTS: dict[str, tuple[str, ...]] = {
-    "podmioty": (
-        "lp", "rodzaj_klienta", "miejscowosc", "adres", "moc_podstawa", "moc_rezerwa",
-        "rodzaj_instalacji", "data_warunkow", "data_umowy", "data_energizacji",
+    "applicants": (
+        "item_no", "customer_kind", "locality", "address", "capacity_base", "capacity_reserve",
+        "installation_kind", "data_warunkow", "data_umowy", "data_energizacji",
     ),
-    "wnioski": (
-        "lp", "rodzaj_klienta", "miejscowosc", "adres", "moc_podstawa", "moc_rezerwa",
-        "rodzaj_instalacji", "data_zlozenia", "data_zaliczki", "status_wniosku",
+    "applications": (
+        "item_no", "customer_kind", "locality", "address", "capacity_base", "capacity_reserve",
+        "installation_kind", "date_submission", "date_advance_payment", "application_status",
     ),
-    "odmowy": (
-        "lp", "rodzaj_klienta", "miejscowosc", "adres", "moc_podstawa", "moc_rezerwa",
-        "rodzaj_instalacji", "data_zlozenia", "data_zaliczki", "powod_odmowy",
+    "refusals": (
+        "item_no", "customer_kind", "locality", "address", "capacity_base", "capacity_reserve",
+        "installation_kind", "date_submission", "date_advance_payment", "powod_odmowy",
         "data_odmowy",
     ),
 }
@@ -48,11 +48,11 @@ LAYOUTS: dict[str, tuple[str, ...]] = {
 def detect_layout(header_text: str) -> Optional[str]:
     t = norm_text(header_text)
     if "odmowa przylaczenia" in t or "data odmowy" in t:
-        return "odmowy"
+        return "refusals"
     if "status rozpatrywania" in t:
-        return "wnioski"
+        return "applications"
     if "data rozpoczecia" in t and "data zawarcia" in t:
-        return "podmioty"
+        return "applicants"
     return None
 
 
@@ -76,8 +76,8 @@ class StoenAdapter(Adapter):
     }
     detect_patterns = (r"stoen",)
 
-    def __init__(self, data_publikacji: Optional[str] = None):
-        self.data_publikacji = data_publikacji
+    def __init__(self, publication_date: Optional[str] = None):
+        self.publication_date = publication_date
 
     # ------------------------------------------------------------------
     def parse(self, source) -> ParseResult:
@@ -93,11 +93,11 @@ class StoenAdapter(Adapter):
             reports.append(r)
         df = pd.concat(frames, ignore_index=True) if frames else self.blank_frame(0)
         report = {
-            "publikujacy": self.publisher,
-            "strategia_wydobycia": "ruled (vector grid), two-level header",
-            "dokumenty": reports,
-            "n_wierszy": int(len(df)),
-            "data_publikacji": self.data_publikacji,
+            "publisher": self.publisher,
+            "extraction_strategy": "ruled (vector grid), two-level header",
+            "documents": reports,
+            "n_rows": int(len(df)),
+            "publication_date": self.publication_date,
         }
         return ParseResult(self.finalize(df, document="; ".join(map(str, sources))), report)
 
@@ -124,8 +124,8 @@ class StoenAdapter(Adapter):
                 for row in tbl:
                     if row and _RE_LP.match((row[0] or "").strip()):
                         rows.append(row)
-                if self.data_publikacji is None:
-                    self.data_publikacji = _stan_na(page.extract_text() or "")
+                if self.publication_date is None:
+                    self.publication_date = _as_at(page.extract_text() or "")
         if layout is None:
             raise ValueError(f"could not recognize the Stoen listing layout in {src!r}")
 
@@ -136,19 +136,19 @@ class StoenAdapter(Adapter):
 
         out = pd.DataFrame(index=raw.index)
         out["id_wniosku"] = [f"stoen:{layout}:{i + 1}" for i in range(len(raw))]
-        miejsc = raw["miejscowosc"].fillna("")
-        adres = raw["adres"].fillna("")
+        places = raw["locality"].fillna("")
+        address = raw["address"].fillna("")
         out["lokalizacja_tekst"] = [
             ", ".join(x for x in (m.strip(), a.strip()) if x) or None
-            for m, a in zip(miejsc, adres)
+            for m, a in zip(places, address)
         ]
-        out["klasa_zasobu"] = raw["rodzaj_instalacji"].map(harmonize_klasa)
-        out["moc_pobierana"] = raw["moc_podstawa"].map(lambda v: canonical_power_kw(v, "kW"))
-        out["moc_zarezerwowana"] = raw["moc_rezerwa"].map(lambda v: canonical_power_kw(v, "kW"))
+        out["klasa_zasobu"] = raw["installation_kind"].map(harmonize_class)
+        out["moc_pobierana"] = raw["capacity_base"].map(lambda v: canonical_power_kw(v, "kW"))
+        out["moc_zarezerwowana"] = raw["capacity_reserve"].map(lambda v: canonical_power_kw(v, "kW"))
         for c in ("data_wniosku", "data_warunkow", "data_odmowy", "data_umowy",
                   "data_energizacji"):
             out[c] = None
-        if layout == "podmioty":
+        if layout == "applicants":
             out["data_warunkow"] = raw["data_warunkow"].map(canonical_date)
             out["data_umowy"] = raw["data_umowy"].map(canonical_date)
             out["data_energizacji"] = raw["data_energizacji"].map(canonical_date)
@@ -160,35 +160,35 @@ class StoenAdapter(Adapter):
                                    out["data_warunkow"])
             ]
             out["_status_raw"] = None
-        elif layout == "wnioski":
-            out["data_wniosku"] = raw["data_zlozenia"].map(canonical_date)
-            out["_data_zaliczki"] = raw["data_zaliczki"].map(canonical_date)
-            out["status_procesu"] = raw["status_wniosku"].map(harmonize_status)
-            out["_status_raw"] = raw["status_wniosku"].replace("", None)
+        elif layout == "applications":
+            out["data_wniosku"] = raw["date_submission"].map(canonical_date)
+            out["_data_zaliczki"] = raw["date_advance_payment"].map(canonical_date)
+            out["status_procesu"] = raw["application_status"].map(harmonize_status)
+            out["_status_raw"] = raw["application_status"].replace("", None)
         else:  # odmowy
-            out["data_wniosku"] = raw["data_zlozenia"].map(canonical_date)
+            out["data_wniosku"] = raw["date_submission"].map(canonical_date)
             out["data_odmowy"] = raw["data_odmowy"].map(canonical_date)
-            out["_data_zaliczki"] = raw["data_zaliczki"].map(canonical_date)
+            out["_data_zaliczki"] = raw["date_advance_payment"].map(canonical_date)
             out["powod_odmowy"] = raw["powod_odmowy"].replace("", None)
             out["status_procesu"] = "ODMOWA"
             out["_status_raw"] = raw["powod_odmowy"].replace("", None)
-        out["data_publikacji"] = self.data_publikacji
-        out["_rodzaj_podmiotu"] = raw["rodzaj_klienta"].replace("", None)
-        out["_miejscowosc"] = miejsc.replace("", None)
-        out["_adres"] = adres.replace("", None)
+        out["data_publikacji"] = self.publication_date
+        out["_rodzaj_podmiotu"] = raw["customer_kind"].replace("", None)
+        out["_miejscowosc"] = places.replace("", None)
+        out["_adres"] = address.replace("", None)
         out["_zestawienie"] = layout
-        out["_rodzaj_instalacji_raw"] = raw["rodzaj_instalacji"].replace("", None)
-        out["_lp_dokumentu"] = raw["lp"]
+        out["_rodzaj_instalacji_raw"] = raw["installation_kind"].replace("", None)
+        out["_lp_dokumentu"] = raw["item_no"]
 
         return out, {
-            "plik": str(src),
-            "uklad": layout,
-            "strony": n_pages,
-            "n_kolumn_zrodlowych": len(cols),
-            "n_wierszy": int(len(out)),
+            "file_name": str(src),
+            "layout": layout,
+            "pages": n_pages,
+            "n_source_columns": len(cols),
+            "n_rows": int(len(out)),
         }
 
 
-def _stan_na(text: str) -> Optional[str]:
+def _as_at(text: str) -> Optional[str]:
     m = re.search(r"[Ss]tan\s+na\s+(?:dzień\s+)?(\d{2}\.\d{2}\.\d{4})", text)
     return canonical_date(m.group(1)) if m else None

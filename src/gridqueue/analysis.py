@@ -28,8 +28,8 @@ from typing import Iterable, Sequence
 import pandas as pd
 
 __all__ = [
-    "PRZEDROSTKI_STACJI",
-    "normalizuj_nazwe",
+    "STATION_PREFIXES",
+    "normalize_name",
     "station_node_map",
     "assign_to_nodes",
     "node_loading",
@@ -41,26 +41,26 @@ __all__ = [
 
 #: Prefixes of station designations, removed before comparing names. They do not carry
 #: object identity, and occur inconsistently on both sides of the join.
-PRZEDROSTKI_STACJI: tuple[str, ...] = ("GPZ", "SE", "RS", "RPZ", "STACJA")
+STATION_PREFIXES: tuple[str, ...] = ("GPZ", "SE", "RS", "RPZ", "STACJA")
 
-_NIEALFANUM = re.compile(r"[^a-z0-9 ]+")
+_NON_ALNUM = re.compile(r"[^a-z0-9 ]+")
 
 #: Entries describing an object PLANNED ON A LINE between stations, rather than an object
 #: at a node. Assigning them to a node would be arbitrary: the line connects two nodes,
 #: and matching by name would pick whichever end happens to appear
 #: in the station list. The full capacity of such an application does not load either of them
 #: in full, so the entry remains unassigned and is explicitly flagged.
-_RELACJA_LINII = re.compile(
+_LINE_RELATION = re.compile(
     r"\b(w\s+lini(?:i|ach)|relacj(?:i|a)|odczep\s+z\s+lini)", re.IGNORECASE)
 
 #: Letters whose canonical decomposition does NOT separate the diacritical mark: Unicode
 #: treats them as separate letters, so NFKD does not decompose them, and naive cleaning
 #: turns them into a space, splitting the word ("Białogard" -> "bia ogard").
-_NIEROZKLADALNE = {"ł": "l", "Ł": "L", "đ": "d", "Đ": "D", "ø": "o", "Ø": "O",
+_INDECOMPOSABLE = {"ł": "l", "Ł": "L", "đ": "d", "Đ": "D", "ø": "o", "Ø": "O",
                    "ß": "ss", "æ": "ae", "Æ": "AE", "œ": "oe", "Œ": "OE"}
 
 
-def normalizuj_nazwe(v) -> str:
+def normalize_name(v) -> str:
     """Station name reduced to a comparable form.
 
     Removes diacritical marks, converts to lowercase, drops designation
@@ -70,31 +70,31 @@ def normalizuj_nazwe(v) -> str:
     if v is None or (isinstance(v, float) and v != v):
         return ""
     s = str(v)
-    for znak, zamiennik in _NIEROZKLADALNE.items():
-        s = s.replace(znak, zamiennik)
+    for mark, replacement in _INDECOMPOSABLE.items():
+        s = s.replace(mark, replacement)
     s = unicodedata.normalize("NFKD", s)
     s = "".join(c for c in s if not unicodedata.combining(c)).lower()
-    s = _NIEALFANUM.sub(" ", s)
-    tokeny = [t for t in s.split() if t and t.upper() not in PRZEDROSTKI_STACJI]
-    return " ".join(tokeny)
+    s = _NON_ALNUM.sub(" ", s)
+    tokens = [t for t in s.split() if t and t.upper() not in STATION_PREFIXES]
+    return " ".join(tokens)
 
 
-def _tokeny(s: str) -> tuple[str, ...]:
+def _tokens(s: str) -> tuple[str, ...]:
     return tuple(s.split())
 
 
-def _podciag(igla: Sequence[str], stog: Sequence[str]) -> bool:
-    """Whether `igla` is a contiguous subsequence of the tokens of `stog`."""
-    n, m = len(igla), len(stog)
+def _substring(needle: Sequence[str], stog: Sequence[str]) -> bool:
+    """Whether `needle` is a contiguous subsequence of the tokens of `stog`."""
+    n, m = len(needle), len(stog)
     if n == 0 or n > m:
         return False
-    return any(tuple(stog[i : i + n]) == tuple(igla) for i in range(m - n + 1))
+    return any(tuple(stog[i : i + n]) == tuple(needle) for i in range(m - n + 1))
 
 
 def station_node_map(
     df: pd.DataFrame,
-    kolumna_encji: str = "_encja",
-    kolumna_grupy: str = "_nr_grupy",
+    entity_column: str = "_encja",
+    group_column: str = "_nr_grupy",
     separator: str = ",",
 ) -> pd.DataFrame:
     """Mapping: station -> station group, read from WEZEL entity rows.
@@ -109,42 +109,42 @@ def station_node_map(
     ambiguous, which would be an artifact of the document layout, not a property of the network.
     When the group column is not present, the key becomes the node identifier.
 
-    Returns a frame: publikujacy, grupa, nazwa_wezla, stacja, stacja_norm.
+    Returns a frame: publikujacy, grupa, nazwa_wezla, stacja, station_norm.
     """
-    if kolumna_encji in df.columns:
-        wez = df[df[kolumna_encji] == "WEZEL"]
+    if entity_column in df.columns:
+        nodes_df = df[df[entity_column] == "WEZEL"]
     else:  # without entity annotation, we recognize a node by the presence of available capacity
-        wez = df[df["moc_dostepna"].notna()] if "moc_dostepna" in df else df.iloc[0:0]
-    klucz = kolumna_grupy if kolumna_grupy in df.columns else "id_wezla"
-    wiersze = []
-    for _, r in wez.iterrows():
-        lista = r.get("lokalizacja_tekst")
-        if lista is None or (isinstance(lista, float) and lista != lista):
+        nodes_df = df[df["moc_dostepna"].notna()] if "moc_dostepna" in df else df.iloc[0:0]
+    key = group_column if group_column in df.columns else "id_wezla"
+    rows = []
+    for _, r in nodes_df.iterrows():
+        item_list = r.get("lokalizacja_tekst")
+        if item_list is None or (isinstance(item_list, float) and item_list != item_list):
             continue
-        for czesc in str(lista).split(separator):
-            nazwa = czesc.strip()
-            if not nazwa:
+        for part in str(item_list).split(separator):
+            name = part.strip()
+            if not name:
                 continue
-            wiersze.append(
+            rows.append(
                 {
                     "publikujacy": r.get("publikujacy"),
-                    "grupa": r.get(klucz),
+                    "group": r.get(key),
                     "nazwa_wezla": r.get("nazwa_wezla"),
-                    "stacja": nazwa,
-                    "stacja_norm": normalizuj_nazwe(nazwa),
+                    "station": name,
+                    "station_norm": normalize_name(name),
                 }
             )
-    out = pd.DataFrame(wiersze)
+    out = pd.DataFrame(rows)
     if not len(out):
         return out
-    out = out[out["stacja_norm"] != ""]
-    return out.drop_duplicates(["grupa", "stacja_norm"]).reset_index(drop=True)
+    out = out[out["station_norm"] != ""]
+    return out.drop_duplicates(["group", "station_norm"]).reset_index(drop=True)
 
 
 def assign_to_nodes(
     df: pd.DataFrame,
-    mapa: pd.DataFrame,
-    kolumna_encji: str = "_encja",
+    mapping: pd.DataFrame,
+    entity_column: str = "_encja",
 ) -> pd.DataFrame:
     """Assigns application rows to station groups by station name.
 
@@ -161,65 +161,65 @@ def assign_to_nodes(
     ``AMBIGUOUS``  more than one group matches, no assignment is made
     ``NONE``       no match, or no location
 
-    Adds the columns `_grupa`, `_grupa_nazwa`, `_grupa_dopasowanie`.
+    Adds the columns `_group`, `_group_name`, `_group_match`.
     """
-    if not len(mapa):
+    if not len(mapping):
         out = df.copy()
-        out["_grupa"] = None
-        out["_grupa_nazwa"] = None
-        out["_grupa_dopasowanie"] = "NONE"
+        out["_group"] = None
+        out["_group_name"] = None
+        out["_group_match"] = "NONE"
         return out
-    maska = df[kolumna_encji] != "WEZEL" if kolumna_encji in df.columns \
+    mask = df[entity_column] != "WEZEL" if entity_column in df.columns \
         else pd.Series(True, index=df.index)
-    wykaz = (
-        mapa.groupby("stacja_norm")
-        .agg(grupa=("grupa", lambda s: tuple(dict.fromkeys(s))),
-             nazwa=("nazwa_wezla", lambda s: tuple(dict.fromkeys(s))))
+    listing = (
+        mapping.groupby("station_norm")
+        .agg(group=("group", lambda s: tuple(dict.fromkeys(s))),
+             name=("nazwa_wezla", lambda s: tuple(dict.fromkeys(s))))
         .reset_index()
     )
-    pary = [(s, _tokeny(s), g, n) for s, g, n in
-            zip(wykaz["stacja_norm"], wykaz["grupa"], wykaz["nazwa"])]
-    kol = {"_grupa": [], "_grupa_nazwa": [], "_grupa_dopasowanie": []}
+    pairs = [(s, _tokens(s), g, n) for s, g, n in
+            zip(listing["station_norm"], listing["group"], listing["name"])]
+    col = {"_group": [], "_group_name": [], "_group_match": []}
     for idx, loc in df["lokalizacja_tekst"].items():
-        if not maska.loc[idx]:
-            kol["_grupa"].append(None); kol["_grupa_nazwa"].append(None)
-            kol["_grupa_dopasowanie"].append(None); continue
-        norm = normalizuj_nazwe(loc)
+        if not mask.loc[idx]:
+            col["_group"].append(None); col["_group_name"].append(None)
+            col["_group_match"].append(None); continue
+        norm = normalize_name(loc)
         if not norm:
-            kol["_grupa"].append(None); kol["_grupa_nazwa"].append(None)
-            kol["_grupa_dopasowanie"].append("NONE"); continue
-        if _RELACJA_LINII.search(str(loc)):
-            kol["_grupa"].append(None); kol["_grupa_nazwa"].append(None)
-            kol["_grupa_dopasowanie"].append("LINE"); continue
-        tok = _tokeny(norm)
-        dokladne = [(g, n) for s, st, g, n in pary if s == norm]
-        kandydaci = dokladne or [(g, n) for s, st, g, n in pary if _podciag(st, tok)]
-        plaskie = list(dict.fromkeys(
-            (g, n) for grupy, nazwy in kandydaci for g, n in zip(grupy, nazwy)))
-        if not plaskie:
-            kol["_grupa"].append(None); kol["_grupa_nazwa"].append(None)
-            kol["_grupa_dopasowanie"].append("NONE")
-        elif len({g for g, _ in plaskie}) > 1:
-            kol["_grupa"].append(None); kol["_grupa_nazwa"].append(None)
-            kol["_grupa_dopasowanie"].append("AMBIGUOUS")
+            col["_group"].append(None); col["_group_name"].append(None)
+            col["_group_match"].append("NONE"); continue
+        if _LINE_RELATION.search(str(loc)):
+            col["_group"].append(None); col["_group_name"].append(None)
+            col["_group_match"].append("LINE"); continue
+        tok = _tokens(norm)
+        precise = [(g, n) for s, st, g, n in pairs if s == norm]
+        candidates = precise or [(g, n) for s, st, g, n in pairs if _substring(st, tok)]
+        flat = list(dict.fromkeys(
+            (g, n) for groups, names in candidates for g, n in zip(groups, names)))
+        if not flat:
+            col["_group"].append(None); col["_group_name"].append(None)
+            col["_group_match"].append("NONE")
+        elif len({g for g, _ in flat}) > 1:
+            col["_group"].append(None); col["_group_name"].append(None)
+            col["_group_match"].append("AMBIGUOUS")
         else:
-            kol["_grupa"].append(plaskie[0][0]); kol["_grupa_nazwa"].append(plaskie[0][1])
-            kol["_grupa_dopasowanie"].append("EXACT" if dokladne else "EXTENDED")
+            col["_group"].append(flat[0][0]); col["_group_name"].append(flat[0][1])
+            col["_group_match"].append("EXACT" if precise else "EXTENDED")
     out = df.copy()
-    for k, v in kol.items():
+    for k, v in col.items():
         out[k] = v
     return out
 
 
 def node_loading(
     df: pd.DataFrame,
-    pole_mocy: str = "moc_wprowadzana",
-    kierunek: str | None = None,
-    kolumna_kierunku: str = "_kierunek",
-    kolumna_grupy: str = "_nr_grupy",
-    statusy_czynne: Iterable[str] | None = None,
-    kolumna_encji: str = "_encja",
-    napiecie: str | None = None,
+    capacity_field: str = "moc_wprowadzana",
+    direction: str | None = None,
+    direction_column: str = "_kierunek",
+    group_column: str = "_nr_grupy",
+    active_statuses: Iterable[str] | None = None,
+    entity_column: str = "_encja",
+    voltage: str | None = None,
 ) -> pd.DataFrame:
     """Node loading: the capacity of the active queue against the disclosed available capacity.
 
@@ -228,66 +228,66 @@ def node_loading(
     capacity" criterion.
 
     Requires a frame after `assign_to_nodes`. When the publisher reports available capacity
-    separately for the generation direction and the offtake direction, `kierunek` selects the
-    correct node rows; by default it is derived from `pole_mocy`.
+    separately for the generation direction and the offtake direction, `direction` selects the
+    correct node rows; by default it is derived from `capacity_field`.
 
     Nodes with zero available capacity are returned with a ``NaN`` ratio and the
-    `moc_dostepna_zero` flag: the ratio there is UNDEFINED, not infinite,
+    `available_capacity_zero` flag: the ratio there is UNDEFINED, not infinite,
     and averaging it would be an error. The row nonetheless retains the capacity applied for,
     because a queue at a node with no free capacity is information, not missing data.
 
-    ``napiecie`` keeps only applications whose ``poziom_napiecia`` contains the given text.
+    ``voltage`` keeps only applications whose ``poziom_napiecia`` contains the given text.
     The base variant of the article counts the 110 kV queue (``napiecie="110"``), because the
     available capacity a distribution operator discloses for a node is the capacity of its
     high-voltage busbars; the default (``None``) counts applications at every voltage level,
     which is the article's upper variant.
     """
-    if statusy_czynne is None:
-        statusy_czynne = ("WNIOSEK_ZLOZONY", "WNIOSEK_NIEKOMPLETNY",
+    if active_statuses is None:
+        active_statuses = ("WNIOSEK_ZLOZONY", "WNIOSEK_NIEKOMPLETNY",
                           "W_TRAKCIE_ANALIZY", "WARUNKI_WYDANE", "UMOWA_OBOWIAZUJACA")
-    if kierunek is None and kolumna_kierunku in df.columns:
-        dostepne = set(df[kolumna_kierunku].dropna().unique())
-        domysl = "wytworcza" if "wprowadzana" in pole_mocy else "odbiorcza"
-        kierunek = domysl if domysl in dostepne else None
-    jest_wezel = df[kolumna_encji] == "WEZEL" if kolumna_encji in df.columns \
+    if direction is None and direction_column in df.columns:
+        available = set(df[direction_column].dropna().unique())
+        default = "wytworcza" if "wprowadzana" in capacity_field else "odbiorcza"
+        direction = default if default in available else None
+    is_node = df[entity_column] == "WEZEL" if entity_column in df.columns \
         else df["moc_dostepna"].notna()
-    wnioski = df[~jest_wezel]
-    wnioski = wnioski[wnioski["status_procesu"].isin(set(statusy_czynne))]
-    if napiecie is not None and "poziom_napiecia" in wnioski.columns:
-        wnioski = wnioski[wnioski["poziom_napiecia"].astype("string")
-                          .str.contains(napiecie, regex=False, na=False)]
-    wnioski = wnioski[wnioski["_grupa"].notna()]
-    suma = wnioski.groupby("_grupa")[pole_mocy].sum(min_count=1).rename("moc_wnioskowana")
-    liczba = wnioski.groupby("_grupa").size().rename("wnioskow")
-    wez = df[jest_wezel]
-    wez = wez[wez["moc_dostepna"].notna()]
-    if kierunek is not None and kolumna_kierunku in wez.columns:
-        wez = wez[wez[kolumna_kierunku] == kierunek]
-    klucz = kolumna_grupy if kolumna_grupy in wez.columns else "id_wezla"
-    kolumny = [c for c in ("id_wezla", "nazwa_wezla", "moc_dostepna", "poziom_napiecia")
-               if c in wez.columns]
-    baza = wez.set_index(wez[klucz])[kolumny].join(suma).join(liczba)
-    baza.index.name = "grupa"
-    baza["moc_wnioskowana"] = baza["moc_wnioskowana"].fillna(0.0)
-    baza["wnioskow"] = baza["wnioskow"].fillna(0).astype(int)
-    baza["moc_dostepna_zero"] = baza["moc_dostepna"] == 0
-    wolna = baza["moc_dostepna"].where(~baza["moc_dostepna_zero"])
-    baza["obciazenie"] = baza["moc_wnioskowana"] / wolna
-    baza["kierunek"] = kierunek
-    return baza.reset_index()
+    applications = df[~is_node]
+    applications = applications[applications["status_procesu"].isin(set(active_statuses))]
+    if voltage is not None and "poziom_napiecia" in applications.columns:
+        applications = applications[applications["poziom_napiecia"].astype("string")
+                          .str.contains(voltage, regex=False, na=False)]
+    applications = applications[applications["_group"].notna()]
+    total = applications.groupby("_group")[capacity_field].sum(min_count=1).rename("capacity_requested")
+    count = applications.groupby("_group").size().rename("applications")
+    nodes_df = df[is_node]
+    nodes_df = nodes_df[nodes_df["moc_dostepna"].notna()]
+    if direction is not None and direction_column in nodes_df.columns:
+        nodes_df = nodes_df[nodes_df[direction_column] == direction]
+    key = group_column if group_column in nodes_df.columns else "id_wezla"
+    columns = [c for c in ("id_wezla", "nazwa_wezla", "moc_dostepna", "poziom_napiecia")
+               if c in nodes_df.columns]
+    base = nodes_df.set_index(nodes_df[key])[columns].join(total).join(count)
+    base.index.name = "group"
+    base["capacity_requested"] = base["capacity_requested"].fillna(0.0)
+    base["applications"] = base["applications"].fillna(0).astype(int)
+    base["available_capacity_zero"] = base["moc_dostepna"] == 0
+    free = base["moc_dostepna"].where(~base["available_capacity_zero"])
+    base["loading"] = base["capacity_requested"] / free
+    base["direction"] = direction
+    return base.reset_index()
 
 
 def processing_time(
     df: pd.DataFrame,
-    od: str = "data_wniosku",
-    do: str = "data_warunkow",
-    na_dzien=None,
+    start: str = "data_wniosku",
+    end: str = "data_warunkow",
+    as_at=None,
 ) -> pd.DataFrame:
     """Processing time together with censoring classification.
 
     An application without a resolution date is NOT missing data: it is an observation
-    censored at the edition's publication date. The function returns the column `czas_dni` for
-    both kinds of observations, as well as `zdarzenie` equal to 1 for resolved ones and 0
+    censored at the edition's publication date. The function returns the column `time_days` for
+    both kinds of observations, as well as `event` equal to 1 for resolved ones and 0
     for censored ones, in the form expected by the survival estimator.
 
     By default (``na_dzien=None``) every open application is censored at the publication
@@ -302,30 +302,30 @@ def processing_time(
     31 August 2026) that lengthened every censored time by two months.
     """
     d = df.copy()
-    for c in (od, do):
+    for c in (start, end):
         d[c] = pd.to_datetime(d[c], errors="coerce")
-    if na_dzien is None:
-        wlasna = pd.to_datetime(d["data_publikacji"], errors="coerce") \
+    if as_at is None:
+        own = pd.to_datetime(d["data_publikacji"], errors="coerce") \
             if "data_publikacji" in d else pd.Series(pd.NaT, index=d.index)
-        wnioski = d["_encja"].fillna("WNIOSEK").astype(str).str.upper() != "WEZEL" \
+        applications = d["_encja"].fillna("WNIOSEK").astype(str).str.upper() != "WEZEL" \
             if "_encja" in d else pd.Series(True, index=d.index)
-        zapas = wlasna[wnioski].max()
-        if pd.isna(zapas):
-            zapas = d[do].max()
-        na_dzien = wlasna.fillna(zapas)
+        reserve = own[applications].max()
+        if pd.isna(reserve):
+            reserve = d[end].max()
+        as_at = own.fillna(reserve)
     else:
-        na_dzien = pd.Series(pd.to_datetime(na_dzien), index=d.index)
-    ma_start = d[od].notna()
-    zdarzenie = ma_start & d[do].notna()
-    czas = pd.Series(pd.NA, index=d.index, dtype="Float64")
-    czas[zdarzenie] = (d.loc[zdarzenie, do] - d.loc[zdarzenie, od]).dt.days
-    uciete = ma_start & ~zdarzenie
-    czas[uciete] = (na_dzien[uciete] - d.loc[uciete, od]).dt.days
-    d["czas_dni"] = czas
-    d["zdarzenie"] = zdarzenie.astype(int).where(ma_start)
-    d["na_dzien"] = na_dzien
-    ujemne = d["czas_dni"] < 0
-    d.loc[ujemne, ["czas_dni", "zdarzenie"]] = pd.NA
+        as_at = pd.Series(pd.to_datetime(as_at), index=d.index)
+    has_start = d[start].notna()
+    event = has_start & d[end].notna()
+    time = pd.Series(pd.NA, index=d.index, dtype="Float64")
+    time[event] = (d.loc[event, end] - d.loc[event, start]).dt.days
+    truncated = has_start & ~event
+    time[truncated] = (as_at[truncated] - d.loc[truncated, start]).dt.days
+    d["time_days"] = time
+    d["event"] = event.astype(int).where(has_start)
+    d["as_at"] = as_at
+    negative = d["time_days"] < 0
+    d.loc[negative, ["time_days", "event"]] = pd.NA
     return d
 
 
@@ -333,22 +333,22 @@ def processing_time(
 class KMResult:
     """Kaplan-Meier survival curve with the Greenwood interval."""
 
-    tabela: pd.DataFrame = field(repr=False)
-    mediana: float
-    mediana_dolna: float
-    mediana_gorna: float
+    table: pd.DataFrame = field(repr=False)
+    median: float
+    median_lower: float
+    median_upper: float
     n: int
-    zdarzen: int
-    cenzurowanych: int
+    events: int
+    censored: int
 
     def as_dict(self) -> dict:
-        return {"n": self.n, "zdarzen": self.zdarzen, "cenzurowanych": self.cenzurowanych,
-                "udzial_cenzurowanych": self.cenzurowanych / self.n if self.n else float("nan"),
-                "mediana": self.mediana, "mediana_dolna": self.mediana_dolna,
-                "mediana_gorna": self.mediana_gorna}
+        return {"n": self.n, "events": self.events, "censored": self.censored,
+                "censored_share": self.censored / self.n if self.n else float("nan"),
+                "median": self.median, "median_lower": self.median_lower,
+                "median_upper": self.median_upper}
 
 
-def kaplan_meier(czas, zdarzenie, alpha: float = 0.05) -> KMResult:
+def kaplan_meier(time, event, alpha: float = 0.05) -> KMResult:
     """Kaplan-Meier estimator with Greenwood's variance.
 
     Implemented directly, so as not to introduce a dependency on a survival-analysis
@@ -356,60 +356,60 @@ def kaplan_meier(czas, zdarzenie, alpha: float = 0.05) -> KMResult:
     by the curve-interval-inversion method: the bounds are the extreme times for
     which the curve's confidence band covers the level of 0.5.
     """
-    d = pd.DataFrame({"t": pd.to_numeric(pd.Series(czas), errors="coerce"),
-                      "e": pd.to_numeric(pd.Series(zdarzenie), errors="coerce")}).dropna()
+    d = pd.DataFrame({"t": pd.to_numeric(pd.Series(time), errors="coerce"),
+                      "e": pd.to_numeric(pd.Series(event), errors="coerce")}).dropna()
     d = d[d["t"] >= 0]
     n0 = len(d)
     if n0 == 0:
-        pusta = pd.DataFrame(columns=["t", "n_ryzyka", "zdarzen", "S", "S_dolne", "S_gorne"])
-        return KMResult(pusta, float("nan"), float("nan"), float("nan"), 0, 0, 0)
+        empty = pd.DataFrame(columns=["t", "n_at_risk", "events", "S", "S_dolne", "S_gorne"])
+        return KMResult(empty, float("nan"), float("nan"), float("nan"), 0, 0, 0)
     try:
         from scipy.stats import norm
         z = float(norm.ppf(1 - alpha / 2))
     except Exception:
         z = 1.959963984540054
-    czasy = sorted(d.loc[d["e"] == 1, "t"].unique())
-    S, kum_war, wiersze = 1.0, 0.0, []
-    for t in czasy:
-        n_ryz = int((d["t"] >= t).sum())
+    times = sorted(d.loc[d["e"] == 1, "t"].unique())
+    S, cumulative_value, rows = 1.0, 0.0, []
+    for t in times:
+        at_risk = int((d["t"] >= t).sum())
         zd = int(((d["t"] == t) & (d["e"] == 1)).sum())
-        if n_ryz == 0:
+        if at_risk == 0:
             continue
-        S *= 1 - zd / n_ryz
-        if n_ryz > zd:
-            kum_war += zd / (n_ryz * (n_ryz - zd))
-        se = S * math.sqrt(kum_war) if S > 0 else 0.0
-        wiersze.append({"t": float(t), "n_ryzyka": n_ryz, "zdarzen": zd, "S": S,
+        S *= 1 - zd / at_risk
+        if at_risk > zd:
+            cumulative_value += zd / (at_risk * (at_risk - zd))
+        se = S * math.sqrt(cumulative_value) if S > 0 else 0.0
+        rows.append({"t": float(t), "n_at_risk": at_risk, "events": zd, "S": S,
                         "S_dolne": max(0.0, S - z * se), "S_gorne": min(1.0, S + z * se)})
     # Explicit columns: a group in which every observation is censored has no event time,
     # and a frame built from an empty list would have no columns at all (KeyError: 'S').
-    tab = pd.DataFrame(wiersze, columns=["t", "n_ryzyka", "zdarzen", "S", "S_dolne", "S_gorne"])
+    tab = pd.DataFrame(rows, columns=["t", "n_at_risk", "events", "S", "S_dolne", "S_gorne"])
 
-    def pierwszy_ponizej(kol):
-        pod = tab[tab[kol] <= 0.5]
-        return float(pod["t"].iloc[0]) if len(pod) else float("nan")
+    def first_below(col):
+        under = tab[tab[col] <= 0.5]
+        return float(under["t"].iloc[0]) if len(under) else float("nan")
 
     # The lower band reaches 0.5 FIRST, so it gives the LOWER bound of the median; the upper
     # band reaches it last and gives the upper bound. Versions up to 1.5.2 had the two
-    # swapped, which returned an interval with mediana_dolna > mediana > mediana_gorna.
+    # swapped, which returned an interval with median_lower > mediana > median_upper.
     return KMResult(
-        tabela=tab,
-        mediana=pierwszy_ponizej("S"),
-        mediana_dolna=pierwszy_ponizej("S_dolne"),
-        mediana_gorna=pierwszy_ponizej("S_gorne"),
+        table=tab,
+        median=first_below("S"),
+        median_lower=first_below("S_dolne"),
+        median_upper=first_below("S_gorne"),
         n=n0,
-        zdarzen=int((d["e"] == 1).sum()),
-        cenzurowanych=int((d["e"] == 0).sum()),
+        events=int((d["e"] == 1).sum()),
+        censored=int((d["e"] == 0).sum()),
     )
 
 
 def kaplan_meier_by_group(
     df: pd.DataFrame,
     by: str | Sequence[str] | None = "klasa_zasobu",
-    od: str = "data_wniosku",
-    do: str = "data_warunkow",
+    start: str = "data_wniosku",
+    end: str = "data_warunkow",
     min_n: int = 30,
-    na_dzien=None,
+    as_at=None,
 ) -> pd.DataFrame:
     """Kaplan-Meier summary per group: size, events, censoring, median and its interval.
 
@@ -419,22 +419,22 @@ def kaplan_meier_by_group(
     computed. ``by`` may be a column, a list of columns (joined with ``" / "``) or ``None``
     for the whole frame. Sorted by group size, largest first.
     """
-    cols = ["grupa", "n", "zdarzen", "cenzurowanych", "udzial_cenzurowanych",
-            "mediana", "mediana_dolna", "mediana_gorna"]
-    if od not in df.columns or do not in df.columns:
+    cols = ["group", "n", "events", "censored", "censored_share",
+            "median", "median_lower", "median_upper"]
+    if start not in df.columns or end not in df.columns:
         return pd.DataFrame(columns=cols)
-    pt = processing_time(df, od=od, do=do, na_dzien=na_dzien)
+    pt = processing_time(df, start=start, end=end, as_at=as_at)
     if by is None:
-        klucz = pd.Series("all", index=pt.index)
+        key = pd.Series("all", index=pt.index)
     else:
-        kol = [by] if isinstance(by, str) else list(by)
-        if any(k not in pt.columns for k in kol):
+        col = [by] if isinstance(by, str) else list(by)
+        if any(k not in pt.columns for k in col):
             return pd.DataFrame(columns=cols)
-        klucz = pt[kol].astype("string").fillna("(empty)").agg(" / ".join, axis=1)
-    wiersze = []
-    for g, sub in pt.groupby(klucz, sort=False):
-        km = kaplan_meier(sub["czas_dni"].astype("float64"), sub["zdarzenie"].astype("float64"))
+        key = pt[col].astype("string").fillna("(empty)").agg(" / ".join, axis=1)
+    rows = []
+    for g, sub in pt.groupby(key, sort=False):
+        km = kaplan_meier(sub["time_days"].astype("float64"), sub["event"].astype("float64"))
         if km.n >= min_n:
-            wiersze.append({"grupa": str(g), **km.as_dict()})
-    out = pd.DataFrame(wiersze, columns=cols)
+            rows.append({"group": str(g), **km.as_dict()})
+    out = pd.DataFrame(rows, columns=cols)
     return out.sort_values("n", ascending=False, kind="stable").reset_index(drop=True)

@@ -4,7 +4,7 @@ The regular expression operates on text flattened by the PDF extractor: word ord
 is drawing order, and column boundaries are reconstructed from spaces. When a
 cell is empty or contains a space, adjacent fields merge together and the value
 soaks into the wrong field. In the previous version of the TAURON parser this
-affected 767 of 10 559 rows (7.3%).
+affected 767 of 10,559 rows (7.3%).
 
 Here we do the opposite: we read the POSITION of each word (x0, x1, top, bottom)
 and first establish the geometry of the table, and only then assign words to
@@ -249,7 +249,7 @@ def looks_like_text(v: Any) -> bool:
     """Whether the value can stand in a descriptive field.
 
     Rejects not only pure numbers and dates, but also strings that start with a
-    numeric token before the text ("0,1 0,1 WARUNKI PRZYŁĄCZENIA ..."). This
+    numeric token before the text ("0.1 0.1 WARUNKI PRZYŁĄCZENIA ..."). This
     form is the signature of column shift in regex-based extraction: an empty
     capacity cell disappears from the flattened text and the capacity value
     sticks onto the status.
@@ -298,21 +298,21 @@ DOMAIN_PREDICATES: dict[str, Callable[[Any], bool]] = {
 class ShiftAudit:
     """Result of the column shift audit."""
 
-    n_wierszy: int
-    n_przesunietych: int
-    per_pole: dict[str, int] = field(default_factory=dict)
-    przyklady: list[dict] = field(default_factory=list)
+    n_rows: int
+    n_shifted: int
+    per_field: dict[str, int] = field(default_factory=dict)
+    examples: list[dict] = field(default_factory=list)
 
     @property
-    def udzial(self) -> float:
-        return self.n_przesunietych / self.n_wierszy if self.n_wierszy else 0.0
+    def share(self) -> float:
+        return self.n_shifted / self.n_rows if self.n_rows else 0.0
 
     def as_dict(self) -> dict:
         return {
-            "n_wierszy": self.n_wierszy,
-            "n_przesunietych": self.n_przesunietych,
-            "udzial": round(self.udzial, 6),
-            "per_pole": dict(sorted(self.per_pole.items(), key=lambda kv: -kv[1])),
+            "n_rows": self.n_rows,
+            "n_shifted": self.n_shifted,
+            "share": round(self.share, 6),
+            "per_field": dict(sorted(self.per_field.items(), key=lambda kv: -kv[1])),
         }
 
 
@@ -335,7 +335,7 @@ def audit_column_shift(
     nl = nullish or {"", "-", "--", "---", "nan", "none", "brak", "nie dotyczy"}
     cols = [c for c in preds if c in df.columns]
     bad_rows = 0
-    per_pole: dict[str, int] = {}
+    per_field: dict[str, int] = {}
     examples: list[dict] = []
     for idx, row in df.iterrows():
         offenders = []
@@ -351,7 +351,7 @@ def audit_column_shift(
         if offenders:
             bad_rows += 1
             for c, _ in offenders:
-                per_pole[c] = per_pole.get(c, 0) + 1
+                per_field[c] = per_field.get(c, 0) + 1
             if len(examples) < n_examples:
-                examples.append({"index": idx, "naruszenia": offenders})
-    return ShiftAudit(len(df), bad_rows, per_pole, examples)
+                examples.append({"index": idx, "violations": offenders})
+    return ShiftAudit(len(df), bad_rows, per_field, examples)

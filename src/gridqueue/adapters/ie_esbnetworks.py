@@ -35,39 +35,39 @@ from .base import Adapter, ParseResult
 
 PUBLISHER = "ESB Networks DAC"
 JURISDICTION = "IE"
-ARKUSZ = "Heatmap data"
+SHEET = "Heatmap data"
 
 #: The header spans two rows; the proper names are in the second one.
-WIERSZ_NAGLOWKA = 2
+HEADER_ROW = 2
 
 KOL = {
-    "stacja": "Station Name",
-    "grupa": "Transformer GroupID",
-    "napiecie_pierwotne": "Primary kV",
-    "napiecie_wtorne": "Secondary voltage(s)",
-    "klasa_napiecia": "Voltage Class",
-    "konfiguracja": "Transformer Configuration",
-    "moc_zainstalowana_mva": "Installed Capacity MVA",
-    "odbior_trwala_mva": "Demand FirmCapacity MVA",
-    "odbior_dostepna_mva": "Demand Available MVA",
-    "odbior_nadrzedna_mva": "Parent Available MVA",
-    "odbior_ograniczenie": "Demand Parent Constraint",
-    "wytw_trwala_mw": "Generation Firm Capacity MW",
-    "wytw_nietrwala_mw": "Generation NonFirm Capacity MW",
-    "wytw_zakontraktowana_mw": "Generation Total Committed MW",
-    "wytw_dostepna_trwala_mw": "Gen Available Firm MW",
-    "wytw_dostepna_nietrwala_mw": "Gen Available NonFirm MW",
-    "wytw_ograniczenie": "Generation Parent Constraint",
-    "zasilanie": "Parent Feeder",
-    "stacja_nadrzedna": "Parent Station",
-    "styk_przesylowy": "TSO Interface Station",
-    "komentarz": "Comment",
-    "szerokosc": "Latitude",
-    "dlugosc": "Longitude",
+    "station": "Station Name",
+    "group": "Transformer GroupID",
+    "primary_voltage": "Primary kV",
+    "secondary_voltage": "Secondary voltage(s)",
+    "voltage_class": "Voltage Class",
+    "configuration": "Transformer Configuration",
+    "capacity_installed_mva": "Installed Capacity MVA",
+    "withdrawal_permanent_mva": "Demand FirmCapacity MVA",
+    "withdrawal_available_mva": "Demand Available MVA",
+    "withdrawal_parent_mva": "Parent Available MVA",
+    "withdrawal_limit": "Demand Parent Constraint",
+    "gen_firm_mw": "Generation Firm Capacity MW",
+    "gen_nonfirm_mw": "Generation NonFirm Capacity MW",
+    "gen_contracted_mw": "Generation Total Committed MW",
+    "gen_available_firm_mw": "Gen Available Firm MW",
+    "gen_available_nonfirm_mw": "Gen Available NonFirm MW",
+    "gen_restriction": "Generation Parent Constraint",
+    "power_supply": "Parent Feeder",
+    "parent_station": "Parent Station",
+    "transmission_tie": "TSO Interface Station",
+    "comment": "Comment",
+    "latitude": "Latitude",
+    "longitude": "Longitude",
 }
 
-_TAK = {"yes", "y", "true", "constrained", "1"}
-_NIE = {"no", "n", "false", "unconstrained", "0"}
+_YES = {"yes", "y", "true", "constrained", "1"}
+_NO = {"no", "n", "false", "unconstrained", "0"}
 
 #: The constraint columns carry the phrase "Constrained, otherwise capacity available = X kVA"
 #: or are empty. We assume that an empty cell means NO constraint, not an absence of a
@@ -75,11 +75,11 @@ _NIE = {"no", "n", "false", "unconstrained", "0"}
 #: explanation, and a negative one is expressed by emptiness. This is an INTERPRETATION, not
 #: content of the source (the publisher nowhere describes this convention), so the raw
 #: phrase remains in the extension, and the decision is recorded in the adapter report.
-_FRAZA_OGRANICZENIA = re.compile(r"constrained", re.IGNORECASE)
-_POJEMNOSC_W_FRAZIE = re.compile(r"=\s*([\d.,]+)\s*kVA", re.IGNORECASE)
+_RESTRICTION_PHRASE = re.compile(r"constrained", re.IGNORECASE)
+_CAPACITY_IN_PHRASE = re.compile(r"=\s*([\d.,]+)\s*kVA", re.IGNORECASE)
 
 
-def _liczba(v) -> float | None:
+def _count(v) -> float | None:
     if v is None:
         return None
     s = str(v).strip().replace(",", "")
@@ -91,24 +91,24 @@ def _liczba(v) -> float | None:
         return None
 
 
-def _mw_na_kw(v) -> float | None:
-    x = _liczba(v)
+def _mw_per_kw(v) -> float | None:
+    x = _count(v)
     return None if x is None else x * 1000.0
 
 
-def _flaga(v) -> bool | None:
+def _flag(v) -> bool | None:
     """Constraint indicator; an empty cell means no constraint (see above)."""
     if v is None or str(v).strip() == "":
         return False
     s = str(v).strip().lower()
-    if s in _TAK:
+    if s in _YES:
         return True
-    if s in _NIE:
+    if s in _NO:
         return False
-    return True if _FRAZA_OGRANICZENIA.search(s) else None
+    return True if _RESTRICTION_PHRASE.search(s) else None
 
 
-def _pojemnosc_bez_ograniczenia(v) -> float | None:
+def _unlimited_capacity(v) -> float | None:
     """Extract X from the phrase 'Constrained, otherwise capacity available = X kVA'.
 
     The value is in kVA, i.e. apparent power, so it is NOT converted to kW
@@ -116,11 +116,11 @@ def _pojemnosc_bez_ograniczenia(v) -> float | None:
     """
     if v is None:
         return None
-    m = _POJEMNOSC_W_FRAZIE.search(str(v))
-    return _liczba(m.group(1)) if m else None
+    m = _CAPACITY_IN_PHRASE.search(str(v))
+    return _count(m.group(1)) if m else None
 
 
-def _alternatywa(a: bool | None, b: bool | None) -> bool | None:
+def _alternative(a: bool | None, b: bool | None) -> bool | None:
     """Disjunction preserving indeterminacy: None or False -> None, not False."""
     if a is True or b is True:
         return True
@@ -166,87 +166,87 @@ class ESBNetworksAdapter(Adapter):
 
         path = Path(str(source))
         wb = openpyxl.load_workbook(path, read_only=True, data_only=True)
-        ws = wb[ARKUSZ] if ARKUSZ in wb.sheetnames else wb[wb.sheetnames[0]]
+        ws = wb[SHEET] if SHEET in wb.sheetnames else wb[wb.sheetnames[0]]
         it = ws.iter_rows(values_only=True)
-        for _ in range(WIERSZ_NAGLOWKA - 1):
+        for _ in range(HEADER_ROW - 1):
             next(it)
-        naglowek = [str(c).strip() if c is not None else "" for c in next(it)]
-        pozycja = {nazwa: naglowek.index(etykieta)
-                   for nazwa, etykieta in KOL.items() if etykieta in naglowek}
-        brakujace = sorted(set(KOL) - set(pozycja))
+        header = [str(c).strip() if c is not None else "" for c in next(it)]
+        position = {name: header.index(label)
+                   for name, label in KOL.items() if label in header}
+        missing = sorted(set(KOL) - set(position))
 
-        rekordy, bez_wspolrzednych, ograniczonych = [], 0, 0
+        records, without_coordinates, limited = [], 0, 0
         for w in it:
-            def g(nazwa):
-                i = pozycja.get(nazwa)
+            def g(name):
+                i = position.get(name)
                 if i is None or i >= len(w):
                     return None
                 v = w[i]
                 return None if v is None or str(v).strip() in {"", "_", "-"} else v
 
-            stacja = g("stacja")
-            if stacja is None:
+            station = g("station")
+            if station is None:
                 continue
-            grupa = g("grupa")
-            lat, lon = _liczba(g("szerokosc")), _liczba(g("dlugosc"))
+            group = g("group")
+            lat, lon = _count(g("latitude")), _count(g("longitude"))
             if lat is None or lon is None:
-                bez_wspolrzednych += 1
-            s_odb, s_wyt = g("odbior_ograniczenie"), g("wytw_ograniczenie")
-            f_odb, f_wyt = _flaga(s_odb), _flaga(s_wyt)
-            ogr = _alternatywa(f_odb, f_wyt)
-            if ogr:
-                ograniczonych += 1
-            nap = g("napiecie_pierwotne")
+                without_coordinates += 1
+            s_withdrawal, s_generation = g("withdrawal_limit"), g("gen_restriction")
+            f_withdrawal, f_generation = _flag(s_withdrawal), _flag(s_generation)
+            limit = _alternative(f_withdrawal, f_generation)
+            if limit:
+                limited += 1
+            voltage = g("primary_voltage")
 
-            rekordy.append({
-                "id_wezla": f"{stacja}|{grupa}" if grupa else str(stacja),
-                "nazwa_wezla": str(stacja).strip(),
+            records.append({
+                "id_wezla": f"{station}|{group}" if group else str(station),
+                "nazwa_wezla": str(station).strip(),
                 "wspolrzedne": f"{lat},{lon}" if lat is not None and lon is not None else None,
-                "poziom_napiecia": str(nap).strip() if nap else None,
+                "poziom_napiecia": str(voltage).strip() if voltage else None,
                 # The generation side is in MW of active power, the only one that is convertible.
-                "moc_dostepna": _mw_na_kw(g("wytw_dostepna_trwala_mw")),
-                "moc_zarezerwowana": _mw_na_kw(g("wytw_zakontraktowana_mw")),
-                "ograniczenie_flaga": ogr,
+                "moc_dostepna": _mw_per_kw(g("gen_available_firm_mw")),
+                "moc_zarezerwowana": _mw_per_kw(g("gen_contracted_mw")),
+                "ograniczenie_flaga": limit,
                 "_encja": "WEZEL",
                 "_jednostka_mocy_odbiorczej": "MVA",
-                "_klasa_napiecia": g("klasa_napiecia"),
-                "_konfiguracja_transformatorow": g("konfiguracja"),
-                "_moc_zainstalowana_mva": _liczba(g("moc_zainstalowana_mva")),
-                "_odbior_dostepna_mva": _liczba(g("odbior_dostepna_mva")),
-                "_odbior_trwala_mva": _liczba(g("odbior_trwala_mva")),
-                "_odbior_nadrzedna_mva": _liczba(g("odbior_nadrzedna_mva")),
-                "_odbior_ograniczenie": f_odb,
-                "_wytw_ograniczenie": f_wyt,
-                "_odbior_ograniczenie_opis": str(s_odb) if s_odb is not None else None,
-                "_wytw_ograniczenie_opis": str(s_wyt) if s_wyt is not None else None,
-                "_odbior_bez_ograniczenia_kva": _pojemnosc_bez_ograniczenia(s_odb),
-                "_wytw_bez_ograniczenia_kva": _pojemnosc_bez_ograniczenia(s_wyt),
-                "_wytw_dostepna_nietrwala_kw": _mw_na_kw(g("wytw_dostepna_nietrwala_mw")),
-                "_wytw_zakontraktowana_kw": _mw_na_kw(g("wytw_zakontraktowana_mw")),
-                "_wytw_trwala_kw": _mw_na_kw(g("wytw_trwala_mw")),
-                "_zasilanie": g("zasilanie"),
-                "_stacja_nadrzedna": g("stacja_nadrzedna"),
-                "_styk_przesylowy": g("styk_przesylowy"),
-                "_komentarz": g("komentarz"),
+                "_klasa_napiecia": g("voltage_class"),
+                "_konfiguracja_transformatorow": g("configuration"),
+                "_moc_zainstalowana_mva": _count(g("capacity_installed_mva")),
+                "_odbior_dostepna_mva": _count(g("withdrawal_available_mva")),
+                "_odbior_trwala_mva": _count(g("withdrawal_permanent_mva")),
+                "_odbior_nadrzedna_mva": _count(g("withdrawal_parent_mva")),
+                "_odbior_ograniczenie": f_withdrawal,
+                "_wytw_ograniczenie": f_generation,
+                "_odbior_ograniczenie_opis": str(s_withdrawal) if s_withdrawal is not None else None,
+                "_wytw_ograniczenie_opis": str(s_generation) if s_generation is not None else None,
+                "_odbior_bez_ograniczenia_kva": _unlimited_capacity(s_withdrawal),
+                "_wytw_bez_ograniczenia_kva": _unlimited_capacity(s_generation),
+                "_wytw_dostepna_nietrwala_kw": _mw_per_kw(g("gen_available_nonfirm_mw")),
+                "_wytw_zakontraktowana_kw": _mw_per_kw(g("gen_contracted_mw")),
+                "_wytw_trwala_kw": _mw_per_kw(g("gen_firm_mw")),
+                "_zasilanie": g("power_supply"),
+                "_stacja_nadrzedna": g("parent_station"),
+                "_styk_przesylowy": g("transmission_tie"),
+                "_komentarz": g("comment"),
             })
         wb.close()
 
-        df = self.finalize(pd.DataFrame(rekordy), document=path.name)
+        df = self.finalize(pd.DataFrame(records), document=path.name)
         notes = {
-            "publikujacy": PUBLISHER,
-            "jurysdykcja": JURISDICTION,
-            "tryb_wydania": "spreadsheet on the publisher's website",
-            "wierszy": int(len(df)),
-            "wierszy_bez_wspolrzednych": bez_wspolrzednych,
-            "wezlow_ograniczonych": ograniczonych,
-            "interpretacja_pustej_flagi": (
+            "publisher": PUBLISHER,
+            "jurisdiction": JURISDICTION,
+            "release_mode": "spreadsheet on the publisher's website",
+            "rows": int(len(df)),
+            "rows_without_coordinates": without_coordinates,
+            "constrained_nodes": limited,
+            "empty_flag_interpretation": (
                 "empty cell of the constraint column read as NO constraint; "
                 "the publisher does not describe this convention, raw phrase in the extension"
             ),
-            "kolumny_nieznalezione": brakujace,
-            "jednostka_strony_wytworczej": "MW",
-            "jednostka_strony_odbiorczej": "MVA",
-            "uwaga_jednostki": (
+            "columns_not_found": missing,
+            "generating_side_unit": "MW",
+            "receiving_side_unit": "MVA",
+            "note_units": (
                 "The moc_dostepna field carries the available firm GENERATION capacity, "
                 "converted from MW to kW. The demand side is given in MVA (apparent power) "
                 "and is not converted nor summed with the generation side; it remains in "
