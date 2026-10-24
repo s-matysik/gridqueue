@@ -56,7 +56,7 @@ from typing import Iterable, Optional
 __all__ = [
     "Resolution", "LocationResolver", "MultiLocalityResolver",
     "PEWNOSC", "DOKLADNOSC", "normalize", "tokens",
-    "resolver_from_osm_json", "resolver_from_gazeter_json",
+    "resolver_from_osm_json", "resolver_from_gazeter_json", "geocode_frame",
 ]
 
 PEWNOSC = ("EXACT", "UNIQUE_TOKEN", "TOKEN_SUBSET", "REVERSED", "SKRZYZOWANIE", "NONE")
@@ -677,3 +677,46 @@ def resolver_from_osm_json(path) -> LocationResolver:
                     lat, lon = item.get("lat"), item.get("lon")
                     gaz[nm] = (float(lat), float(lon)) if lat is not None and lon is not None else None
     return LocationResolver(gaz)
+
+
+def geocode_frame(df, resolver, *, column: str = "lokalizacja_tekst",
+                  overwrite: bool = False, station_code_column: Optional[str] = None):
+    """Resolve the place descriptions of a frame and write the result back to it.
+
+    Returns a copy of ``df`` with ``wspolrzedne`` filled as ``"lat,lon"`` (WGS84, the
+    format the schema validates) and three diagnostic columns that keep what the resolver
+    knows about each row: ``_geo_pewnosc`` (certainty of the name identification),
+    ``_geo_dokladnosc`` (precision of the returned point) and ``_geo_powod`` (reason, when
+    no point is returned). Coordinates disclosed by the publisher are kept unless
+    ``overwrite=True``; such rows get ``_geo_pewnosc = "ZRODLO"``.
+
+    ``resolver`` is a :class:`LocationResolver` or :class:`MultiLocalityResolver`, for
+    example from :func:`resolver_from_gazeter_json`. ``station_code_column`` names a boolean
+    column marking descriptions that are station codes rather than place names.
+    """
+    import pandas as pd
+
+    out = df.copy()
+    if "wspolrzedne" not in out.columns:
+        out["wspolrzedne"] = None
+    src = out["wspolrzedne"]
+    have = src.notna() & src.astype(str).str.strip().ne("") & ~overwrite
+    pew, dok, pow_, wsp = [], [], [], []
+    codes = out[station_code_column].fillna(False).astype(bool) \
+        if station_code_column and station_code_column in out.columns else None
+    for i, (idx, q) in enumerate(out[column].items()):
+        if bool(have.loc[idx]):
+            pew.append("ZRODLO"); dok.append("ZRODLO"); pow_.append(""); wsp.append(src.loc[idx])
+            continue
+        kw = {"is_station_code": bool(codes.loc[idx])} if codes is not None else {}
+        r = resolver.resolve(None if pd.isna(q) else str(q), **kw)
+        pew.append(r.pewnosc)
+        dok.append(getattr(r, "dokladnosc", "BRAK"))
+        has_pt = r.lat is not None and r.lon is not None
+        pow_.append(r.powod or ("" if has_pt else "brak_punktu"))
+        wsp.append(f"{r.lat:.6f},{r.lon:.6f}" if has_pt else None)
+    out["wspolrzedne"] = pd.Series(wsp, index=out.index, dtype=object)
+    out["_geo_pewnosc"] = pew
+    out["_geo_dokladnosc"] = dok
+    out["_geo_powod"] = pow_
+    return out

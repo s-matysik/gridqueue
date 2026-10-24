@@ -4,6 +4,52 @@ Format based on [Keep a Changelog](https://keepachangelog.com/pl/1.1.0/);
 semantic versioning. The version of the data schema is separate from the version of the package
 and is reported as `SCHEMA_VERSION`.
 
+## 1.6.0 (2026-10-24)
+
+### Added
+- **Charts** (`gridqueue.plots`, optional extra `pip install "gridqueue[plot]"`): field coverage,
+  quality rules, column-shift audit, stage of the proceeding, requested capacity by class and
+  voltage, Kaplan-Meier processing-time curves with censoring and a 95 % band, node loading,
+  flows / transitions / linkage audit of two editions, location resolution, a four-panel
+  overview, and `save_all`, which draws every chart the data supports and lists the skipped ones
+  with the reason. A chart is a view of a result, never a second computation of it. Figures are
+  created without `pyplot`, so the module runs unchanged in scripts, notebooks and the browser.
+- **CLI**: `gridqueue compare` (flows, transitions, linkage precision and sensitivity of two
+  editions) and `gridqueue plot` (every chart, PNG/SVG/PDF).
+- `parse_sources`: any number of files of one or several publishers into one panel; every file is
+  parsed by a fresh adapter instance, so each document keeps the as-at date it states.
+  `split_editions` separates two or more editions of one register dropped together.
+- `kaplan_meier_by_group`: Kaplan-Meier summary per group (or per combination of columns) with the
+  inclusion criterion of the article.
+- `geocode_frame`: writes the resolver's result back to the panel (`wspolrzedne` as `"lat,lon"`,
+  `_geo_pewnosc`, `_geo_dokladnosc`, `_geo_powod`); source coordinates are kept.
+- `node_loading(..., napiecie=...)`: voltage filter of the queue. `napiecie="110"` is the base
+  variant of the article (median 6.500 / 4.688, 29 of 36 / 33 of 37 for ENERGA-OPERATOR,
+  31 August 2026); the default is the all-voltage upper variant (8.611 / 7.638).
+- `gridqueue.examples`: a synthetic panel with node rows, two synthetic editions and a small
+  gazetteer, labelled as synthetic, for trying every function without a real disclosure.
+- **Browser page, simple view** (the default): drop the documents and get the main charts, a few
+  sentences with the key numbers, and one ZIP with charts, data and report. Two editions of one
+  register dropped together are recognised by their as-at dates and compared.
+- **Browser page, full view**: several files at once, manual choice of the adapter, a later edition
+  (flows, transitions, linkage audit), an optional gazetteer, schema validation and the column-shift
+  audit, processing times and node loading, all charts (PNG 300 dpi and SVG), and export to CSV,
+  XLSX, JSON and one ZIP archive; two synthetic demonstration modes; a table of what runs where.
+- **Colab notebook**: installs 1.6.0 with charts; adds schema validation, the column-shift audit,
+  key sensitivity (checked against the article), ENERGA-OPERATOR processing times and node loading
+  (both checked against the Supplementary Material), the resolver on a synthetic gazetteer, all
+  charts and a downloadable results archive.
+
+### Fixed
+- **Censoring date of `processing_time`.** The default censored every open application at the
+  single latest publication date of the frame, node rows included. ENERGA-OPERATOR publishes its
+  applications as at 30 June and its node capacities as at 31 August 2026, so every censored time
+  was two months too long (median for consumption at 110 kV 256 d instead of 240 d). Each row is
+  now censored at its own publication date, which is also correct for panels of several publishers.
+- **Interval of the Kaplan-Meier median**: the lower and upper bounds were swapped
+  (`mediana_dolna > mediana > mediana_gorna`).
+- `kaplan_meier` raised `KeyError` for a group in which every observation is censored.
+
 ## 1.5.2 (2026-10-17)
 
 ### Added

@@ -2,8 +2,8 @@
 
 [![tests](https://github.com/s-matysik/gridqueue/actions/workflows/ci.yml/badge.svg)](https://github.com/s-matysik/gridqueue/actions/workflows/ci.yml)
 [![Python 3.10-3.13](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue)](https://github.com/s-matysik/gridqueue)
-[![licence Apache-2.0](https://img.shields.io/badge/licencja-Apache--2.0-green)](LICENSE.txt)
-[![documentation](https://img.shields.io/badge/dokumentacja-gh--pages-blue)](https://s-matysik.github.io/gridqueue/)
+[![licence Apache-2.0](https://img.shields.io/badge/licence-Apache--2.0-green)](LICENSE.txt)
+[![documentation](https://img.shields.io/badge/documentation-gh--pages-blue)](https://s-matysik.github.io/gridqueue/)
 [![release](https://img.shields.io/github/v/release/s-matysik/gridqueue)](https://github.com/s-matysik/gridqueue/releases)
 [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/s-matysik/gridqueue/blob/main/notebooks/gridqueue_colab.ipynb)
 
@@ -17,10 +17,33 @@ public, but it is not processable.
 
 `gridqueue` turns those publications into one set of rows with **measured accuracy**.
 
-State of release 0.3.1: **six adapters, 19 220 panel rows, all 21 schema fields
-populated**. Publishers: TAURON Dystrybucja 10 955 rows, ENERGA-OPERATOR 5 382,
-Stoen Operator 1 236, PSE 945, National Grid (GB) 694, Boryszew Green Energy&Gas 8.
-Documentation: **https://s-matysik.github.io/gridqueue/**
+Release 1.6.0: **nine adapters in five jurisdictions** (Poland, Spain, Ireland, Portugal, Great
+Britain), all 21 schema fields populated by at least one publisher, quality rules, a longitudinal
+module with a linkage audit, processing times with censoring, node loading, a location resolver and
+**charts for every result**. Documentation: **https://s-matysik.github.io/gridqueue/**
+
+## Three ways to run it
+
+| | Python library | Google Colab | In the browser |
+|---|---|---|---|
+| Install | `pip install` (below) | nothing | nothing |
+| Where | your machine | Google's free machine | your machine, offline after loading |
+| Parse, validate, quality rules, column-shift audit | yes | yes | yes |
+| Several files and publishers in one panel | yes | yes | yes |
+| Two editions: flows, transitions, linkage precision and sensitivity | yes | yes | yes |
+| Processing time (Kaplan-Meier), node loading | yes | yes | yes |
+| Coordinates from a gazetteer | yes | yes | yes, with your gazetteer file |
+| Charts (PNG, SVG) | yes | yes | yes |
+| Export | Parquet, CSV, XLSX, JSON | Parquet, CSV, XLSX, JSON | CSV, XLSX, JSON, ZIP |
+| Fetch documents from the publisher's server | yes | yes | no, the browser forbids it |
+
+* **Colab:** [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/s-matysik/gridqueue/blob/main/notebooks/gridqueue_colab.ipynb)
+* **Browser:** **https://s-matysik.github.io/gridqueue/app/**, drop the published documents on the
+  page. The *simple* view needs nothing else: it recognises the publisher, compares two editions
+  of one register when it gets them, and returns the main charts with one download. The *full*
+  view adds every input, option and table. The package runs in a WebAssembly interpreter;
+  nothing is uploaded.
+* **Library:** see *Installation*.
 
 ## What it is not
 
@@ -35,28 +58,33 @@ this package amounts to downloading a CSV. Poland is the case in which it is not
 [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/s-matysik/gridqueue/blob/main/notebooks/gridqueue_colab.ipynb)
 
 The notebook `notebooks/gridqueue_colab.ipynb` performs **a full research run in the browser**:
-it downloads two editions of the disclosure directly from the publisher, extracts the rows, assesses
-the quality, computes the queue flows together with the linkage precision and **compares the
-reproduced figures with those published in the paper, aborting execution on a divergence**. Under a
-minute on a free machine, with no accelerator and no configuration.
+it downloads two editions of the disclosure directly from the publisher, extracts and validates the
+rows, assesses the quality, computes the queue flows together with the linkage precision and key
+sensitivity and **compares the reproduced figures with those published in the paper, aborting
+execution on a divergence**. It then parses a distribution operator's three documents for the
+processing-time curves and node loading, runs the location resolver, draws every chart and exports
+the results as one archive. The PSE part takes about a minute on a free machine; the ENERGA part adds
+several minutes of PDF parsing and can be switched off.
 
 The notebook does not reproduce the extraction accuracy against the reference set, because that set
-requires a human reading, nor does it resolve coordinates, because the gazetteer is a separate
-download under the ODbL licence.
+requires a human reading. The national gazetteer is a separate download under the ODbL licence, so the
+resolver is shown on a synthetic gazetteer, with a one-line change to use your own.
 
 ## Installation
 
 One command, with no compilation and no external services:
 
 ```bash
-pip install git+https://github.com/s-matysik/gridqueue@v1.2.1
+pip install "gridqueue[plot] @ git+https://github.com/s-matysik/gridqueue@v1.6.0"
 ```
+
+The `plot` extra adds matplotlib for the charts; without it everything else works.
 
 For work on the code, with the test extra:
 
 ```bash
 git clone https://github.com/s-matysik/gridqueue && cd gridqueue
-pip install -e ".[test]"
+pip install -e ".[test,plot]"
 ```
 
 Dependencies: `pandas`, `pdfplumber`, `openpyxl`, `requests`, `pyarrow`. The canonical unit of
@@ -94,7 +122,42 @@ gridqueue parse tauron.pdf --out tauron.parquet --report tauron.json
 gridqueue parse --adapter uk_nationalgrid --out uk.parquet   # downloads from the CKAN catalogue
 gridqueue validate tauron.parquet --out walidacja.json
 gridqueue export tauron.parquet stoen.parquet --out panel.parquet --only-schema
+gridqueue compare pse_07.parquet pse_08.parquet --label-a 2026-07-31 --label-b 2026-08-31 --out delta.json
+gridqueue plot energa.parquet --out charts/ --format png,svg         # every chart the data supports
+gridqueue plot pse_07.parquet --edition-b pse_08.parquet --out charts/pse/
 ```
+
+## Charts
+
+`gridqueue.plots` draws every result of the package. Each function takes the object the analysis
+returns and gives back a matplotlib `Figure`, so a chart never recomputes a number: what it shows is
+what the analysis reports. What a disclosure does not contain is drawn as absence (a grey cell, a
+skipped node with the reason), never as zero.
+
+| Function | Shows |
+|---|---|
+| `plot_field_coverage` | share of rows populating each of the 21 fields, per publisher |
+| `plot_quality` | violations of the eight quality rules, stacked by publisher |
+| `plot_column_shift` | rows in which a value stands in a field it cannot belong to |
+| `plot_status_distribution` | applications by stage of the proceeding |
+| `plot_capacity_by_class` | requested capacity of the active queue by resource class and voltage |
+| `plot_processing_time` | Kaplan-Meier curves with censoring and a 95 % band |
+| `plot_node_loading` | queue over declared free capacity, per node, log scale |
+| `plot_edition_flows`, `plot_transitions`, `plot_linkage_audit`, `plot_edition_comparison` | two editions |
+| `plot_location_resolution` | where a coordinate comes from, and the reason where it does not |
+| `plot_overview` | four panels for a first look |
+| `save_all` | every chart the data supports, PNG/SVG/PDF; skipped ones listed with the reason |
+
+```python
+from gridqueue import parse_sources, plots
+
+panel, reports = parse_sources(["wnioski.pdf", "moc_odbiorcza.pdf", "moc_wytworcza.pdf"])
+plots.plot_processing_time(panel, by="klasa_zasobu")     # displays in Jupyter / Colab
+plots.save_all(panel, "charts/", formats=("png", "svg"), dpi=300)
+```
+
+`gridqueue.examples` generates a synthetic panel, two synthetic editions and a small gazetteer, labelled
+as synthetic, for trying every function without a real disclosure.
 
 ## Schema
 
@@ -203,7 +266,7 @@ disclosure; violations of that rule numbered 5 390 (28,044 %) against **771 (4,0
 ## Tests
 
 ```bash
-python -m pytest -q      # 153 passed, 2 skipped (155 collected)
+python -m pytest -q      # 221 passed, 2 skipped (223 collected)
 ```
 
 The two skips are conditional: they are the integration tests of the PSE and ENERGA adapters, which
@@ -246,11 +309,8 @@ with a list of individual authors before the paper is submitted.
 
 Apache-2.0 for **the code**. The input and output data have a separate status; official documents are not redistributed, and the geometric gazetteer is subject to ODbL with attribution and share-alike duties. Details in [`DATA_LICENSE.md`](DATA_LICENSE.md).
 
-Change history: [`CHANGELOG.md`](CHANGELOG.md)., see `LICENSE.txt`. This is a **working** choice, dictated by the fact that the target journal
-requires a licence file in the repository, and the text of Apache-2.0 does not require the rights
-holder's details to be entered in the file itself. A change to another licence from the permitted list
-(MIT, BSD, GPL) is one commit, as long as the repository has no external co-authors.
-
 The licences of the input data are separate and fixed: the OpenStreetMap gazetteer under the ODbL 1.0
 licence; the operators' statutory publications under their own terms of use, redistributed only
 where that is permitted.
+
+Change history: [`CHANGELOG.md`](CHANGELOG.md).

@@ -35,6 +35,7 @@ __all__ = [
     "node_loading",
     "processing_time",
     "kaplan_meier",
+    "kaplan_meier_by_group",
     "KMResult",
 ]
 
@@ -218,6 +219,7 @@ def node_loading(
     kolumna_grupy: str = "_nr_grupy",
     statusy_czynne: Iterable[str] | None = None,
     kolumna_encji: str = "_encja",
+    napiecie: str | None = None,
 ) -> pd.DataFrame:
     """Node loading: the capacity of the active queue against the disclosed available capacity.
 
@@ -233,6 +235,12 @@ def node_loading(
     `moc_dostepna_zero` flag: the ratio there is UNDEFINED, not infinite,
     and averaging it would be an error. The row nonetheless retains the capacity applied for,
     because a queue at a node with no free capacity is information, not missing data.
+
+    ``napiecie`` keeps only applications whose ``poziom_napiecia`` contains the given text.
+    The base variant of the article counts the 110 kV queue (``napiecie="110"``), because the
+    available capacity a distribution operator discloses for a node is the capacity of its
+    high-voltage busbars; the default (``None``) counts applications at every voltage level,
+    which is the article's upper variant.
     """
     if statusy_czynne is None:
         statusy_czynne = ("WNIOSEK_ZLOZONY", "WNIOSEK_NIEKOMPLETNY",
@@ -245,6 +253,9 @@ def node_loading(
         else df["moc_dostepna"].notna()
     wnioski = df[~jest_wezel]
     wnioski = wnioski[wnioski["status_procesu"].isin(set(statusy_czynne))]
+    if napiecie is not None and "poziom_napiecia" in wnioski.columns:
+        wnioski = wnioski[wnioski["poziom_napiecia"].astype("string")
+                          .str.contains(napiecie, regex=False, na=False)]
     wnioski = wnioski[wnioski["_grupa"].notna()]
     suma = wnioski.groupby("_grupa")[pole_mocy].sum(min_count=1).rename("moc_wnioskowana")
     liczba = wnioski.groupby("_grupa").size().rename("wnioskow")
@@ -279,24 +290,37 @@ def processing_time(
     both kinds of observations, as well as `zdarzenie` equal to 1 for resolved ones and 0
     for censored ones, in the form expected by the survival estimator.
 
-    `na_dzien` by default takes the maximum of the publication-date field, and when that is
-    absent, the maximum of the resolution dates.
+    By default (``na_dzien=None``) every open application is censored at the publication
+    date of ITS OWN row (``data_publikacji``), so that a panel of several publishers, or a
+    publisher whose node and application documents carry different as-at dates, censors
+    each application at the date its document describes. Rows without a publication date
+    are censored at the latest publication date of the application rows, and failing that
+    at the latest resolution date. A date given explicitly applies to every row.
+
+    Up to 1.5.2 the default was the single latest publication date of the whole frame,
+    node rows included; for ENERGA-OPERATOR (applications as at 30 June, nodes as at
+    31 August 2026) that lengthened every censored time by two months.
     """
     d = df.copy()
     for c in (od, do):
         d[c] = pd.to_datetime(d[c], errors="coerce")
     if na_dzien is None:
-        if "data_publikacji" in d:
-            na_dzien = pd.to_datetime(d["data_publikacji"], errors="coerce").max()
-        if na_dzien is None or pd.isna(na_dzien):
-            na_dzien = d[do].max()
-    na_dzien = pd.to_datetime(na_dzien)
+        wlasna = pd.to_datetime(d["data_publikacji"], errors="coerce") \
+            if "data_publikacji" in d else pd.Series(pd.NaT, index=d.index)
+        wnioski = d["_encja"].fillna("WNIOSEK").astype(str).str.upper() != "WEZEL" \
+            if "_encja" in d else pd.Series(True, index=d.index)
+        zapas = wlasna[wnioski].max()
+        if pd.isna(zapas):
+            zapas = d[do].max()
+        na_dzien = wlasna.fillna(zapas)
+    else:
+        na_dzien = pd.Series(pd.to_datetime(na_dzien), index=d.index)
     ma_start = d[od].notna()
     zdarzenie = ma_start & d[do].notna()
     czas = pd.Series(pd.NA, index=d.index, dtype="Float64")
     czas[zdarzenie] = (d.loc[zdarzenie, do] - d.loc[zdarzenie, od]).dt.days
     uciete = ma_start & ~zdarzenie
-    czas[uciete] = (na_dzien - d.loc[uciete, od]).dt.days
+    czas[uciete] = (na_dzien[uciete] - d.loc[uciete, od]).dt.days
     d["czas_dni"] = czas
     d["zdarzenie"] = zdarzenie.astype(int).where(ma_start)
     d["na_dzien"] = na_dzien
@@ -357,18 +381,60 @@ def kaplan_meier(czas, zdarzenie, alpha: float = 0.05) -> KMResult:
         se = S * math.sqrt(kum_war) if S > 0 else 0.0
         wiersze.append({"t": float(t), "n_ryzyka": n_ryz, "zdarzen": zd, "S": S,
                         "S_dolne": max(0.0, S - z * se), "S_gorne": min(1.0, S + z * se)})
-    tab = pd.DataFrame(wiersze)
+    # Explicit columns: a group in which every observation is censored has no event time,
+    # and a frame built from an empty list would have no columns at all (KeyError: 'S').
+    tab = pd.DataFrame(wiersze, columns=["t", "n_ryzyka", "zdarzen", "S", "S_dolne", "S_gorne"])
 
     def pierwszy_ponizej(kol):
         pod = tab[tab[kol] <= 0.5]
         return float(pod["t"].iloc[0]) if len(pod) else float("nan")
 
+    # The lower band reaches 0.5 FIRST, so it gives the LOWER bound of the median; the upper
+    # band reaches it last and gives the upper bound. Versions up to 1.5.2 had the two
+    # swapped, which returned an interval with mediana_dolna > mediana > mediana_gorna.
     return KMResult(
         tabela=tab,
         mediana=pierwszy_ponizej("S"),
-        mediana_dolna=pierwszy_ponizej("S_gorne"),
-        mediana_gorna=pierwszy_ponizej("S_dolne"),
+        mediana_dolna=pierwszy_ponizej("S_dolne"),
+        mediana_gorna=pierwszy_ponizej("S_gorne"),
         n=n0,
         zdarzen=int((d["e"] == 1).sum()),
         cenzurowanych=int((d["e"] == 0).sum()),
     )
+
+
+def kaplan_meier_by_group(
+    df: pd.DataFrame,
+    by: str | Sequence[str] | None = "klasa_zasobu",
+    od: str = "data_wniosku",
+    do: str = "data_warunkow",
+    min_n: int = 30,
+    na_dzien=None,
+) -> pd.DataFrame:
+    """Kaplan-Meier summary per group: size, events, censoring, median and its interval.
+
+    Combines :func:`processing_time` and :func:`kaplan_meier`. A group enters the table
+    when it has at least ``min_n`` measurable applications (start date present, time not
+    negative); this is the inclusion criterion of the article, fixed before the result is
+    computed. ``by`` may be a column, a list of columns (joined with ``" / "``) or ``None``
+    for the whole frame. Sorted by group size, largest first.
+    """
+    cols = ["grupa", "n", "zdarzen", "cenzurowanych", "udzial_cenzurowanych",
+            "mediana", "mediana_dolna", "mediana_gorna"]
+    if od not in df.columns or do not in df.columns:
+        return pd.DataFrame(columns=cols)
+    pt = processing_time(df, od=od, do=do, na_dzien=na_dzien)
+    if by is None:
+        klucz = pd.Series("all", index=pt.index)
+    else:
+        kol = [by] if isinstance(by, str) else list(by)
+        if any(k not in pt.columns for k in kol):
+            return pd.DataFrame(columns=cols)
+        klucz = pt[kol].astype("string").fillna("(empty)").agg(" / ".join, axis=1)
+    wiersze = []
+    for g, sub in pt.groupby(klucz, sort=False):
+        km = kaplan_meier(sub["czas_dni"].astype("float64"), sub["zdarzenie"].astype("float64"))
+        if km.n >= min_n:
+            wiersze.append({"grupa": str(g), **km.as_dict()})
+    out = pd.DataFrame(wiersze, columns=cols)
+    return out.sort_values("n", ascending=False, kind="stable").reset_index(drop=True)
