@@ -19,7 +19,8 @@ import unicodedata
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
-from ..schema import FIELDS, META_COLUMNS, canonical_date, canonical_power_kw
+from ..schema import (FIELDS, META_COLUMNS, RESOURCE_CLASSES, STATUSES, canonical_date,
+                      canonical_power_kw)
 
 __all__ = ["Adapter", "ParseResult", "harmonize_class", "harmonize_status", "norm_text"]
 
@@ -63,10 +64,10 @@ class Adapter:
         for c in FIELDS + META_COLUMNS:
             if c not in df.columns:
                 df[c] = None
-        df["publikujacy"] = self.publisher
-        df["jurysdykcja"] = self.jurisdiction
+        df["publisher"] = self.publisher
+        df["jurisdiction"] = self.jurisdiction
         if document:
-            df["dokument_zrodlowy"] = document
+            df["source_document"] = document
         extra = [c for c in df.columns if c not in FIELDS + META_COLUMNS]
         df = df[list(FIELDS) + list(META_COLUMNS) + sorted(extra)]
         return df.reset_index(drop=True)
@@ -103,56 +104,60 @@ def norm_text(s: Any) -> str:
 #: TAURON's abbreviations come from the legend on the last page of its document.
 _CLASS_MAP: tuple[tuple[str, str], ...] = (
     (r"^pv$|fotowolta|^solar$", "PV"),
-    (r"^fw$|^mfw$|farma wiatrow|^wind$", "FW"),
-    (r"^ew$|elektrownia wodn|^hydro$", "EW"),
-    (r"biogaz|biomas|^jbm$", "BIOGAZ"),
+    (r"^fw$|^mfw$|farma wiatrow|^wind$", "WIND"),
+    (r"^ew$|elektrownia wodn|^hydro$", "HYDRO"),
+    (r"biogaz|biomas|^jbm$", "BIOGAS"),
     # TAURON legend (last page of the document): BG gas block, BGP gas-steam
     # block, SG gas engine: these are GAS units, not biogas ones
-    (r"^bg$|^bgp$|^sg$|blok gazow|silnik gazow", "GAZ"),
-    (r"^jw$|jednostka weglow", "WEGIEL"),
+    (r"^bg$|^bgp$|^sg$|blok gazow|silnik gazow", "GAS"),
+    (r"^jw$|jednostka weglow", "COAL"),
     (r"^mee|magazyn energii|^bess$|^battery", "BESS"),
-    (r"^odb$|instalacja odbiorcz|^demand$|odbiorc", "ODB"),
+    (r"^odb$|instalacja odbiorcz|^demand$|odbiorc", "LOAD"),
     (r"^mix$", "MIX"),
-    (r"^osd|^siec$|^network$|stacja transformator|siec dystrybucyjn|^sieci$", "SIEC"),
-    (r"^inne zrodla$|^inne$|^other$|^ej$|^esp$|^ogw$|^js$|^mfw$", "INNE"),
-    (r"wytworcz", "INNE"),
+    (r"^osd|^siec$|^network$|stacja transformator|siec dystrybucyjn|^sieci$", "GRID"),
+    (r"^inne zrodla$|^inne$|^other$|^ej$|^esp$|^ogw$|^js$|^mfw$", "OTHER"),
+    (r"wytworcz", "OTHER"),
 )
 
 _STATUS_MAP: tuple[tuple[str, str], ...] = (
-    (r"wniosek niekompletny|uzupelnien", "WNIOSEK_NIEKOMPLETNY"),
-    (r"w trakcie analiz|w trakcie rozpatr|wniosek kompletny", "W_TRAKCIE_ANALIZY"),
-    (r"wniosek wycofan|wycofan", "WNIOSEK_WYCOFANY"),
-    (r"utracil\w* waznosc|utrata waznosci|wygasl", "WARUNKI_WYGASLE"),
-    (r"odmow|refus", "ODMOWA"),
+    (r"wniosek niekompletny|uzupelnien", "APPLICATION_INCOMPLETE"),
+    (r"w trakcie analiz|w trakcie rozpatr|wniosek kompletny", "UNDER_REVIEW"),
+    (r"wniosek wycofan|wycofan", "APPLICATION_WITHDRAWN"),
+    (r"utracil\w* waznosc|utrata waznosci|wygasl", "CONDITIONS_EXPIRED"),
+    (r"odmow|refus", "REFUSED"),
     # "rozwiazan" without further determination: the drop-down list of the common
     # PTPiREE/PSE template declares the status "UMOWA O PRZYŁĄCZENIE rozwiązana",
     # which was not caught by either "umowa rozwiazan" (lacking adjacency), or
     # "rozwiazanie umowy".  Without this fix, a terminated agreement fell under
-    # the "umowa o przylaczenie" rule and was reported as UMOWA_OBOWIAZUJACA:
+    # the "umowa o przylaczenie" rule and was reported as AGREEMENT_IN_FORCE:
     # i.e., the opposite status of the true one.
-    (r"rozwiazan", "UMOWA_ROZWIAZANA"),
-    (r"obiekt przylaczony|recently connected|^connected$|przylaczon", "PRZYLACZONY"),
-    (r"umowa o przylaczenie|umowa obowiazuj|accepted not yet connected|^accepted", "UMOWA_OBOWIAZUJACA"),
-    (r"warunki przylaczenia|warunki wydane|warunki okreslone", "WARUNKI_WYDANE"),
-    (r"wniosek", "WNIOSEK_ZLOZONY"),
+    (r"rozwiazan", "AGREEMENT_TERMINATED"),
+    (r"obiekt przylaczony|recently connected|^connected$|przylaczon", "CONNECTED"),
+    (r"umowa o przylaczenie|umowa obowiazuj|accepted not yet connected|^accepted", "AGREEMENT_IN_FORCE"),
+    (r"warunki przylaczenia|warunki wydane|warunki okreslone", "CONDITIONS_ISSUED"),
+    (r"wniosek", "APPLICATION_FILED"),
 )
 
 
 def harmonize_class(raw: Any) -> str:
+    if str(raw).strip().upper() in RESOURCE_CLASSES:
+        return str(raw).strip().upper()
     t = norm_text(raw)
     if not t:
-        return "NIEOKRESLONA"
+        return "UNSPECIFIED"
     for rx, out in _CLASS_MAP:
         if re.search(rx, t):
             return out
-    return "INNE"
+    return "OTHER"
 
 
 def harmonize_status(raw: Any) -> str:
+    if str(raw).strip().upper() in STATUSES:
+        return str(raw).strip().upper()
     t = norm_text(raw)
     if not t:
-        return "NIEOKRESLONY"
+        return "UNSPECIFIED"
     for rx, out in _STATUS_MAP:
         if re.search(rx, t):
             return out
-    return "NIEOKRESLONY"
+    return "UNSPECIFIED"

@@ -7,19 +7,19 @@ from gridqueue import (assign_to_nodes, kaplan_meier, node_loading,
                        normalize_name, processing_time, station_node_map)
 
 
-def _node(nr, name, stations, capacity, direction="wytworcza"):
-    return {"_encja": "WEZEL", "_nr_grupy": nr, "_kierunek": direction,
-            "id_wezla": f"g{nr}:{direction}", "nazwa_wezla": name,
-            "lokalizacja_tekst": stations, "moc_dostepna": capacity,
-            "poziom_napiecia": "110 kV", "publikujacy": "X",
-            "status_procesu": None, "moc_wprowadzana": None, "moc_pobierana": None}
+def _node(nr, name, stations, capacity, direction="generation"):
+    return {"_entity": "NODE", "_group_no": nr, "_direction": direction,
+            "node_id": f"g{nr}:{direction}", "node_name": name,
+            "location_text": stations, "capacity_available": capacity,
+            "voltage_level": "110 kV", "publisher": "X",
+            "process_status": None, "capacity_injected": None, "capacity_withdrawn": None}
 
 
-def _application(loc, capacity, status="WARUNKI_WYDANE"):
-    return {"_encja": "WNIOSEK", "_nr_grupy": None, "_kierunek": None,
-            "id_wezla": None, "nazwa_wezla": None, "lokalizacja_tekst": loc,
-            "moc_dostepna": None, "poziom_napiecia": "110 kV", "publikujacy": "X",
-            "status_procesu": status, "moc_wprowadzana": capacity, "moc_pobierana": None}
+def _application(loc, capacity, status="CONDITIONS_ISSUED"):
+    return {"_entity": "APPLICATION", "_group_no": None, "_direction": None,
+            "node_id": None, "node_name": None, "location_text": loc,
+            "capacity_available": None, "voltage_level": "110 kV", "publisher": "X",
+            "process_status": status, "capacity_injected": capacity, "capacity_withdrawn": None}
 
 
 class TestNormalization:
@@ -38,8 +38,8 @@ class TestMapping:
     def test_the_group_not_the_row_is_the_key(self):
         """The same group in two directions is one object, not two."""
         df = pd.DataFrame([
-            _node(1, "Alfa", "Stacja A, Stacja B", 1000.0, "wytworcza"),
-            _node(1, "Alfa", "Stacja A, Stacja B", 2000.0, "odbiorcza"),
+            _node(1, "Alfa", "Stacja A, Stacja B", 1000.0, "generation"),
+            _node(1, "Alfa", "Stacja A, Stacja B", 2000.0, "demand"),
         ])
         mapping = station_node_map(df)
         assert mapping["group"].nunique() == 1
@@ -52,7 +52,7 @@ class TestMapping:
             _application("planowany RS w linii 110 kV relacji Stacja A - Stacja C", 50.0),
         ])
         out = assign_to_nodes(df, station_node_map(df))
-        wn = out[out["_encja"] == "WNIOSEK"].iloc[0]
+        wn = out[out["_entity"] == "APPLICATION"].iloc[0]
         assert wn["_group_match"] == "LINE"
         assert pd.isna(wn["_group"])
 
@@ -70,15 +70,15 @@ class TestMapping:
 class TestLoading:
     def test_the_ratio_and_the_direction(self):
         df = pd.DataFrame([
-            _node(1, "Alfa", "Stacja A", 100.0, "wytworcza"),
-            _node(1, "Alfa", "Stacja A", 400.0, "odbiorcza"),
+            _node(1, "Alfa", "Stacja A", 100.0, "generation"),
+            _node(1, "Alfa", "Stacja A", 400.0, "demand"),
             _application("Stacja A", 250.0),
         ])
         out = assign_to_nodes(df, station_node_map(df))
-        L = node_loading(out, capacity_field="moc_wprowadzana")
+        L = node_loading(out, capacity_field="capacity_injected")
         assert len(L) == 1
         assert L.iloc[0]["loading"] == pytest.approx(2.5)
-        assert L.iloc[0]["direction"] == "wytworcza"
+        assert L.iloc[0]["direction"] == "generation"
 
     def test_zero_capacity_gives_an_undefined_not_an_infinite_result(self):
         """Division by zero in this domain does not mean 'infinitely much'."""
@@ -87,7 +87,7 @@ class TestLoading:
             _application("Stacja A", 10.0),
         ])
         out = assign_to_nodes(df, station_node_map(df))
-        L = node_loading(out, capacity_field="moc_wprowadzana")
+        L = node_loading(out, capacity_field="capacity_injected")
         assert bool(L.iloc[0]["available_capacity_zero"]) is True
         assert pd.isna(L.iloc[0]["loading"])
         assert L.iloc[0]["capacity_requested"] == 10.0  # the queue stays visible despite the absence of capacity
@@ -95,20 +95,20 @@ class TestLoading:
     def test_a_closed_status_does_not_load_the_node(self):
         df = pd.DataFrame([
             _node(1, "Alfa", "Stacja A", 100.0),
-            _application("Stacja A", 50.0, status="ODMOWA"),
+            _application("Stacja A", 50.0, status="REFUSED"),
         ])
         out = assign_to_nodes(df, station_node_map(df))
-        L = node_loading(out, capacity_field="moc_wprowadzana")
+        L = node_loading(out, capacity_field="capacity_injected")
         assert L.iloc[0]["capacity_requested"] == 0.0
 
 
 class TestTimeAndCensoring:
     def _frame(self):
         return pd.DataFrame([
-            {"data_wniosku": "2026-01-01", "data_warunkow": "2026-01-31"},
-            {"data_wniosku": "2026-01-01", "data_warunkow": None},
-            {"data_wniosku": None, "data_warunkow": None},
-            {"data_wniosku": "2026-03-01", "data_warunkow": "2026-02-01"},
+            {"date_application": "2026-01-01", "date_conditions": "2026-01-31"},
+            {"date_application": "2026-01-01", "date_conditions": None},
+            {"date_application": None, "date_conditions": None},
+            {"date_application": "2026-03-01", "date_conditions": "2026-02-01"},
         ])
 
     def test_a_pending_application_is_a_censored_observation_not_a_gap(self):

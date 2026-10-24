@@ -161,5 +161,5 @@ from gridqueue import NODE_KEY_FIELDS, compare_editions, linkage_audit
 
 d = compare_editions(a, b, "2025-07-01", "2025-08-01", fields=NODE_KEY_FIELDS)
 linkage_audit(a, b, fields=NODE_KEY_FIELDS,
-              held_out=("nazwa_wezla", "wspolrzedne", "_wezel_przesylowy")).as_dict()
+              held_out=("node_name", "coordinates", "_transmission_node")).as_dict()
 ```

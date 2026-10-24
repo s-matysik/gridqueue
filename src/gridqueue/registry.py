@@ -83,7 +83,7 @@ def parse_sources(sources, adapter: Optional[str] = None):
     up in one panel, which is all that :func:`~gridqueue.analysis.station_node_map` needs.
 
     Returns ``(frame, reports)``: the concatenated frame in the schema and one
-    ``{"adapter", "files", "rows", "data_publikacji", "report"}`` entry per file. A file no
+    ``{"adapter", "files", "rows", "date_published", "report"}`` entry per file. A file no
     adapter recognises raises ``ValueError`` naming it, rather than being skipped silently.
     """
     import pandas as pd
@@ -100,10 +100,10 @@ def parse_sources(sources, adapter: Optional[str] = None):
     for key, p in zip(keys, paths):
         res = get_adapter(key).parse(p)
         frames.append(res.frame)
-        dates = res.frame["data_publikacji"].dropna().astype(str).unique().tolist() \
-            if "data_publikacji" in res.frame else []
+        dates = res.frame["date_published"].dropna().astype(str).unique().tolist() \
+            if "date_published" in res.frame else []
         reports.append({"adapter": key, "files": [Path(str(p)).name], "rows": int(len(res.frame)),
-                        "data_publikacji": dates[0] if len(dates) == 1 else dates,
+                        "date_published": dates[0] if len(dates) == 1 else dates,
                         "report": dict(res.report)})
     frame = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
     return frame, reports
@@ -114,22 +114,22 @@ def split_editions(df):
 
     Returns ``[(date, frame), ...]`` ordered by date when the panel holds exactly one
     publisher whose application rows carry two or more publication dates; otherwise a
-    single ``(None, df)``. Node rows (``_encja == "WEZEL"``) go to the edition whose
+    single ``(None, df)``. Node rows (``_entity == "NODE"``) go to the edition whose
     application date is nearest to their own, later on a tie, because a publisher may date its
     node and application documents of one edition differently.
     """
     import pandas as pd
 
-    if "data_publikacji" not in df or df.empty:
+    if "date_published" not in df or df.empty:
         return [(None, df)]
-    is_node = df["_encja"].astype("string").fillna("WNIOSEK").str.upper().eq("WEZEL") \
-        if "_encja" in df else pd.Series(False, index=df.index)
-    pubs = df["publikujacy"].dropna().unique() if "publikujacy" in df else []
-    dates = sorted(df.loc[~is_node, "data_publikacji"].dropna().astype(str).unique())
+    is_node = df["_entity"].astype("string").fillna("APPLICATION").str.upper().eq("NODE") \
+        if "_entity" in df else pd.Series(False, index=df.index)
+    pubs = df["publisher"].dropna().unique() if "publisher" in df else []
+    dates = sorted(df.loc[~is_node, "date_published"].dropna().astype(str).unique())
     if len(pubs) != 1 or len(dates) < 2:
         return [(None, df)]
     d = pd.to_datetime(pd.Series(dates))
-    own = df["data_publikacji"].astype(str)
+    own = df["date_published"].astype(str)
 
     def edition_of(v):
         if v in dates:

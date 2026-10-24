@@ -41,17 +41,17 @@ negative value, so this is a property of the disclosure, not an extraction error
 it is there for: it acted as a detector of source quality.
 
 **R7 has, since version 1.0, measured the core appropriate to the entity of the row.** In version 0.3.x
-the core required the `moc_pobierana` field unconditionally and applied the requirements of the
+the core required the `capacity_withdrawn` field unconditionally and applied the requirements of the
 APPLICATION entity to rows of the NODE entity as well. Both decisions turned **a property of the schema
 into an apparent violation of the disclosure**: a purely generating application declares injected
 capacity, not consumed capacity, and a node row has neither an application identifier nor an
 application capacity, because it discharges a different point of the provision. The core now
 requires:
 
-* for the **WNIOSEK** entity, `id_wniosku`, `lokalizacja_tekst`, `klasa_zasobu`, `status_procesu`
-  and **at least one** of the pair (`moc_pobierana`, `moc_wprowadzana`);
-* for the **NODE** entity, `id_wezla` and **at least one** of the pair
-  (`moc_dostepna`, `ograniczenie_flaga`), because point 2 of the duty is sometimes discharged with
+* for the **APPLICATION** entity, `application_id`, `location_text`, `resource_class`, `process_status`
+  and **at least one** of the pair (`capacity_withdrawn`, `capacity_injected`);
+* for the **NODE** entity, `node_id` and **at least one** of the pair
+  (`capacity_available`, `constraint_flag`), because point 2 of the duty is sometimes discharged with
   available capacity and sometimes with a count of free connection slots.
 
 After that change R7 falls from 5,390 (28.044%) to **771 (4.011%)**, and the number of rows

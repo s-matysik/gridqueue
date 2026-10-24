@@ -277,20 +277,20 @@ def looks_like_voltage(v: Any) -> bool:
 
 #: domain predicates for schema columns: "can this value stand in this field"
 DOMAIN_PREDICATES: dict[str, Callable[[Any], bool]] = {
-    "moc_wprowadzana": looks_like_number,
-    "moc_pobierana": looks_like_number,
-    "moc_dostepna": looks_like_number,
-    "moc_zarezerwowana": looks_like_number,
-    "data_wniosku": looks_like_date,
-    "data_warunkow": looks_like_date,
-    "data_odmowy": looks_like_date,
-    "data_umowy": looks_like_date,
-    "data_energizacji": looks_like_date,
-    "data_publikacji": looks_like_date,
-    "status_procesu": looks_like_text,
-    "klasa_zasobu": looks_like_text,
-    "poziom_napiecia": lambda v: looks_like_voltage(v),
-    "lokalizacja_tekst": lambda v: bool(str(v).strip()),
+    "capacity_injected": looks_like_number,
+    "capacity_withdrawn": looks_like_number,
+    "capacity_available": looks_like_number,
+    "capacity_reserved": looks_like_number,
+    "date_application": looks_like_date,
+    "date_conditions": looks_like_date,
+    "date_refusal": looks_like_date,
+    "date_agreement": looks_like_date,
+    "date_energisation": looks_like_date,
+    "date_published": looks_like_date,
+    "process_status": looks_like_text,
+    "resource_class": looks_like_text,
+    "voltage_level": lambda v: looks_like_voltage(v),
+    "location_text": lambda v: bool(str(v).strip()),
 }
 
 

@@ -9,10 +9,10 @@ from gridqueue.adapters._ptpiree import _split_capacity
 
 
 def _row(**kw):
-    base = {"publikujacy": "PSE S.A.", "lokalizacja_tekst": "Kromolice",
-            "poziom_napiecia": "400 kV", "klasa_zasobu": "BESS",
-            "moc_wprowadzana": 1000.0, "moc_pobierana": 1000.0,
-            "status_procesu": "W_TRAKCIE_ANALIZY"}
+    base = {"publisher": "PSE S.A.", "location_text": "Kromolice",
+            "voltage_level": "400 kV", "resource_class": "BESS",
+            "capacity_injected": 1000.0, "capacity_withdrawn": 1000.0,
+            "process_status": "UNDER_REVIEW"}
     base.update(kw)
     return base
 
@@ -59,54 +59,54 @@ class TestSurrogateKey:
         assert k.iloc[0] == k.iloc[1]
 
     def test_a_change_of_capacity_pulls_the_key_apart(self):
-        df = pd.DataFrame([_row(), _row(moc_pobierana=2000.0)])
+        df = pd.DataFrame([_row(), _row(capacity_withdrawn=2000.0)])
         k = surrogate_key(df)
         assert k.iloc[0] != k.iloc[1]
 
     def test_the_status_does_not_enter_the_key(self):
         """Otherwise every status change would look like a disappearance and an appearance."""
-        df = pd.DataFrame([_row(), _row(status_procesu="WARUNKI_WYDANE")])
+        df = pd.DataFrame([_row(), _row(process_status="CONDITIONS_ISSUED")])
         k = surrogate_key(df)
         assert k.iloc[0] == k.iloc[1]
 
     def test_missing_key_fields_are_an_error(self):
         with pytest.raises(ValueError, match="none of the key fields"):
-            surrogate_key(pd.DataFrame({"something_else": [1]}), fields=("moc_dostepna",))
+            surrogate_key(pd.DataFrame({"something_else": [1]}), fields=("capacity_available",))
 
 
 class TestCompareEditions:
     def test_the_flows(self):
-        a = pd.DataFrame([_row(lokalizacja_tekst="A"), _row(lokalizacja_tekst="B")])
-        b = pd.DataFrame([_row(lokalizacja_tekst="B"), _row(lokalizacja_tekst="C")])
+        a = pd.DataFrame([_row(location_text="A"), _row(location_text="B")])
+        b = pd.DataFrame([_row(location_text="B"), _row(location_text="C")])
         d = compare_editions(a, b, "lipiec", "sierpien")
         assert (d.shared, d.new, d.gone) == (1, 1, 1)
         assert d.as_dict()["net_rows"] == 0
 
     def test_a_forward_transition_is_counted_as_forward(self):
-        a = pd.DataFrame([_row(status_procesu="W_TRAKCIE_ANALIZY")])
-        b = pd.DataFrame([_row(status_procesu="WARUNKI_WYDANE")])
+        a = pd.DataFrame([_row(process_status="UNDER_REVIEW")])
+        b = pd.DataFrame([_row(process_status="CONDITIONS_ISSUED")])
         d = compare_editions(a, b)
         assert d.status_changes == 1
         assert d.forward_share == 1.0
         assert d.backward_transitions == 0
 
     def test_a_backward_transition_is_detected(self):
-        a = pd.DataFrame([_row(status_procesu="UMOWA_OBOWIAZUJACA")])
-        b = pd.DataFrame([_row(status_procesu="WARUNKI_WYDANE")])
+        a = pd.DataFrame([_row(process_status="AGREEMENT_IN_FORCE")])
+        b = pd.DataFrame([_row(process_status="CONDITIONS_ISSUED")])
         d = compare_editions(a, b)
         assert d.backward_transitions == 1
         assert d.forward_share == 0.0
 
     def test_a_refusal_is_counted_as_a_forward_closure(self):
-        a = pd.DataFrame([_row(status_procesu="W_TRAKCIE_ANALIZY")])
-        b = pd.DataFrame([_row(status_procesu="ODMOWA")])
+        a = pd.DataFrame([_row(process_status="UNDER_REVIEW")])
+        b = pd.DataFrame([_row(process_status="REFUSED")])
         d = compare_editions(a, b)
         assert d.forward_share == 1.0
 
     def test_non_monotonicity_of_the_snapshot(self):
         """A new row already closed and a vanished row still active, both flags."""
-        a = pd.DataFrame([_row(lokalizacja_tekst="X", status_procesu="WARUNKI_WYDANE")])
-        b = pd.DataFrame([_row(lokalizacja_tekst="Y", status_procesu="WNIOSEK_WYCOFANY")])
+        a = pd.DataFrame([_row(location_text="X", process_status="CONDITIONS_ISSUED")])
+        b = pd.DataFrame([_row(location_text="Y", process_status="APPLICATION_WITHDRAWN")])
         d = compare_editions(a, b).as_dict()
         assert d["new_closed"] == 1
         assert d["gone_active"] == 1
@@ -123,8 +123,8 @@ class TestLinkageAudit:
     """Assessment of the linkage on fields EXCLUDED from the key."""
 
     def _pair(self, **changes_b):
-        a = pd.DataFrame([_row(_podmiot="Alfa Sp. z o.o.", _nazwa_obiektu="PV Wyszki")])
-        b_ = {"_podmiot": "Alfa Sp. z o.o.", "_nazwa_obiektu": "PV Wyszki"}
+        a = pd.DataFrame([_row(_applicant="Alfa Sp. z o.o.", _facility_name="PV Wyszki")])
+        b_ = {"_applicant": "Alfa Sp. z o.o.", "_facility_name": "PV Wyszki"}
         b_.update(changes_b)
         return a, pd.DataFrame([_row(**b_)])
 
@@ -135,44 +135,44 @@ class TestLinkageAudit:
         assert au["precision_lower"] == 1.0
 
     def test_both_identity_fields_divergent_means_a_false_linkage(self):
-        a, b = self._pair(_podmiot="Beta Sp. z o.o.", _nazwa_obiektu="PV Bulkowo")
+        a, b = self._pair(_applicant="Beta Sp. z o.o.", _facility_name="PV Bulkowo")
         au = linkage_audit(a, b).as_dict()
         assert au["false_matches"] == 1
         assert au["precision_upper"] == 0.0
 
     def test_one_divergent_field_means_uncertain(self):
-        a, b = self._pair(_nazwa_obiektu="PV Bulkowo")
+        a, b = self._pair(_facility_name="PV Bulkowo")
         au = linkage_audit(a, b).as_dict()
         assert (au["uncertain"], au["false_matches"]) == (1, 0)
         assert au["precision_lower"] == 0.0 and au["precision_upper"] == 1.0
 
     def test_a_different_spelling_of_the_legal_form_is_the_same_entity(self):
         """The publisher changes the spelling of the legal form between editions."""
-        a, b = self._pair(_podmiot="Alfa sp.z o.o.")
+        a, b = self._pair(_applicant="Alfa sp.z o.o.")
         au = linkage_audit(a, b).as_dict()
         assert au["confirmed"] == 1
 
     def test_an_extended_name_is_not_a_conflict(self):
-        a, b = self._pair(_nazwa_obiektu="PV Wyszki - zm. WP")
+        a, b = self._pair(_facility_name="PV Wyszki - zm. WP")
         au = linkage_audit(a, b).as_dict()
         assert au["confirmed"] == 1
 
     def test_a_one_sided_completion_is_not_a_conflict(self):
         """Empty in one edition and filled in the other is an edit, not a different application."""
-        a = pd.DataFrame([_row(_podmiot="Alfa Sp. z o.o.", data_wniosku=None)])
-        b = pd.DataFrame([_row(_podmiot="Alfa Sp. z o.o.", data_wniosku="2026-07-31")])
+        a = pd.DataFrame([_row(_applicant="Alfa Sp. z o.o.", date_application=None)])
+        b = pd.DataFrame([_row(_applicant="Alfa Sp. z o.o.", date_application="2026-07-31")])
         result = linkage_audit(a, b)
         assert result.as_dict()["confirmed"] == 1
         category = set(result.discrepancies["category"])
         assert category == {"one_sided_supplement"}
 
     def test_the_precision_bounds_do_not_cross(self):
-        a = pd.DataFrame([_row(lokalizacja_tekst=f"M{i}", _podmiot="Alfa Sp. z o.o.",
-                                  _nazwa_obiektu=f"PV {i}") for i in range(4)])
-        b = pd.DataFrame([_row(lokalizacja_tekst="M0", _podmiot="Alfa Sp. z o.o.", _nazwa_obiektu="PV 0"),
-                          _row(lokalizacja_tekst="M1", _podmiot="Beta Sp. z o.o.", _nazwa_obiektu="PV X"),
-                          _row(lokalizacja_tekst="M2", _podmiot="Alfa Sp. z o.o.", _nazwa_obiektu="PV Y"),
-                          _row(lokalizacja_tekst="M3", _podmiot="Alfa Sp. z o.o.", _nazwa_obiektu="PV 3")])
+        a = pd.DataFrame([_row(location_text=f"M{i}", _applicant="Alfa Sp. z o.o.",
+                                  _facility_name=f"PV {i}") for i in range(4)])
+        b = pd.DataFrame([_row(location_text="M0", _applicant="Alfa Sp. z o.o.", _facility_name="PV 0"),
+                          _row(location_text="M1", _applicant="Beta Sp. z o.o.", _facility_name="PV X"),
+                          _row(location_text="M2", _applicant="Alfa Sp. z o.o.", _facility_name="PV Y"),
+                          _row(location_text="M3", _applicant="Alfa Sp. z o.o.", _facility_name="PV 3")])
         au = linkage_audit(a, b).as_dict()
         assert au["pairs"] == 4
         assert au["confirmed"] + au["uncertain"] + au["false_matches"] == 4
@@ -182,7 +182,7 @@ class TestLinkageAudit:
 class TestKeyCollisions:
     def test_collisions_and_rejections_are_reported(self):
         """Rows with a repeated key are rejected and the count is explicit."""
-        a = pd.DataFrame([_row(), _row(), _row(lokalizacja_tekst="Inna")])
+        a = pd.DataFrame([_row(), _row(), _row(location_text="Inna")])
         b = pd.DataFrame([_row()])
         d = compare_editions(a, b).as_dict()
         assert d["rows_in_collision_a"] == 2
@@ -205,7 +205,7 @@ class TestPandasVersionCompatibility:
 
         from gridqueue import surrogate_key
 
-        df = pd.DataFrame([_row(moc_pobierana=np.nan, poziom_napiecia=None)])
+        df = pd.DataFrame([_row(capacity_withdrawn=np.nan, voltage_level=None)])
         k = surrogate_key(df).iloc[0]
         assert isinstance(k, str)
         assert "nan" not in k.lower(), k
@@ -218,9 +218,9 @@ class TestPandasVersionCompatibility:
 
         from gridqueue import compare_editions
 
-        a = pd.DataFrame([_row(moc_pobierana=np.nan)])
-        b = pd.DataFrame([_row(moc_pobierana=np.nan)])
-        c = pd.DataFrame([_row(moc_pobierana=1000.0)])
+        a = pd.DataFrame([_row(capacity_withdrawn=np.nan)])
+        b = pd.DataFrame([_row(capacity_withdrawn=np.nan)])
+        c = pd.DataFrame([_row(capacity_withdrawn=1000.0)])
         assert compare_editions(a, b).shared == 1
         assert compare_editions(a, c).shared == 0
 
@@ -229,38 +229,38 @@ class TestLinkageRecall:
     """Recall of the key: the pairs the content key did NOT join."""
 
     def test_a_change_of_capacity_breaks_a_pair_and_it_is_recovered(self):
-        a = pd.DataFrame([_row(_podmiot="Alfa", _nazwa_obiektu="PV Wyszki",
-                                  moc_wprowadzana=1000.0)])
-        b = pd.DataFrame([_row(_podmiot="Alfa", _nazwa_obiektu="PV Wyszki",
-                                  moc_wprowadzana=1200.0)])
+        a = pd.DataFrame([_row(_applicant="Alfa", _facility_name="PV Wyszki",
+                                  capacity_injected=1000.0)])
+        b = pd.DataFrame([_row(_applicant="Alfa", _facility_name="PV Wyszki",
+                                  capacity_injected=1200.0)])
         d = compare_editions(a, b).as_dict()
         assert d["shared"] == 0 and d["new"] == 1 and d["gone"] == 1
 
         r = linkage_recall(a, b)
         assert r.recovered == 1
-        assert r.recovered_keys.iloc[0]["different_key_fields"] == "moc_wprowadzana"
+        assert r.recovered_keys.iloc[0]["different_key_fields"] == "capacity_injected"
         assert r.key_sensitivity == 0.0  # zero pairs joined, one possible
 
     def test_the_identity_fields_must_be_disjoint_from_the_key(self):
         """A field shared with the key will not detect a pair broken by a change of that field."""
-        a = pd.DataFrame([_row(_podmiot="Alfa", _nazwa_obiektu="PV Wyszki",
-                                  lokalizacja_tekst="Stacja A")])
-        b = pd.DataFrame([_row(_podmiot="Alfa", _nazwa_obiektu="PV Wyszki",
-                                  lokalizacja_tekst="Stacja A - pole 12")])
+        a = pd.DataFrame([_row(_applicant="Alfa", _facility_name="PV Wyszki",
+                                  location_text="Stacja A")])
+        b = pd.DataFrame([_row(_applicant="Alfa", _facility_name="PV Wyszki",
+                                  location_text="Stacja A - pole 12")])
         assert linkage_recall(a, b).recovered == 1
-        broken = linkage_recall(a, b, identity_fields=("_podmiot", "lokalizacja_tekst"))
+        broken = linkage_recall(a, b, identity_fields=("_applicant", "location_text"))
         assert broken.recovered == 0
 
     def test_an_ambiguous_identity_is_not_recovered(self):
-        a = pd.DataFrame([_row(_podmiot="Alfa", _nazwa_obiektu="PV", moc_wprowadzana=1.0),
-                          _row(_podmiot="Alfa", _nazwa_obiektu="PV", moc_wprowadzana=2.0)])
-        b = pd.DataFrame([_row(_podmiot="Alfa", _nazwa_obiektu="PV", moc_wprowadzana=3.0)])
+        a = pd.DataFrame([_row(_applicant="Alfa", _facility_name="PV", capacity_injected=1.0),
+                          _row(_applicant="Alfa", _facility_name="PV", capacity_injected=2.0)])
+        b = pd.DataFrame([_row(_applicant="Alfa", _facility_name="PV", capacity_injected=3.0)])
         assert linkage_recall(a, b).recovered == 0
 
     def test_zero_as_a_gap_is_switched_off_by_default(self):
         """Zero is a disclosed value; treating it as a gap is the analyst's decision."""
-        a = pd.DataFrame([_row(moc_pobierana=0.0)])
-        b = pd.DataFrame([_row(moc_pobierana=None)])
+        a = pd.DataFrame([_row(capacity_withdrawn=0.0)])
+        b = pd.DataFrame([_row(capacity_withdrawn=None)])
         assert surrogate_key(a).iloc[0] != surrogate_key(b).iloc[0]
         assert (surrogate_key(a, zero_as_missing=True).iloc[0]
                 == surrogate_key(b, zero_as_missing=True).iloc[0])
@@ -276,12 +276,12 @@ class TestNodeEntityKey:
     def _nodes(self):
         import pandas as pd
         return pd.DataFrame([
-            {"publikujacy": "X", "id_wezla": "SUB_A|66", "_encja": "WEZEL",
-             "lokalizacja_tekst": "Gmina", "poziom_napiecia": "66 kV",
-             "klasa_zasobu": None, "moc_wprowadzana": None, "moc_pobierana": None},
-            {"publikujacy": "X", "id_wezla": "SUB_A|15", "_encja": "WEZEL",
-             "lokalizacja_tekst": "Gmina", "poziom_napiecia": "15 kV",
-             "klasa_zasobu": None, "moc_wprowadzana": None, "moc_pobierana": None},
+            {"publisher": "X", "node_id": "SUB_A|66", "_entity": "NODE",
+             "location_text": "Gmina", "voltage_level": "66 kV",
+             "resource_class": None, "capacity_injected": None, "capacity_withdrawn": None},
+            {"publisher": "X", "node_id": "SUB_A|15", "_entity": "NODE",
+             "location_text": "Gmina", "voltage_level": "15 kV",
+             "resource_class": None, "capacity_injected": None, "capacity_withdrawn": None},
         ])
 
     def test_the_node_key_distinguishes_voltage_levels_of_the_same_station(self):
@@ -290,6 +290,6 @@ class TestNodeEntityKey:
 
     def test_the_application_key_on_nodes_produces_collisions(self):
         """Regression: this is the failure mode NODE_KEY_FIELDS exists for."""
-        d = self._nodes().assign(poziom_napiecia="66 kV")
+        d = self._nodes().assign(voltage_level="66 kV")
         assert surrogate_key(d).nunique() == 1
         assert surrogate_key(d, fields=NODE_KEY_FIELDS).nunique() == 2

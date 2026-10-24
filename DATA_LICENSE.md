@@ -42,10 +42,10 @@ with coordinates attached, made available onwards, does trigger share-alike.
 ## 4. The resulting panel
 
 The panel produced by the package is a work derived from both of the layers above.
-To the extent that it contains **values derived from the gazetteer** (the `wspolrzedne` field
+To the extent that it contains **values derived from the gazetteer** (the `coordinates` field
 and the resolver's diagnostic columns), it is subject to ODbL. To the extent that it contains
 only content transcribed from official documents, it is subject to the status of those documents.
-The `_geo_pewnosc` column makes it possible to separate those two layers: rows with no resolved
+The `_geo_confidence` column makes it possible to separate those two layers: rows with no resolved
 location contain no content originating from OpenStreetMap.
 
 ## 5. Personal data
@@ -85,7 +85,7 @@ more current it looked.
 
 The consequence has to be stated openly, because it is inconvenient: **byte-for-byte
 reproduction ceases to be possible once a publisher replaces or moves a document.**
-While release 1.3.0 was being prepared, the link to the disclosure of one of the operators
+While the package was being prepared, the link to the disclosure of one of the operators
 stopped leading to the file and began returning a page of the service; the download script
 recognizes that case and reports it separately instead of saving the page as
 a document. That is why the checksums are in the manifest: a mismatch is a signal that

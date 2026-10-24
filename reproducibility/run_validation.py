@@ -35,12 +35,12 @@ import pandas as pd
 from gridqueue import (FIELDS, SCHEMA_VERSION, __version__, core_complete_mask,
                        run_quality)
 
-KOREN = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parent
 
 
 def check_sums(catalog: Path) -> dict:
     """Compare the SHA-256 of the documents in the given directory with the manifest."""
-    man = pd.read_csv(KOREN / "manifest.csv")
+    man = pd.read_csv(ROOT / "manifest.csv")
     result = {"matching": [], "different": [], "missing": []}
     for _, r in man.iterrows():
         p = catalog / r["file_name"]
@@ -54,14 +54,14 @@ def check_sums(catalog: Path) -> dict:
 
 def field_coverage(panel: pd.DataFrame) -> pd.DataFrame:
     rows = []
-    for pub, sub in panel.groupby("publikujacy"):
-        d = {"publikujacy": pub, "n_rows": int(len(sub))}
+    for pub, sub in panel.groupby("publisher"):
+        d = {"publisher": pub, "n_rows": int(len(sub))}
         for f in FIELDS:
             s = sub[f] if f in sub.columns else pd.Series([None] * len(sub))
             nn = s.notna() & s.astype(str).str.strip().ne("") & s.astype(str).ne("nan")
             d[f] = round(float(nn.mean()), 4)
         rows.append(d)
-    d = {"publikujacy": "PANEL TOTAL", "n_rows": int(len(panel))}
+    d = {"publisher": "PANEL TOTAL", "n_rows": int(len(panel))}
     for f in FIELDS:
         s = panel[f] if f in panel.columns else pd.Series([None] * len(panel))
         nn = s.notna() & s.astype(str).str.strip().ne("") & s.astype(str).ne("nan")
@@ -75,7 +75,7 @@ def main(argv: list[str]) -> int:
         print(__doc__.strip().splitlines()[-1], file=sys.stderr)
         return 2
     panel_path = Path(argv[1])
-    outdir = Path(argv[2]) if len(argv) > 2 else KOREN / "result"
+    outdir = Path(argv[2]) if len(argv) > 2 else ROOT / "result"
     outdir.mkdir(parents=True, exist_ok=True)
 
     panel = (pd.read_parquet(panel_path) if panel_path.suffix == ".parquet"
@@ -85,35 +85,35 @@ def main(argv: list[str]) -> int:
     cov.to_csv(outdir / "field_coverage.csv", index=False)
 
     rules = []
-    for pub, sub in panel.groupby("publikujacy"):
+    for pub, sub in panel.groupby("publisher"):
         for x in run_quality(sub.reset_index(drop=True)).as_dict()["rules"]:
-            rules.append({"publikujacy": pub, "code": x["code"], "name": x["name"],
+            rules.append({"publisher": pub, "code": x["code"], "name": x["name"],
                            "violations": x["violations"], "share": x["share"]})
     rep_panel = run_quality(panel).as_dict()
     for x in rep_panel["rules"]:
-        rules.append({"publikujacy": "PANEL TOTAL", "code": x["code"], "name": x["name"],
+        rules.append({"publisher": "PANEL TOTAL", "code": x["code"], "name": x["name"],
                        "violations": x["violations"], "share": x["share"]})
     how = pd.DataFrame(rules)
     how.to_csv(outdir / "quality_rules.csv", index=False)
 
     # consistency check: the sum over publishers has to equal the panel figure
-    after_publication = (how[how["publikujacy"] != "PANEL TOTAL"]
+    after_publication = (how[how["publisher"] != "PANEL TOTAL"]
                .groupby("code")["violations"].sum())
-    panel_values = (how[how["publikujacy"] == "PANEL TOTAL"]
+    panel_values = (how[how["publisher"] == "PANEL TOTAL"]
                 .set_index("code")["violations"])
     inconsistent = {k: (int(after_publication[k]), int(panel_values[k]))
                  for k in panel_values.index if int(after_publication[k]) != int(panel_values[k])}
 
     filled_fields = int(sum(
         1 for f in FIELDS
-        if float(cov.loc[cov["publikujacy"] == "PANEL TOTAL", f].iloc[0]) > 0))
+        if float(cov.loc[cov["publisher"] == "PANEL TOTAL", f].iloc[0]) > 0))
 
     summary = {
         "gridqueue": __version__,
         "schema_version": SCHEMA_VERSION,
         "panel_rows": int(len(panel)),
         "panel_columns": int(panel.shape[1]),
-        "publishers": int(panel["publikujacy"].nunique()),
+        "publishers": int(panel["publisher"].nunique()),
         "filled_schema_fields": f"{filled_fields}/{len(FIELDS)}",
         "rows_with_complete_core": int(core_complete_mask(panel).sum()),
         "violations_total": int(sum(x["violations"] for x in rep_panel["rules"])),

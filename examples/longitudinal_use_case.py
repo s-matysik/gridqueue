@@ -36,15 +36,15 @@ from gridqueue import (SCHEMA_VERSION, STATUS_ORDER, TERMINAL_NEGATIVE,
                        get_adapter, linkage_audit)
 
 DESCRIPTION = {
-    "WNIOSEK_ZLOZONY": "application lodged",
-    "WNIOSEK_NIEKOMPLETNY": "application incomplete",
-    "W_TRAKCIE_ANALIZY": "under analysis",
-    "WARUNKI_WYDANE": "conditions issued",
-    "UMOWA_OBOWIAZUJACA": "agreement in force",
-    "PRZYLACZONY": "connected",
-    "ODMOWA": "refusal",
-    "WNIOSEK_WYCOFANY": "application withdrawn",
-    "WARUNKI_WYGASLE": "conditions expired",
+    "APPLICATION_FILED": "application lodged",
+    "APPLICATION_INCOMPLETE": "application incomplete",
+    "UNDER_REVIEW": "under analysis",
+    "CONDITIONS_ISSUED": "conditions issued",
+    "AGREEMENT_IN_FORCE": "agreement in force",
+    "CONNECTED": "connected",
+    "REFUSED": "refusal",
+    "APPLICATION_WITHDRAWN": "application withdrawn",
+    "CONDITIONS_EXPIRED": "conditions expired",
 }
 
 

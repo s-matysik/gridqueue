@@ -17,14 +17,15 @@ public, but it is not processable.
 
 `gridqueue` turns those publications into one set of rows with **measured accuracy**.
 
-Release 1.7.0: **nine adapters in five jurisdictions** (Poland, Spain, Ireland, Portugal, Great
+Release 1.0.0: **nine adapters in five jurisdictions** (Poland, Spain, Ireland, Portugal, Great
 Britain), all 21 schema fields populated by at least one publisher, quality rules, a longitudinal
 module with a linkage audit, processing times with censoring, node loading, a location resolver and
 **charts for every result**. Documentation: **https://s-matysik.github.io/gridqueue/**
 
-The code and documentation are in English. Schema field names and codes (`id_wniosku`,
-`WARUNKI_WYDANE`, ...) keep the wording of the Polish statute, because they are the data format of
-the panel; their English meaning is in the [glossary](https://s-matysik.github.io/gridqueue/schema.html#glossary-of-field-and-code-names).
+The code, the schema and the documentation are in English. The Supplementary Material of the
+article names the fields in the Polish wording of the statute (`id_wniosku`, `moc_wprowadzana`, ...);
+the [correspondence table](https://s-matysik.github.io/gridqueue/schema.html#names-in-the-wording-of-the-statute)
+gives the English names, and `gridqueue.from_legacy_names(df)` converts such a table.
 
 ## Three ways to run it
 
@@ -79,7 +80,7 @@ resolver is shown on a synthetic gazetteer, with a one-line change to use your o
 One command, with no compilation and no external services:
 
 ```bash
-pip install "gridqueue[plot] @ git+https://github.com/s-matysik/gridqueue@v1.7.0"
+pip install "gridqueue[plot] @ git+https://github.com/s-matysik/gridqueue@v1.0.0"
 ```
 
 The `plot` extra adds matplotlib for the charts; without it everything else works.
@@ -114,7 +115,7 @@ from gridqueue import resolver_from_osm_json
 r = resolver_from_osm_json("streets_warsaw.json")
 res = r.resolve("WARSZAWA, WINCENTEGO ŚW.")
 print(res.matched, res.confidence)      # Świętego Wincentego REVERSED
-print(r.resolve("SKB3").reason)       # kod_stacji_bez_slownika, we do not guess
+print(r.resolve("SKB3").reason)       # station_code_without_dictionary, we do not guess
 ```
 
 ## CLI
@@ -156,7 +157,7 @@ skipped node with the reason), never as zero.
 from gridqueue import parse_sources, plots
 
 panel, reports = parse_sources(["applications.pdf", "demand_capacity.pdf", "generation_capacity.pdf"])
-plots.plot_processing_time(panel, by="klasa_zasobu")     # displays in Jupyter / Colab
+plots.plot_processing_time(panel, by="resource_class")     # displays in Jupyter / Colab
 plots.save_all(panel, "charts/", formats=("png", "svg"), dpi=300)
 ```
 
@@ -166,8 +167,8 @@ as synthetic, for trying every function without a real disclosure.
 ## Schema
 
 21 fields in three groups reflecting the structure of the duty (IDENTITY / CAPACITY / PROCESS),
-a mandatory core of 5 fields (`id_wniosku`, `lokalizacja_tekst`, `klasa_zasobu`, `moc_pobierana`,
-`status_procesu`), the rest optional and **declared per publisher**. Canonical units:
+a mandatory core of 5 fields (`application_id`, `location_text`, `resource_class`, `capacity_withdrawn`,
+`process_status`), the rest optional and **declared per publisher**. Canonical units:
 capacity in kW, ISO 8601 dates, WGS84 coordinates. Fields beyond the schema, which a given operator
 supplies beyond the required minimum, go into columns with the `_` prefix and are declared explicitly
 by the adapter (`adapter.declaration()`).
@@ -290,9 +291,9 @@ detected by comparing the output with the reference set read from the document.
   raw agreement 0,9725, Cohen's kappa 0,9690, zero perceptual discrepancies. The PSE
   and ENERGA reference sets remain single-annotator.
 * The location at TAURON is an internal substation code; the operator does not publish a dictionary of
-  the codes, so the resolver returns missing with the reason `kod_stacji_bez_slownika`. It does not
+  the codes, so the resolver returns missing with the reason `station_code_without_dictionary`. It does not
   guess.
-* **None of the publishers reports coordinates.** The `wspolrzedne` field is populated by
+* **None of the publishers reports coordinates.** The `coordinates` field is populated by
   derivation from the place name against a gazetteer with geometry (13,149 names in 25 localities):
   1,225 of 19,220 panel rows. The evidential value of this field is therefore different from that of
   the fields transcribed from the document, and it is described as such in the result.

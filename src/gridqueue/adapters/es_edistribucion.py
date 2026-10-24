@@ -137,19 +137,19 @@ class EDistribucionAdapter(Adapter):
     publisher = PUBLISHER
     jurisdiction = JURISDICTION
     declared_fields = (
-        "id_wezla", "nazwa_wezla", "lokalizacja_tekst", "wspolrzedne", "poziom_napiecia",
-        "moc_dostepna", "moc_zarezerwowana", "ograniczenie_flaga", "data_publikacji",
+        "node_id", "node_name", "location_text", "coordinates", "voltage_level",
+        "capacity_available", "capacity_reserved", "constraint_flag", "date_published",
     )
     declared_extensions = {
-        "_wspolnota_autonomiczna": "autonomous community",
-        "_prowincja": "province",
-        "_moc_przyjeta_nierozstrzygnieta_kw": "capacity of accepted and unresolved applications",
-        "_moc_zajeta_z_pozwoleniem_kw": "part of the occupied capacity covered by a connection permit",
-        "_moc_zajeta_w_toku_kw": "part of the occupied capacity currently in proceedings",
-        "_rozbicie_technologiczne_kw": "unresolved capacity broken down by technology",
-        "_rozbicie_pozycyjne_kw": "occupied capacity broken down by station position",
-        "_wezel_przesylowy": "transmission network node with the greatest impact",
-        "_komentarz": "publisher's comment",
+        "_autonomous_community": "autonomous community",
+        "_province": "province",
+        "_capacity_accepted_pending_kw": "capacity of accepted and unresolved applications",
+        "_capacity_occupied_with_permit_kw": "part of the occupied capacity covered by a connection permit",
+        "_capacity_occupied_in_progress_kw": "part of the occupied capacity currently in proceedings",
+        "_breakdown_by_technology_kw": "unresolved capacity broken down by technology",
+        "_breakdown_by_item_kw": "occupied capacity broken down by station position",
+        "_transmission_node": "transmission network node with the greatest impact",
+        "_comment": "publisher's comment",
     }
     detect_patterns = (r"edrd[_ ]?capacidad", r"capacidad[_ ]de[_ ]acceso", r"e-?distribuci")
 
@@ -193,27 +193,27 @@ class EDistribucionAdapter(Adapter):
             records.append({
                 # The identifier must distinguish between voltage levels of the same substation:
                 # the publisher issues a separate row for each level.
-                "id_wezla": f"{substation}|{voltage}" if substation and voltage else substation,
-                "nazwa_wezla": substation,
-                "lokalizacja_tekst": ", ".join(x for x in (kom(K_MUNICIPALITY), kom(K_PROVINCE)) if x) or None,
-                "wspolrzedne": f"{lat},{lon}" if lat is not None and lon is not None else None,
-                "poziom_napiecia": f"{voltage} kV" if voltage else None,
-                "moc_dostepna": _mw_per_kw(w[K_AVAILABLE]),
-                "moc_zarezerwowana": _mw_per_kw(w[K_OCCUPIED_TOTAL]),
-                "ograniczenie_flaga": limit,
-                "data_publikacji": date_published,
-                "_encja": "WEZEL",
-                "_wspolnota_autonomiczna": kom(K_COMMUNITY),
-                "_prowincja": kom(K_PROVINCE),
-                "_moc_przyjeta_nierozstrzygnieta_kw": _mw_per_kw(w[K_ACCEPTED_TOTAL]),
-                "_moc_zajeta_z_pozwoleniem_kw": _mw_per_kw(w[K_OCCUPIED_WITH_PERMIT]),
-                "_moc_zajeta_w_toku_kw": _mw_per_kw(w[K_OCCUPIED_IN_PROGRESS]),
-                "_rozbicie_technologiczne_kw": ";".join(
+                "node_id": f"{substation}|{voltage}" if substation and voltage else substation,
+                "node_name": substation,
+                "location_text": ", ".join(x for x in (kom(K_MUNICIPALITY), kom(K_PROVINCE)) if x) or None,
+                "coordinates": f"{lat},{lon}" if lat is not None and lon is not None else None,
+                "voltage_level": f"{voltage} kV" if voltage else None,
+                "capacity_available": _mw_per_kw(w[K_AVAILABLE]),
+                "capacity_reserved": _mw_per_kw(w[K_OCCUPIED_TOTAL]),
+                "constraint_flag": limit,
+                "date_published": date_published,
+                "_entity": "NODE",
+                "_autonomous_community": kom(K_COMMUNITY),
+                "_province": kom(K_PROVINCE),
+                "_capacity_accepted_pending_kw": _mw_per_kw(w[K_ACCEPTED_TOTAL]),
+                "_capacity_occupied_with_permit_kw": _mw_per_kw(w[K_OCCUPIED_WITH_PERMIT]),
+                "_capacity_occupied_in_progress_kw": _mw_per_kw(w[K_OCCUPIED_IN_PROGRESS]),
+                "_breakdown_by_technology_kw": ";".join(
                     f"{i}={v:.1f}" for i, v in tech.items() if v) or None,
-                "_rozbicie_pozycyjne_kw": ";".join(
+                "_breakdown_by_item_kw": ";".join(
                     f"{i}={v:.1f}" for i, v in positions.items() if v) or None,
-                "_wezel_przesylowy": kom(K_TRANSMISSION_NODE),
-                "_komentarz": kom(K_COMMENT),
+                "_transmission_node": kom(K_TRANSMISSION_NODE),
+                "_comment": kom(K_COMMENT),
             })
 
         df = self.finalize(pd.DataFrame(records), document=path.name)
@@ -227,7 +227,7 @@ class EDistribucionAdapter(Adapter):
             "rows_without_coordinates": without_coordinates,
             "source_capacity_unit": "MW",
             "recalculation": "MW -> kW, both quantities are active power",
-            "data_publikacji": date_published,
+            "date_published": date_published,
             "identity_sum_occupied_capacity": f"{closed}/{checked}",
             "note_identity": (
                 "The eleven subcolumns of occupied capacity sum up to the total value. "

@@ -15,13 +15,13 @@ of active power, so:
 * demand values are **not converted** and go into extension fields
   with the unit explicitly recorded.
 
-The `moc_dostepna` field therefore carries the available **firm generation**
+The `capacity_available` field therefore carries the available **firm generation**
 capacity, not the sum of both sides. Summing MW with MVA would give a number with
 no physical meaning, and choosing one side without saying so explicitly would be
 hiding the decision.
 
 The source gives coordinates and two separate constraint flags, for the demand
-side and the generation side. The `ograniczenie_flaga` field receives the
+side and the generation side. The `constraint_flag` field receives the
 **disjunction of both**, because the schema has a single field; both source values
 remain in the extensions.
 """
@@ -133,30 +133,30 @@ class ESBNetworksAdapter(Adapter):
     publisher = PUBLISHER
     jurisdiction = JURISDICTION
     declared_fields = (
-        "id_wezla", "nazwa_wezla", "wspolrzedne", "poziom_napiecia",
-        "moc_dostepna", "moc_zarezerwowana", "ograniczenie_flaga",
+        "node_id", "node_name", "coordinates", "voltage_level",
+        "capacity_available", "capacity_reserved", "constraint_flag",
     )
     declared_extensions = {
-        "_jednostka_mocy_odbiorczej": "unit of the demand side at the publisher (MVA)",
-        "_klasa_napiecia": "voltage class per the publisher",
-        "_konfiguracja_transformatorow": "configuration of the transformer group",
-        "_moc_zainstalowana_mva": "installed capacity of the transformers",
-        "_odbior_dostepna_mva": "available demand capacity",
-        "_odbior_trwala_mva": "firm demand capacity",
-        "_odbior_nadrzedna_mva": "available demand capacity of the parent station",
-        "_odbior_ograniczenie": "constraint on the demand side",
-        "_wytw_ograniczenie": "constraint on the generation side",
-        "_odbior_ograniczenie_opis": "raw constraint phrase on the demand side",
-        "_wytw_ograniczenie_opis": "raw constraint phrase on the generation side",
-        "_odbior_bez_ograniczenia_kva": "demand capacity available if not for the constraint",
-        "_wytw_bez_ograniczenia_kva": "generation capacity available if not for the constraint",
-        "_wytw_dostepna_nietrwala_kw": "available non-firm generation capacity",
-        "_wytw_zakontraktowana_kw": "total contracted generation capacity",
-        "_wytw_trwala_kw": "firm generation capacity",
-        "_zasilanie": "feeder line",
-        "_stacja_nadrzedna": "parent station",
-        "_styk_przesylowy": "station of interface with the transmission network",
-        "_komentarz": "publisher's comment",
+        "_demand_capacity_unit": "unit of the demand side at the publisher (MVA)",
+        "_voltage_class": "voltage class per the publisher",
+        "_transformer_configuration": "configuration of the transformer group",
+        "_capacity_installed_mva": "installed capacity of the transformers",
+        "_demand_available_mva": "available demand capacity",
+        "_demand_firm_mva": "firm demand capacity",
+        "_demand_upstream_mva": "available demand capacity of the parent station",
+        "_demand_constraint": "constraint on the demand side",
+        "_generation_constraint": "constraint on the generation side",
+        "_demand_constraint_description": "raw constraint phrase on the demand side",
+        "_generation_constraint_description": "raw constraint phrase on the generation side",
+        "_demand_unconstrained_kva": "demand capacity available if not for the constraint",
+        "_generation_unconstrained_kva": "generation capacity available if not for the constraint",
+        "_generation_available_non_firm_kw": "available non-firm generation capacity",
+        "_generation_contracted_kw": "total contracted generation capacity",
+        "_generation_firm_kw": "firm generation capacity",
+        "_supply": "feeder line",
+        "_upstream_station": "parent station",
+        "_transmission_interface": "station of interface with the transmission network",
+        "_comment": "publisher's comment",
     }
     detect_patterns = (r"customer.?heatmap", r"esb.?networks", r"heatmap.?data")
 
@@ -199,35 +199,35 @@ class ESBNetworksAdapter(Adapter):
             voltage = g("primary_voltage")
 
             records.append({
-                "id_wezla": f"{station}|{group}" if group else str(station),
-                "nazwa_wezla": str(station).strip(),
-                "wspolrzedne": f"{lat},{lon}" if lat is not None and lon is not None else None,
-                "poziom_napiecia": str(voltage).strip() if voltage else None,
+                "node_id": f"{station}|{group}" if group else str(station),
+                "node_name": str(station).strip(),
+                "coordinates": f"{lat},{lon}" if lat is not None and lon is not None else None,
+                "voltage_level": str(voltage).strip() if voltage else None,
                 # The generation side is in MW of active power, the only one that is convertible.
-                "moc_dostepna": _mw_per_kw(g("gen_available_firm_mw")),
-                "moc_zarezerwowana": _mw_per_kw(g("gen_contracted_mw")),
-                "ograniczenie_flaga": limit,
-                "_encja": "WEZEL",
-                "_jednostka_mocy_odbiorczej": "MVA",
-                "_klasa_napiecia": g("voltage_class"),
-                "_konfiguracja_transformatorow": g("configuration"),
-                "_moc_zainstalowana_mva": _count(g("capacity_installed_mva")),
-                "_odbior_dostepna_mva": _count(g("withdrawal_available_mva")),
-                "_odbior_trwala_mva": _count(g("withdrawal_permanent_mva")),
-                "_odbior_nadrzedna_mva": _count(g("withdrawal_parent_mva")),
-                "_odbior_ograniczenie": f_withdrawal,
-                "_wytw_ograniczenie": f_generation,
-                "_odbior_ograniczenie_opis": str(s_withdrawal) if s_withdrawal is not None else None,
-                "_wytw_ograniczenie_opis": str(s_generation) if s_generation is not None else None,
-                "_odbior_bez_ograniczenia_kva": _unlimited_capacity(s_withdrawal),
-                "_wytw_bez_ograniczenia_kva": _unlimited_capacity(s_generation),
-                "_wytw_dostepna_nietrwala_kw": _mw_per_kw(g("gen_available_nonfirm_mw")),
-                "_wytw_zakontraktowana_kw": _mw_per_kw(g("gen_contracted_mw")),
-                "_wytw_trwala_kw": _mw_per_kw(g("gen_firm_mw")),
-                "_zasilanie": g("power_supply"),
-                "_stacja_nadrzedna": g("parent_station"),
-                "_styk_przesylowy": g("transmission_tie"),
-                "_komentarz": g("comment"),
+                "capacity_available": _mw_per_kw(g("gen_available_firm_mw")),
+                "capacity_reserved": _mw_per_kw(g("gen_contracted_mw")),
+                "constraint_flag": limit,
+                "_entity": "NODE",
+                "_demand_capacity_unit": "MVA",
+                "_voltage_class": g("voltage_class"),
+                "_transformer_configuration": g("configuration"),
+                "_capacity_installed_mva": _count(g("capacity_installed_mva")),
+                "_demand_available_mva": _count(g("withdrawal_available_mva")),
+                "_demand_firm_mva": _count(g("withdrawal_permanent_mva")),
+                "_demand_upstream_mva": _count(g("withdrawal_parent_mva")),
+                "_demand_constraint": f_withdrawal,
+                "_generation_constraint": f_generation,
+                "_demand_constraint_description": str(s_withdrawal) if s_withdrawal is not None else None,
+                "_generation_constraint_description": str(s_generation) if s_generation is not None else None,
+                "_demand_unconstrained_kva": _unlimited_capacity(s_withdrawal),
+                "_generation_unconstrained_kva": _unlimited_capacity(s_generation),
+                "_generation_available_non_firm_kw": _mw_per_kw(g("gen_available_nonfirm_mw")),
+                "_generation_contracted_kw": _mw_per_kw(g("gen_contracted_mw")),
+                "_generation_firm_kw": _mw_per_kw(g("gen_firm_mw")),
+                "_supply": g("power_supply"),
+                "_upstream_station": g("parent_station"),
+                "_transmission_interface": g("transmission_tie"),
+                "_comment": g("comment"),
             })
         wb.close()
 
@@ -247,7 +247,7 @@ class ESBNetworksAdapter(Adapter):
             "generating_side_unit": "MW",
             "receiving_side_unit": "MVA",
             "note_units": (
-                "The moc_dostepna field carries the available firm GENERATION capacity, "
+                "The capacity_available field carries the available firm GENERATION capacity, "
                 "converted from MW to kW. The demand side is given in MVA (apparent power) "
                 "and is not converted nor summed with the generation side; it remains in "
                 "the extensions."

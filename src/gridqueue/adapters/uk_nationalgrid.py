@@ -31,9 +31,9 @@ class NationalGridAdapter(Adapter):
     publisher = "National Grid Electricity Distribution"
     jurisdiction = "UK"
     declared_fields = (
-        "id_wniosku", "id_wezla", "nazwa_wezla", "lokalizacja_tekst", "klasa_zasobu",
-        "moc_wprowadzana", "moc_pobierana", "ograniczenie_flaga", "pozycja_w_kolejce",
-        "status_procesu",
+        "application_id", "node_id", "node_name", "location_text", "resource_class",
+        "capacity_injected", "capacity_withdrawn", "constraint_flag", "queue_position",
+        "process_status",
     )
     declared_extensions = {
         "_licence_area": "operator's licence area",
@@ -43,7 +43,7 @@ class NationalGridAdapter(Adapter):
         "_machine_import_kw": "import capacity of a single unit",
         "_tanm": "Transmission Area Network Management (constraint flag)",
         "_danm": "Distribution Area Network Management (constraint flag)",
-        "_plik_zrodlowy": "name of the CSV resource in the CKAN catalog",
+        "_source_file": "name of the CSV resource in the CKAN catalog",
         "_status_raw": "status exactly as in the source",
     }
     detect_patterns = (r"connection.?queue", r"national.?grid")
@@ -75,7 +75,7 @@ class NationalGridAdapter(Adapter):
                 rr = s.get(res["url"], timeout=self.timeout)
                 rr.raise_for_status()
                 d = pd.read_csv(io.BytesIO(rr.content))
-                d["_plik_zrodlowy"] = res.get("name") or res["url"].rsplit("/", 1)[-1]
+                d["_source_file"] = res.get("name") or res["url"].rsplit("/", 1)[-1]
                 frames.append(d)
                 ok.append(res.get("name"))
             except Exception as exc:  # we record it, not hide it
@@ -113,25 +113,25 @@ class NationalGridAdapter(Adapter):
         site = col("Site ID").astype("object")
         app = col("Application ID").astype("object")
         mach = col("Machine ID").astype("object")
-        out["id_wniosku"] = [
+        out["application_id"] = [
             "nged:" + ":".join(str(x) for x in t if x is not None and str(x) != "nan")
             for t in zip(site, app, mach)
         ]
-        out["id_wezla"] = col("Bus Number").map(
+        out["node_id"] = col("Bus Number").map(
             lambda v: None if pd.isna(v) else str(int(v)) if float(v).is_integer() else str(v))
-        out["nazwa_wezla"] = col("Bus Name")
-        out["lokalizacja_tekst"] = col("GSP")
-        out["klasa_zasobu"] = col("Fuel type").map(harmonize_class)
-        out["moc_wprowadzana"] = col("Site Export Capacity (MW)").map(
+        out["node_name"] = col("Bus Name")
+        out["location_text"] = col("GSP")
+        out["resource_class"] = col("Fuel type").map(harmonize_class)
+        out["capacity_injected"] = col("Site Export Capacity (MW)").map(
             lambda v: canonical_power_kw(v, "MW"))
-        out["moc_pobierana"] = col("Site Import Capacity (MW)").map(
+        out["capacity_withdrawn"] = col("Site Import Capacity (MW)").map(
             lambda v: canonical_power_kw(v, "MW"))
         tanm = col("TANM").map(_as_bool)
         danm = col("DANM").map(_as_bool)
-        out["ograniczenie_flaga"] = [bool(a) or bool(b) for a, b in zip(tanm, danm)]
-        out["pozycja_w_kolejce"] = col("Position").map(
+        out["constraint_flag"] = [bool(a) or bool(b) for a, b in zip(tanm, danm)]
+        out["queue_position"] = col("Position").map(
             lambda v: None if pd.isna(v) else float(v))
-        out["status_procesu"] = col("Status").map(harmonize_status)
+        out["process_status"] = col("Status").map(harmonize_status)
         out["_status_raw"] = col("Status")
         out["_licence_area"] = col("Licence Area")
         out["_gsp"] = col("GSP")
@@ -142,7 +142,7 @@ class NationalGridAdapter(Adapter):
             lambda v: canonical_power_kw(v, "MW"))
         out["_tanm"] = tanm
         out["_danm"] = danm
-        out["_plik_zrodlowy"] = col("_plik_zrodlowy", "_file_name")
+        out["_source_file"] = col("_source_file", "_file_name")
 
         report = {
             "publisher": self.publisher,

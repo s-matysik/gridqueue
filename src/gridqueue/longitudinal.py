@@ -55,18 +55,18 @@ __all__ = [
 #: Fields of the default content key. Deliberately WITHOUT dates and without status: dates are
 #: sometimes filled in between editions, and status is exactly what we are measuring the change of.
 DEFAULT_KEY_FIELDS: tuple[str, ...] = (
-    "publikujacy",
-    "lokalizacja_tekst",
-    "poziom_napiecia",
-    "klasa_zasobu",
-    "moc_wprowadzana",
-    "moc_pobierana",
+    "publisher",
+    "location_text",
+    "voltage_level",
+    "resource_class",
+    "capacity_injected",
+    "capacity_withdrawn",
 )
 
 
 #: Key for rows of the NODE entity. The default `DEFAULT_KEY_FIELDS` is built
-#: for the APPLICATION entity and on node rows it FALLS APART: the fields `klasa_zasobu`,
-#: `moc_wprowadzana` and `moc_pobierana` are empty there, so the key loses
+#: for the APPLICATION entity and on node rows it FALLS APART: the fields `resource_class`,
+#: `capacity_injected` and `capacity_withdrawn` are empty there, so the key loses
 #: distinguishability. Measured on a pair of editions of the Spanish publisher:
 #: with the default key, 916 out of 1838 rows collide and 660 are
 #: rejected as ambiguous, while with the key below the collision count is ZERO,
@@ -77,22 +77,22 @@ DEFAULT_KEY_FIELDS: tuple[str, ...] = (
 #: the schema core. Using the application key for node rows does not raise
 #: an error, it silently produces collisions that in further analysis look like
 #: events in the register.
-NODE_KEY_FIELDS: tuple = ("publikujacy", "id_wezla")
+NODE_KEY_FIELDS: tuple = ("publisher", "node_id")
 
 #: Order of the proceeding stages. Used solely to assess whether transitions proceed
 #: forward, it is not a controlled vocabulary of the schema.
 STATUS_ORDER: dict[str, int] = {
-    "WNIOSEK_ZLOZONY": 0,
-    "WNIOSEK_NIEKOMPLETNY": 1,
-    "W_TRAKCIE_ANALIZY": 2,
-    "WARUNKI_WYDANE": 3,
-    "UMOWA_OBOWIAZUJACA": 4,
-    "PRZYLACZONY": 5,
+    "APPLICATION_FILED": 0,
+    "APPLICATION_INCOMPLETE": 1,
+    "UNDER_REVIEW": 2,
+    "CONDITIONS_ISSUED": 3,
+    "AGREEMENT_IN_FORCE": 4,
+    "CONNECTED": 5,
 }
 
 #: States ending the proceeding without connection.
 TERMINAL_NEGATIVE: frozenset = frozenset(
-    {"ODMOWA", "WNIOSEK_WYCOFANY", "WARUNKI_WYGASLE"}
+    {"REFUSED", "APPLICATION_WITHDRAWN", "CONDITIONS_EXPIRED"}
 )
 
 
@@ -238,7 +238,7 @@ def compare_editions(
     col_a = int(a["_key"].duplicated(keep=False).sum())
     col_b = int(b["_key"].duplicated(keep=False).sum())
 
-    tr = pd.crosstab(au.loc[shared_idx, "status_procesu"], bu.loc[shared_idx, "status_procesu"])
+    tr = pd.crosstab(au.loc[shared_idx, "process_status"], bu.loc[shared_idx, "process_status"])
     n_changes = int(sum(int(tr.loc[i, j]) for i in tr.index for j in tr.columns if i != j))
     backward = int(sum(
         int(tr.loc[i, j])
@@ -246,7 +246,7 @@ def compare_editions(
         if i != j and i in STATUS_ORDER and j in STATUS_ORDER
         and STATUS_ORDER[j] < STATUS_ORDER[i]
     ))
-    active_mask = set(STATUS_ORDER) - {"PRZYLACZONY"}
+    active_mask = set(STATUS_ORDER) - {"CONNECTED"}
     return EditionDelta(
         edition_a=edition_a,
         edition_b=edition_b,
@@ -259,8 +259,8 @@ def compare_editions(
         gone=len(gone_keys),
         status_changes=n_changes,
         transitions=tr,
-        new_closed=int(bu.loc[new_keys, "status_procesu"].isin(TERMINAL_NEGATIVE).sum()),
-        gone_active=int(au.loc[gone_keys, "status_procesu"].isin(active_mask).sum()),
+        new_closed=int(bu.loc[new_keys, "process_status"].isin(TERMINAL_NEGATIVE).sum()),
+        gone_active=int(au.loc[gone_keys, "process_status"].isin(active_mask).sum()),
         backward_transitions=backward,
         rows_in_collision_a=col_a,
         rows_in_collision_b=col_b,
@@ -270,15 +270,15 @@ def compare_editions(
 #: Fields that are NOT in the key and that serve for an independent assessment of the match.
 #: If the pair is false, these fields will diverge, the key does not enforce them.
 HELD_OUT_FIELDS: tuple = (
-    "_podmiot",
-    "_nazwa_obiektu",
-    "data_wniosku",
-    "_mz_pv",
-    "_mz_fw",
-    "_mz_mee_rozladowania",
-    "_mz_mee_ladowania",
-    "_mz_odb",
-    "_mz_inne",
+    "_applicant",
+    "_facility_name",
+    "date_application",
+    "_ic_pv",
+    "_ic_wind",
+    "_ic_storage_discharging",
+    "_ic_storage_charging",
+    "_ic_load",
+    "_ic_other",
 )
 
 _LEGAL_FORM = re.compile(
@@ -389,8 +389,8 @@ def linkage_audit(
                 category = "content_conflict"
             rows.append({"key": k, "field": p, "category": category, "a": va, "b": vb})
 
-        pa, pb = _core_name(ra.get("_podmiot")), _core_name(rb.get("_podmiot"))
-        oa, ob = _core_name(ra.get("_nazwa_obiektu")), _core_name(rb.get("_nazwa_obiektu"))
+        pa, pb = _core_name(ra.get("_applicant")), _core_name(rb.get("_applicant"))
+        oa, ob = _core_name(ra.get("_facility_name")), _core_name(rb.get("_facility_name"))
 
         def _different(x: str, y: str) -> bool:
             return bool(x) and bool(y) and x not in y and y not in x
@@ -417,7 +417,7 @@ def linkage_audit(
 #: broken by a change of that very field, because the identity itself would then also drift apart:
 #: adding the location to this set lowers the measured recall from 0.9652 to
 #: 0,9757, which looks like an improvement, but is an oversight of ten pairs.
-RECALL_FIELDS: tuple = ("_podmiot", "_nazwa_obiektu")
+RECALL_FIELDS: tuple = ("_applicant", "_facility_name")
 
 
 @dataclass
@@ -491,6 +491,6 @@ def linkage_recall(
         different = [f for f in fields
                  if f in aa.columns and _as_text(ra.get(f)) != _as_text(rb.get(f))]
         rows.append({"identity": t, "different_key_fields": ";".join(different),
-                        "status_a": ra.get("status_procesu"), "status_b": rb.get("status_procesu")})
+                        "status_a": ra.get("process_status"), "status_b": rb.get("process_status")})
     return LinkageRecall(aa["_key"].nunique(), bb["_key"].nunique(),
                          len(shared_keys), len(shared_idx), pd.DataFrame(rows))

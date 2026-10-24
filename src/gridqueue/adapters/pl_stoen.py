@@ -12,7 +12,7 @@ the header content, not by the file name.
 
 Substantive note to be recorded in the manuscript: Stoen does NOT distinguish the direction
 of power. The "Podstawa" column is the connection capacity irrespective of whether the
-installation is a demand-side or a generation installation. We map it to ``moc_pobierana``
+installation is a demand-side or a generation installation. We map it to ``capacity_withdrawn``
 (according to the measured coverage matrix) and declare the lack of distinction as a feature
 of the source, not as a parser gap.
 """
@@ -31,7 +31,7 @@ _RE_LP = re.compile(r"^\d+\.?$")
 LAYOUTS: dict[str, tuple[str, ...]] = {
     "applicants": (
         "item_no", "customer_kind", "locality", "address", "capacity_base", "capacity_reserve",
-        "installation_kind", "data_warunkow", "data_umowy", "data_energizacji",
+        "installation_kind", "date_conditions", "date_agreement", "date_energisation",
     ),
     "applications": (
         "item_no", "customer_kind", "locality", "address", "capacity_base", "capacity_reserve",
@@ -39,8 +39,8 @@ LAYOUTS: dict[str, tuple[str, ...]] = {
     ),
     "refusals": (
         "item_no", "customer_kind", "locality", "address", "capacity_base", "capacity_reserve",
-        "installation_kind", "date_submission", "date_advance_payment", "powod_odmowy",
-        "data_odmowy",
+        "installation_kind", "date_submission", "date_advance_payment", "refusal_reason",
+        "date_refusal",
     ),
 }
 
@@ -60,18 +60,18 @@ class StoenAdapter(Adapter):
     publisher = "Stoen Operator Sp. z o.o."
     jurisdiction = "PL"
     declared_fields = (
-        "id_wniosku", "lokalizacja_tekst", "klasa_zasobu", "moc_pobierana",
-        "moc_zarezerwowana", "status_procesu", "data_wniosku", "data_warunkow",
-        "data_odmowy", "powod_odmowy", "data_umowy", "data_energizacji",
-        "data_publikacji",
+        "application_id", "location_text", "resource_class", "capacity_withdrawn",
+        "capacity_reserved", "process_status", "date_application", "date_conditions",
+        "date_refusal", "refusal_reason", "date_agreement", "date_energisation",
+        "date_published",
     )
     declared_extensions = {
-        "_data_zaliczki": "date the deposit was paid",
-        "_rodzaj_podmiotu": "type of client (legal entity / natural person)",
-        "_miejscowosc": "locality extracted from the location",
-        "_adres": "address extracted from the location",
-        "_zestawienie": "which item of Art. 7(8l) a given row implements",
-        "_rodzaj_instalacji_raw": "installation type as given in the document",
+        "_date_advance_payment": "date the deposit was paid",
+        "_applicant_kind": "type of client (legal entity / natural person)",
+        "_locality": "locality extracted from the location",
+        "_address": "address extracted from the location",
+        "_listing": "which item of Art. 7(8l) a given row implements",
+        "_installation_kind_raw": "installation type as given in the document",
         "_status_raw": "application processing status as given in the document",
     }
     detect_patterns = (r"stoen",)
@@ -135,50 +135,50 @@ class StoenAdapter(Adapter):
         ).map(lambda v: re.sub(r"\s+", " ", v).strip() if isinstance(v, str) else v)
 
         out = pd.DataFrame(index=raw.index)
-        out["id_wniosku"] = [f"stoen:{layout}:{i + 1}" for i in range(len(raw))]
+        out["application_id"] = [f"stoen:{layout}:{i + 1}" for i in range(len(raw))]
         places = raw["locality"].fillna("")
         address = raw["address"].fillna("")
-        out["lokalizacja_tekst"] = [
+        out["location_text"] = [
             ", ".join(x for x in (m.strip(), a.strip()) if x) or None
             for m, a in zip(places, address)
         ]
-        out["klasa_zasobu"] = raw["installation_kind"].map(harmonize_class)
-        out["moc_pobierana"] = raw["capacity_base"].map(lambda v: canonical_power_kw(v, "kW"))
-        out["moc_zarezerwowana"] = raw["capacity_reserve"].map(lambda v: canonical_power_kw(v, "kW"))
-        for c in ("data_wniosku", "data_warunkow", "data_odmowy", "data_umowy",
-                  "data_energizacji"):
+        out["resource_class"] = raw["installation_kind"].map(harmonize_class)
+        out["capacity_withdrawn"] = raw["capacity_base"].map(lambda v: canonical_power_kw(v, "kW"))
+        out["capacity_reserved"] = raw["capacity_reserve"].map(lambda v: canonical_power_kw(v, "kW"))
+        for c in ("date_application", "date_conditions", "date_refusal", "date_agreement",
+                  "date_energisation"):
             out[c] = None
         if layout == "applicants":
-            out["data_warunkow"] = raw["data_warunkow"].map(canonical_date)
-            out["data_umowy"] = raw["data_umowy"].map(canonical_date)
-            out["data_energizacji"] = raw["data_energizacji"].map(canonical_date)
+            out["date_conditions"] = raw["date_conditions"].map(canonical_date)
+            out["date_agreement"] = raw["date_agreement"].map(canonical_date)
+            out["date_energisation"] = raw["date_energisation"].map(canonical_date)
             _ok = lambda v: v is not None and not (isinstance(v, float) and v != v)
-            out["status_procesu"] = [
-                "PRZYLACZONY" if _ok(e) else ("UMOWA_OBOWIAZUJACA" if _ok(u) else
-                                              ("WARUNKI_WYDANE" if _ok(w) else "NIEOKRESLONY"))
-                for e, u, w in zip(out["data_energizacji"], out["data_umowy"],
-                                   out["data_warunkow"])
+            out["process_status"] = [
+                "CONNECTED" if _ok(e) else ("AGREEMENT_IN_FORCE" if _ok(u) else
+                                              ("CONDITIONS_ISSUED" if _ok(w) else "UNSPECIFIED"))
+                for e, u, w in zip(out["date_energisation"], out["date_agreement"],
+                                   out["date_conditions"])
             ]
             out["_status_raw"] = None
         elif layout == "applications":
-            out["data_wniosku"] = raw["date_submission"].map(canonical_date)
-            out["_data_zaliczki"] = raw["date_advance_payment"].map(canonical_date)
-            out["status_procesu"] = raw["application_status"].map(harmonize_status)
+            out["date_application"] = raw["date_submission"].map(canonical_date)
+            out["_date_advance_payment"] = raw["date_advance_payment"].map(canonical_date)
+            out["process_status"] = raw["application_status"].map(harmonize_status)
             out["_status_raw"] = raw["application_status"].replace("", None)
         else:  # odmowy
-            out["data_wniosku"] = raw["date_submission"].map(canonical_date)
-            out["data_odmowy"] = raw["data_odmowy"].map(canonical_date)
-            out["_data_zaliczki"] = raw["date_advance_payment"].map(canonical_date)
-            out["powod_odmowy"] = raw["powod_odmowy"].replace("", None)
-            out["status_procesu"] = "ODMOWA"
-            out["_status_raw"] = raw["powod_odmowy"].replace("", None)
-        out["data_publikacji"] = self.publication_date
-        out["_rodzaj_podmiotu"] = raw["customer_kind"].replace("", None)
-        out["_miejscowosc"] = places.replace("", None)
-        out["_adres"] = address.replace("", None)
-        out["_zestawienie"] = layout
-        out["_rodzaj_instalacji_raw"] = raw["installation_kind"].replace("", None)
-        out["_lp_dokumentu"] = raw["item_no"]
+            out["date_application"] = raw["date_submission"].map(canonical_date)
+            out["date_refusal"] = raw["date_refusal"].map(canonical_date)
+            out["_date_advance_payment"] = raw["date_advance_payment"].map(canonical_date)
+            out["refusal_reason"] = raw["refusal_reason"].replace("", None)
+            out["process_status"] = "REFUSED"
+            out["_status_raw"] = raw["refusal_reason"].replace("", None)
+        out["date_published"] = self.publication_date
+        out["_applicant_kind"] = raw["customer_kind"].replace("", None)
+        out["_locality"] = places.replace("", None)
+        out["_address"] = address.replace("", None)
+        out["_listing"] = layout
+        out["_installation_kind_raw"] = raw["installation_kind"].replace("", None)
+        out["_document_item_no"] = raw["item_no"]
 
         return out, {
             "file_name": str(src),

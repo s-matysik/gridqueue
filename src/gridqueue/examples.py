@@ -29,9 +29,9 @@ _STATIONS = {
     1: ("Alder", "Birch"), 2: ("Cedar",), 3: ("Elm", "Fir"), 4: ("Hazel",),
     5: ("Larch", "Maple"), 6: ("Oak",), 7: ("Pine", "Rowan"), 8: ("Spruce",),
 }
-_CLASSES = (("PV", 0.42), ("ODB", 0.28), ("BESS", 0.12), ("FW", 0.08), ("MIX", 0.06),
-            ("BIOGAZ", 0.04))
-_MEDIAN_DAYS = {"PV": 130, "ODB": 60, "BESS": 200, "FW": 210, "MIX": 125, "BIOGAZ": 150}
+_CLASSES = (("PV", 0.42), ("LOAD", 0.28), ("BESS", 0.12), ("WIND", 0.08), ("MIX", 0.06),
+            ("BIOGAS", 0.04))
+_MEDIAN_DAYS = {"PV": 130, "LOAD": 60, "BESS": 200, "WIND": 210, "MIX": 125, "BIOGAS": 150}
 _TOWNS = {"RIVERTON": (53.43, 14.55), "HILLSIDE": (53.56, 14.20), "LAKEVIEW": (53.30, 14.90)}
 _STREETS = ("Station Road", "Mill Lane", "Harbour Street", "Orchard Way", "Quarry Road")
 
@@ -61,56 +61,56 @@ def synthetic_panel(n: int = 600, *, seed: int = 7, as_at: str = "2026-06-30",
         filed = asat - timedelta(days=rng.randint(20, 900))
         wait = int(rng.expovariate(1 / _MEDIAN_DAYS[resource_class]) * 1.1) + 14
         cond = filed + timedelta(days=wait)
-        r = {"id_wniosku": f"SYN-{i:05d}", "publikujacy": pub, "klasa_zasobu": resource_class,
-             "data_wniosku": _iso(filed), "data_publikacji": as_at, "_encja": "WNIOSEK"}
+        r = {"application_id": f"SYN-{i:05d}", "publisher": pub, "resource_class": resource_class,
+             "date_application": _iso(filed), "date_published": as_at, "_entity": "APPLICATION"}
         grp = rng.randint(1, len(_STATIONS))
         stn = rng.choice(_STATIONS[grp])
         town = rng.choice(list(_TOWNS))
         if rng.random() < 0.55:
-            r["lokalizacja_tekst"] = stn
+            r["location_text"] = stn
         else:
-            r["lokalizacja_tekst"] = f"{town.title()}, {rng.choice(_STREETS)}"
-        r["poziom_napiecia"] = "SN" if rng.random() < 0.7 else "110 kV"
-        mw = round(rng.lognormvariate(0.4 if resource_class != "ODB" else -0.3, 1.0), 3)
-        r["moc_pobierana" if resource_class == "ODB" else "moc_wprowadzana"] = round(mw * 1000, 1)
+            r["location_text"] = f"{town.title()}, {rng.choice(_STREETS)}"
+        r["voltage_level"] = "SN" if rng.random() < 0.7 else "110 kV"
+        mw = round(rng.lognormvariate(0.4 if resource_class != "LOAD" else -0.3, 1.0), 3)
+        r["capacity_withdrawn" if resource_class == "LOAD" else "capacity_injected"] = round(mw * 1000, 1)
         if cond <= asat:
-            r["data_warunkow"] = _iso(cond)
+            r["date_conditions"] = _iso(cond)
             u = rng.random()
             if u < 0.35:
-                r["data_umowy"] = _iso(min(asat, cond + timedelta(days=rng.randint(20, 200))))
-                r["status_procesu"] = "UMOWA_OBOWIAZUJACA"
+                r["date_agreement"] = _iso(min(asat, cond + timedelta(days=rng.randint(20, 200))))
+                r["process_status"] = "AGREEMENT_IN_FORCE"
             elif u < 0.42:
-                r["status_procesu"] = "WARUNKI_WYGASLE"
+                r["process_status"] = "CONDITIONS_EXPIRED"
             else:
-                r["status_procesu"] = "WARUNKI_WYDANE"
+                r["process_status"] = "CONDITIONS_ISSUED"
         else:
             u = rng.random()
             if u < 0.08:
-                r["status_procesu"] = "ODMOWA"
-                r["data_odmowy"] = _iso(filed + timedelta(days=rng.randint(20, 120)))
-                r["powod_odmowy"] = "no technical conditions for connection"
+                r["process_status"] = "REFUSED"
+                r["date_refusal"] = _iso(filed + timedelta(days=rng.randint(20, 120)))
+                r["refusal_reason"] = "no technical conditions for connection"
             elif u < 0.14:
-                r["status_procesu"] = "WNIOSEK_NIEKOMPLETNY"
+                r["process_status"] = "APPLICATION_INCOMPLETE"
             else:
-                r["status_procesu"] = "W_TRAKCIE_ANALIZY"
+                r["process_status"] = "UNDER_REVIEW"
         rows.append(r)
     if with_nodes:
         for grp, stations in _STATIONS.items():
-            for direction_label in ("wytworcza", "odbiorcza"):
+            for direction_label in ("generation", "demand"):
                 free = 0.0 if grp == 8 else round(rng.uniform(2, 60) * 1000, 1)
-                rows.append({"_encja": "WEZEL", "id_wezla": f"N{grp}-{direction_label[0].upper()}",
-                             "nazwa_wezla": stations[0], "_nr_grupy": grp, "_kierunek": direction_label,
-                             "lokalizacja_tekst": ", ".join(stations), "moc_dostepna": free,
-                             "publikujacy": SYNTHETIC_PUBLISHERS[0],
-                             "data_publikacji": as_at})
+                rows.append({"_entity": "NODE", "node_id": f"N{grp}-{direction_label[0].upper()}",
+                             "node_name": stations[0], "_group_no": grp, "_direction": direction_label,
+                             "location_text": ", ".join(stations), "capacity_available": free,
+                             "publisher": SYNTHETIC_PUBLISHERS[0],
+                             "date_published": as_at})
     df = pd.DataFrame(rows)
     cols = list(empty_frame().columns) + [c for c in df.columns
                                           if c not in empty_frame().columns]
     return df.reindex(columns=cols)
 
 
-_FORWARD = {"W_TRAKCIE_ANALIZY": "WARUNKI_WYDANE", "WNIOSEK_NIEKOMPLETNY": "W_TRAKCIE_ANALIZY",
-            "WARUNKI_WYDANE": "UMOWA_OBOWIAZUJACA", "UMOWA_OBOWIAZUJACA": "PRZYLACZONY"}
+_FORWARD = {"UNDER_REVIEW": "CONDITIONS_ISSUED", "APPLICATION_INCOMPLETE": "UNDER_REVIEW",
+            "CONDITIONS_ISSUED": "AGREEMENT_IN_FORCE", "AGREEMENT_IN_FORCE": "CONNECTED"}
 
 
 def synthetic_editions(n: int = 400, *, seed: int = 11) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -122,32 +122,32 @@ def synthetic_editions(n: int = 400, *, seed: int = 11) -> tuple[pd.DataFrame, p
     """
     rng = random.Random(seed)
     a = synthetic_panel(n, seed=seed, as_at="2026-05-31", with_nodes=False)
-    a["publikujacy"] = SYNTHETIC_PUBLISHERS[0]
+    a["publisher"] = SYNTHETIC_PUBLISHERS[0]
     b = a.copy()
-    b["data_publikacji"] = "2026-06-30"
+    b["date_published"] = "2026-06-30"
     keep = [rng.random() > 0.06 for _ in range(len(b))]
     b = b[keep].copy()
     back = 0
     for idx in b.index:
-        s = b.at[idx, "status_procesu"]
+        s = b.at[idx, "process_status"]
         u = rng.random()
         if u < 0.08 and s in _FORWARD:
-            b.at[idx, "status_procesu"] = _FORWARD[s]
-            if s == "W_TRAKCIE_ANALIZY":
-                b.at[idx, "data_warunkow"] = "2026-06-15"
-        elif back < 2 and u > 0.97 and s == "WARUNKI_WYDANE":
+            b.at[idx, "process_status"] = _FORWARD[s]
+            if s == "UNDER_REVIEW":
+                b.at[idx, "date_conditions"] = "2026-06-15"
+        elif back < 2 and u > 0.97 and s == "CONDITIONS_ISSUED":
             # two deliberate backward moves: the transition matrix should show what a
             # register that rewrites its own history looks like
-            b.at[idx, "status_procesu"] = "W_TRAKCIE_ANALIZY"
+            b.at[idx, "process_status"] = "UNDER_REVIEW"
             back += 1
     new = synthetic_panel(int(n * 0.05) + 1, seed=seed + 1, as_at="2026-06-30",
                           with_nodes=False)
-    new["publikujacy"] = SYNTHETIC_PUBLISHERS[0]
-    new["id_wniosku"] = [f"SYN-NEW-{i:04d}" for i in range(len(new))]
-    new["data_wniosku"] = "2026-06-10"
-    new["data_warunkow"] = None
-    new["data_umowy"] = None
-    new["status_procesu"] = "WNIOSEK_ZLOZONY"
+    new["publisher"] = SYNTHETIC_PUBLISHERS[0]
+    new["application_id"] = [f"SYN-NEW-{i:04d}" for i in range(len(new))]
+    new["date_application"] = "2026-06-10"
+    new["date_conditions"] = None
+    new["date_agreement"] = None
+    new["process_status"] = "APPLICATION_FILED"
     b = pd.concat([b, new], ignore_index=True)
     return a.reset_index(drop=True), b
 
@@ -161,6 +161,6 @@ def synthetic_gazetteer() -> dict:
             if k == "LAKEVIEW" and j > 2:
                 continue  # streets missing from the gazetteer, to show an honest "no candidate"
             streets[st] = {"lat": round(lat + 0.004 * (j - 2), 6),
-                         "lon": round(lon + 0.006 * (j - 2), 6), "dlugosc_m": 400 + 150 * j}
-        out[k] = {"nazwa": k.title(), "lat": lat, "lon": lon, "ulice": streets}
-    return {"miejscowosci": out}
+                         "lon": round(lon + 0.006 * (j - 2), 6), "length_m": 400 + 150 * j}
+        out[k] = {"name": k.title(), "lat": lat, "lon": lon, "streets": streets}
+    return {"localities": out}

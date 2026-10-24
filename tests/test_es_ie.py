@@ -89,28 +89,28 @@ class TestIrishMapping:
     def test_available_capacity_takes_the_generation_side_in_MW(self, tmp_path):
         """The demand side is in MVA and must NOT be summed or converted."""
         d = get_adapter("ie_esbnetworks").parse(_sheet_ie(tmp_path, [self._row()])).frame
-        assert d.loc[0, "moc_dostepna"] == pytest.approx(25_000.0)
-        assert d.loc[0, "_odbior_dostepna_mva"] == pytest.approx(12.0)
-        assert d.loc[0, "_jednostka_mocy_odbiorczej"] == "MVA"
+        assert d.loc[0, "capacity_available"] == pytest.approx(25_000.0)
+        assert d.loc[0, "_demand_available_mva"] == pytest.approx(12.0)
+        assert d.loc[0, "_demand_capacity_unit"] == "MVA"
 
     def test_the_node_core_is_satisfied(self, tmp_path):
         d = get_adapter("ie_esbnetworks").parse(_sheet_ie(tmp_path, [self._row()])).frame
         assert bool(core_complete_mask(d).iloc[0]) is True
-        assert d.loc[0, "_encja"] == "WEZEL"
+        assert d.loc[0, "_entity"] == "NODE"
 
     def test_the_identifier_distinguishes_groups_of_the_same_station(self, tmp_path):
         d = get_adapter("ie_esbnetworks").parse(_sheet_ie(tmp_path, [
             self._row(), self._row(**{"Transformer GroupID": "T2"})])).frame
-        assert d["id_wezla"].nunique() == 2
+        assert d["node_id"].nunique() == 2
 
     def test_the_coordinates_are_combined_into_one_field(self, tmp_path):
         d = get_adapter("ie_esbnetworks").parse(_sheet_ie(tmp_path, [self._row()])).frame
-        assert d.loc[0, "wspolrzedne"] == "52.7,-8.6"
+        assert d.loc[0, "coordinates"] == "52.7,-8.6"
 
     def test_missing_coordinates_give_a_gap_not_a_zero(self, tmp_path):
         d = get_adapter("ie_esbnetworks").parse(_sheet_ie(tmp_path, [
             self._row(**{"Latitude": None, "Longitude": None})])).frame
-        assert d.loc[0, "wspolrzedne"] is None
+        assert d.loc[0, "coordinates"] is None
 
 
 class TestArithmeticIdentity:

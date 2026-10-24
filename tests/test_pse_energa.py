@@ -46,7 +46,7 @@ def test_blank_catches_nan():
 def test_the_identifier_surrogate_works_when_the_id_is_empty():
     raw = pd.DataFrame({"object_id": [None, "X-1", float("nan")], "item_no": ["1.", "2.", None]})
     out = T.to_schema(raw, publisher_key="pse", publication_date="2026-08-31")
-    assert out["id_wniosku"].tolist() == ["pse:poz:1", "X-1", "pse:poz:3"]
+    assert out["application_id"].tolist() == ["pse:poz:1", "X-1", "pse:poz:3"]
 
 
 # --- regression 2: class voltage level -----------------------------------
@@ -66,28 +66,28 @@ def test_dates_survive_the_timestamp_type():
     raw = pd.DataFrame({
         "object_id": ["A"],
         "date_submission": [pd.Timestamp("2023-08-07")],
-        "data_warunkow": [dt.date(2024, 3, 18)],
-        "data_energizacji": ["po 30.06.2026"],
+        "date_conditions": [dt.date(2024, 3, 18)],
+        "date_energisation": ["po 30.06.2026"],
     })
     out = T.to_schema(raw, publisher_key="pse", publication_date=None)
-    assert out["data_wniosku"].iloc[0] == "2023-08-07"
-    assert out["data_warunkow"].iloc[0] == "2024-03-18"
+    assert out["date_application"].iloc[0] == "2023-08-07"
+    assert out["date_conditions"].iloc[0] == "2024-03-18"
     # an inequality is not a date: the schema field stays empty, the content is kept in an extension
-    assert out["data_energizacji"].iloc[0] is None
-    assert out["_energizacja_tekst"].iloc[0] == "po 30.06.2026"
+    assert out["date_energisation"].iloc[0] is None
+    assert out["_energisation_text"].iloc[0] == "po 30.06.2026"
 
 
 # --- regression 4: status of a terminated agreement ----------------------
 
 def test_a_terminated_agreement_is_not_an_effective_one():
     """The drop-down list of the shared template declares both statuses separately."""
-    assert harmonize_status("UMOWA O PRZYŁĄCZENIE rozwiązana") == "UMOWA_ROZWIAZANA"
-    assert harmonize_status("UMOWA O PRZYŁĄCZENIE obowiązująca") == "UMOWA_OBOWIAZUJACA"
-    assert harmonize_status("UMOWA O PRZYŁĄCZENIE - obiekt przyłączony") == "PRZYLACZONY"
+    assert harmonize_status("UMOWA O PRZYŁĄCZENIE rozwiązana") == "AGREEMENT_TERMINATED"
+    assert harmonize_status("UMOWA O PRZYŁĄCZENIE obowiązująca") == "AGREEMENT_IN_FORCE"
+    assert harmonize_status("UMOWA O PRZYŁĄCZENIE - obiekt przyłączony") == "CONNECTED"
 
 
 def test_the_template_vocabulary_is_mapped_in_full():
-    """Every value of the template drop-down list must yield a known token, not NIEOKRESLONY."""
+    """Every value of the template drop-down list must yield a known token, not UNSPECIFIED."""
     statuses = [
         "WNIOSEK w weryfikacji", "WNIOSEK kompletny - w trakcie analizy technicznej i ekonomicznej",
         "WNIOSEK niekompletny", "WNIOSEK wycofany", "WARUNKI PRZYŁĄCZENIA wydane",
@@ -96,13 +96,13 @@ def test_the_template_vocabulary_is_mapped_in_full():
         "UMOWA O PRZYŁĄCZENIE - obiekt przyłączony",
     ]
     for s in statuses:
-        assert harmonize_status(s) != "NIEOKRESLONY", s
-    kinds = ["PV", "FW", "MEE", "EJ", "ESP", "JBM", "JW", "MFW", "BG", "BGP",
-               "ODB", "OSD", "OSDn", "EW", "SG", "OGW", "JS", "MIX"]
+        assert harmonize_status(s) != "UNSPECIFIED", s
+    kinds = ["PV", "WIND", "MEE", "EJ", "ESP", "JBM", "JW", "MFW", "BG", "BGP",
+               "LOAD", "OSD", "OSDn", "HYDRO", "SG", "OGW", "JS", "MIX"]
     for r in kinds:
-        assert harmonize_class(r) != "NIEOKRESLONA", r
+        assert harmonize_class(r) != "UNSPECIFIED", r
     # the template declares BG as BLOK GAZOWY, a gas unit, not biogas, against the intuition of the name
-    assert harmonize_class("BG") == "GAZ"
+    assert harmonize_class("BG") == "GAS"
 
 
 # --- tests against the source documents ----------------------------------
@@ -114,14 +114,14 @@ def test_pse_full_run():
         os.path.join(DATA, "pse_lista_rozdzielni_brak_mozliwosci_20260204.xlsx"),
     ])
     f = r.frame
-    assert (f["_encja"] == "WNIOSEK").sum() == 876
-    assert (f["_encja"] == "WEZEL").sum() == 69
+    assert (f["_entity"] == "APPLICATION").sum() == 876
+    assert (f["_entity"] == "NODE").sum() == 69
     # footnote markers cut off from the content, not pasted into it
-    assert not f["lokalizacja_tekst"].astype(str).str.fullmatch(r"WYPM|CPKK").any()
-    assert f["_przypisy"].notna().sum() == 69
+    assert not f["location_text"].astype(str).str.fullmatch(r"WYPM|CPKK").any()
+    assert f["_footnotes"].notna().sum() == 69
     # PSE discloses point 2) as a NUMBER OF SLOTS, not a capacity, so the capacity field stays empty
-    assert f.loc[f["_encja"] == "WEZEL", "moc_dostepna"].isna().all()
-    assert f.loc[f["_encja"] == "WEZEL", "_liczba_dostepnych_miejsc"].notna().any()
+    assert f.loc[f["_entity"] == "NODE", "capacity_available"].isna().all()
+    assert f.loc[f["_entity"] == "NODE", "_free_slots"].notna().any()
 
 
 @pytest.mark.skipif(not _ma("energa_wnioski_odmowy_20260831.pdf"), reason="Energa document not present")
@@ -132,16 +132,16 @@ def test_energa_full_run():
         os.path.join(DATA, "energa_moc_dostepna_wytworcza_20260831.pdf"),
     ])
     f = r.frame
-    applications = f[f["_encja"] == "WNIOSEK"]
+    applications = f[f["_entity"] == "APPLICATION"]
     assert len(applications) == 5286
     # the ordinal numbers of the document reconstructed with no gaps and no repetitions
-    item_no = pd.to_numeric(applications["_lp_dokumentu"].str.rstrip("."), errors="coerce")
+    item_no = pd.to_numeric(applications["_document_item_no"].str.rstrip("."), errors="coerce")
     assert item_no.notna().all()
     assert sorted(item_no.astype(int)) == list(range(1, 5287))
-    # Energa is the first source in the panel that fills moc_dostepna
-    nodes = f[f["_encja"] == "WEZEL"]
+    # Energa is the first source in the panel that fills capacity_available
+    nodes = f[f["_entity"] == "NODE"]
     assert len(nodes) == 96
-    assert nodes["moc_dostepna"].notna().all()
-    assert set(nodes["_kierunek"]) == {"odbiorcza", "wytworcza"}
+    assert nodes["capacity_available"].notna().all()
+    assert set(nodes["_direction"]) == {"demand", "generation"}
     # publication date from the DOCUMENT, not from the file name
-    assert (applications["data_publikacji"] == "2026-06-30").all()
+    assert (applications["date_published"] == "2026-06-30").all()
