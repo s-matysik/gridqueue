@@ -53,11 +53,11 @@ def fig_coverage(panel: pd.DataFrame, file_name: Path) -> None:
     st = schema_table()
     fields = st["field"].tolist()
     core = dict(zip(st["field"], st["core"].astype(bool)))
-    publ = sorted(panel["publikujacy"].unique(),
-                  key=lambda p: -int((panel["publikujacy"] == p).sum()))
+    publ = sorted(panel["publisher"].unique(),
+                  key=lambda p: -int((panel["publisher"] == p).sum()))
     Z = np.zeros((len(fields), len(publ)))
     for j, p in enumerate(publ):
-        sub = panel[panel["publikujacy"] == p]
+        sub = panel[panel["publisher"] == p]
         for i, f in enumerate(fields):
             s = sub[f] if f in sub.columns else pd.Series([None] * len(sub))
             nn = s.notna() & s.astype(str).str.strip().ne("") & s.astype(str).ne("nan")
@@ -69,7 +69,7 @@ def fig_coverage(panel: pd.DataFrame, file_name: Path) -> None:
     ax.imshow(Z, cmap=cmap, vmin=0, vmax=1, aspect="auto")
     ax.set_xticks(range(len(publ)))
     ax.set_xticklabels(
-        [f"{ABBREVIATION.get(p, p)}\n{_th(int((panel['publikujacy'] == p).sum()))}" for p in publ],
+        [f"{ABBREVIATION.get(p, p)}\n{_th(int((panel['publisher'] == p).sum()))}" for p in publ],
         fontsize=6)
     ax.set_yticks(range(len(fields)))
     ax.set_yticklabels([("\u2022 " if core[f] else "   ") + f for f in fields], fontsize=6)
@@ -105,7 +105,7 @@ def fig_coverage(panel: pd.DataFrame, file_name: Path) -> None:
 
 def fig_quality(panel: pd.DataFrame, file_name: Path) -> None:
     rows = []
-    for p, sub in panel.groupby("publikujacy"):
+    for p, sub in panel.groupby("publisher"):
         for x in run_quality(sub.reset_index(drop=True)).as_dict()["rules"]:
             rows.append({"code": x["code"], "name": x["name"],
                          "pub": ABBREVIATION.get(p, p), "violations": x["violations"]})
@@ -155,21 +155,21 @@ def fig_location(panel: pd.DataFrame, file_name: Path) -> None:
         if pd.notna(coords):
             return "resolved"
         s = str(reason)
-        if "kod_stacji" in s:
+        if "station_code" in s:
             return "station code with no gazetteer"
-        if "brak_deklaracji_miejscowosci" in s:
+        if "no_locality_declared" in s:
             return "no locality declared"
-        if "pusty_opis" in s:
+        if "empty_description" in s:
             return "empty description"
-        if "poza_gazeterem" in s:
+        if "not_in_gazetteer" in s:
             return "locality outside the gazetteer"
-        if "wiele_kandydatow" in s or "niejednoznaczna" in s:
+        if "multiple_candidates" in s or "ambiguous" in s:
             return "several candidates"
         return "other"
 
     d = panel.copy()
-    d["pub"] = d["publikujacy"].map(lambda p: ABBREVIATION.get(p, p))
-    d["_category"] = [category(w, r) for w, r in zip(d["wspolrzedne"], d.get("_geo_powod", pd.Series([None] * len(d))))]
+    d["pub"] = d["publisher"].map(lambda p: ABBREVIATION.get(p, p))
+    d["_category"] = [category(w, r) for w, r in zip(d["coordinates"], d.get("_geo_reason", pd.Series([None] * len(d))))]
     KAT = ["resolved", "station code with no gazetteer", "no locality declared",
            "empty description", "locality outside the gazetteer", "several candidates", "other"]
     KK = {"resolved": "#2e8b78", "station code with no gazetteer": "#1b5e8c",
@@ -204,9 +204,9 @@ def fig_location(panel: pd.DataFrame, file_name: Path) -> None:
               frameon=False, handlelength=1.0, columnspacing=0.9, handletextpad=0.4)
 
     ax2 = fig.add_subplot(gs[1])
-    pw = d.loc[d["wspolrzedne"].notna(), "_geo_pewnosc"].value_counts()
+    pw = d.loc[d["coordinates"].notna(), "_geo_confidence"].value_counts()
     description = {"EXACT": "exact", "UNIQUE_TOKEN": "unique member",
-            "SKRZYZOWANIE": "intersection", "REVERSED": "reversed order",
+            "INTERSECTION": "intersection", "REVERSED": "reversed order",
             "TOKEN_SUBSET": "subset of members"}
     keys = [k for k in description if k in pw.index]
     vv = [int(pw[k]) for k in keys]

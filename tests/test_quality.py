@@ -12,21 +12,21 @@ def test_there_are_eight_rules_and_each_has_a_basis():
 
 def test_r1_date_monotonicity():
     df = pd.DataFrame({
-        "data_wniosku": ["2026-01-01", "2026-05-01"],
-        "data_warunkow": ["2026-02-01", "2026-04-01"],   # second row reversed
-        "data_umowy": ["2026-03-01", None],
-        "data_energizacji": [None, None],
+        "date_application": ["2026-01-01", "2026-05-01"],
+        "date_conditions": ["2026-02-01", "2026-04-01"],   # second row reversed
+        "date_agreement": ["2026-03-01", None],
+        "date_energisation": [None, None],
     })
     rep = run_quality(df, tuple(r for r in RULES if r.code == "R1")).as_dict()
     assert rep["rules"][0]["violations"] == 1
-    assert rep["rules"][0]["details"]["pairs"]["data_wniosku>data_warunkow"] == 1
+    assert rep["rules"][0]["details"]["pairs"]["date_application>date_conditions"] == 1
 
 
 def test_r2_two_year_validity_of_the_conditions():
     df = pd.DataFrame({
-        "data_warunkow": ["2022-01-01", "2024-01-01"],
-        "_data_utraty_waznosci": ["2025-06-01", "2026-01-01"],  # the first one is more than 2 years
-        "data_umowy": [None, None],
+        "date_conditions": ["2022-01-01", "2024-01-01"],
+        "_date_expiry": ["2025-06-01", "2026-01-01"],  # the first one is more than 2 years
+        "date_agreement": [None, None],
     })
     rep = run_quality(df, tuple(r for r in RULES if r.code == "R2")).as_dict()
     d = rep["rules"][0]["details"]
@@ -36,31 +36,31 @@ def test_r2_two_year_validity_of_the_conditions():
 
 def test_r3_status_against_the_dates():
     df = pd.DataFrame({
-        "status_procesu": ["ODMOWA", "ODMOWA", "PRZYLACZONY"],
-        "data_odmowy": ["2026-01-01", None, None],
-        "data_umowy": [None, None, None],
-        "data_energizacji": [None, None, "2026-02-01"],
+        "process_status": ["REFUSED", "REFUSED", "CONNECTED"],
+        "date_refusal": ["2026-01-01", None, None],
+        "date_agreement": [None, None, None],
+        "date_energisation": [None, None, "2026-02-01"],
     })
     rep = run_quality(df, tuple(r for r in RULES if r.code == "R3")).as_dict()
     assert rep["rules"][0]["violations"] == 1
 
 
 def test_r4_unit_consistency_detects_mw_instead_of_kw():
-    df = pd.DataFrame({"moc_pobierana": [700.0, 0.7, 0.0, None]})
+    df = pd.DataFrame({"capacity_withdrawn": [700.0, 0.7, 0.0, None]})
     rep = run_quality(df, tuple(r for r in RULES if r.code == "R4")).as_dict()
     assert rep["rules"][0]["violations"] == 1
-    assert rep["rules"][0]["details"]["per_field"]["moc_pobierana"] == 1
+    assert rep["rules"][0]["details"]["per_field"]["capacity_withdrawn"] == 1
 
 
 def test_r5_value_ranges():
-    df = pd.DataFrame({"data_wniosku": ["1900-01-01", "2026-01-01"],
-                       "moc_pobierana": [-5.0, 10.0]})
+    df = pd.DataFrame({"date_application": ["1900-01-01", "2026-01-01"],
+                       "capacity_withdrawn": [-5.0, 10.0]})
     rep = run_quality(df, tuple(r for r in RULES if r.code == "R5")).as_dict()
     assert rep["rules"][0]["violations"] == 1
 
 
 def test_r6_duplicates():
-    df = pd.DataFrame({"id_wniosku": ["a", "a", "a", "b"]})
+    df = pd.DataFrame({"application_id": ["a", "a", "a", "b"]})
     rep = run_quality(df, tuple(r for r in RULES if r.code == "R6")).as_dict()
     assert rep["rules"][0]["violations"] == 2
     assert rep["rules"][0]["details"]["n_unique"] == 2
@@ -69,16 +69,16 @@ def test_r6_duplicates():
 
 def test_r7_core_completeness():
     df = pd.DataFrame({
-        "id_wniosku": ["a", "b"], "lokalizacja_tekst": ["x", None],
-        "klasa_zasobu": ["PV", "PV"], "moc_pobierana": [1.0, 2.0],
-        "status_procesu": ["ODMOWA", "ODMOWA"],
+        "application_id": ["a", "b"], "location_text": ["x", None],
+        "resource_class": ["PV", "PV"], "capacity_withdrawn": [1.0, 2.0],
+        "process_status": ["REFUSED", "REFUSED"],
     })
     rep = run_quality(df, tuple(r for r in RULES if r.code == "R7")).as_dict()
     assert rep["rules"][0]["violations"] == 1
 
 
 def test_r8_controlled_vocabulary():
-    df = pd.DataFrame({"klasa_zasobu": ["PV", "PANELE"], "status_procesu": ["ODMOWA", "ODMOWA"]})
+    df = pd.DataFrame({"resource_class": ["PV", "PANELE"], "process_status": ["REFUSED", "REFUSED"]})
     rep = run_quality(df, tuple(r for r in RULES if r.code == "R8")).as_dict()
     assert rep["rules"][0]["violations"] == 1
 
@@ -92,21 +92,21 @@ def test_the_rules_do_not_raise_on_an_empty_frame():
 def test_r7_does_not_penalise_a_generating_application_for_missing_import_capacity():
     """R7 measures gaps in disclosure, not a property of the schema.
 
-    Before version 1.0 the core required `moc_pobierana` unconditionally, so every
+    Before version 1.0 the core required `capacity_withdrawn` unconditionally, so every
     purely generating application was counted as a violation. Here we pin the new
     contract: the violation is the absence of ANY capacity.
     """
     import pandas as pd
 
-    shared = {"id_wniosku": "X", "lokalizacja_tekst": "Szczecin",
-               "klasa_zasobu": "FW", "status_procesu": "WARUNKI_WYDANE"}
+    shared = {"application_id": "X", "location_text": "Szczecin",
+               "resource_class": "WIND", "process_status": "CONDITIONS_ISSUED"}
     df = pd.DataFrame([
-        {**shared, "moc_wprowadzana": 3000.0, "moc_pobierana": None},
-        {**shared, "moc_wprowadzana": None, "moc_pobierana": None},
+        {**shared, "capacity_injected": 3000.0, "capacity_withdrawn": None},
+        {**shared, "capacity_injected": None, "capacity_withdrawn": None},
     ])
     r7 = [x for x in run_quality(df).as_dict()["rules"] if x["code"] == "R7"][0]
     assert r7["violations"] == 1
-    key = "WNIOSEK/at least one of: moc_pobierana, moc_wprowadzana"
+    key = "APPLICATION/at least one of: capacity_withdrawn, capacity_injected"
     assert r7["details"]["per_field"][key] == 1
 
 
@@ -116,12 +116,12 @@ def test_r7_judges_a_node_by_the_node_requirements():
     from gridqueue.schema import ENTITY_COLUMN
 
     df = pd.DataFrame([
-        {ENTITY_COLUMN: "WEZEL", "id_wezla": "SE-1", "moc_dostepna": 0.0},
-        {ENTITY_COLUMN: "WEZEL", "id_wezla": "SE-2"},
+        {ENTITY_COLUMN: "NODE", "node_id": "SE-1", "capacity_available": 0.0},
+        {ENTITY_COLUMN: "NODE", "node_id": "SE-2"},
     ])
     r7 = [x for x in run_quality(df).as_dict()["rules"] if x["code"] == "R7"][0]
     assert r7["violations"] == 1
-    assert r7["details"]["entity_rows"] == {"WEZEL": 2}
+    assert r7["details"]["entity_rows"] == {"NODE": 2}
 
 
 def test_as_frame_returns_one_row_per_rule():
@@ -134,9 +134,9 @@ def test_as_frame_returns_one_row_per_rule():
 
     from gridqueue import RULES, run_quality
 
-    df = pd.DataFrame([{"id_wniosku": "A", "lokalizacja_tekst": "Szczecin",
-                        "klasa_zasobu": "FW", "status_procesu": "WARUNKI_WYDANE",
-                        "moc_wprowadzana": 1000.0}])
+    df = pd.DataFrame([{"application_id": "A", "location_text": "Szczecin",
+                        "resource_class": "WIND", "process_status": "CONDITIONS_ISSUED",
+                        "capacity_injected": 1000.0}])
     frame = run_quality(df).as_frame()
     assert list(frame.columns) == ["code", "name", "violations", "share"]
     assert len(frame) == len(RULES)
@@ -157,11 +157,11 @@ def test_r3_does_not_fall_over_on_an_empty_publisher():
     from gridqueue import empty_frame, run_quality
 
     df = pd.DataFrame([
-        {"id_wniosku": "A-1", "lokalizacja_tekst": "Stacja A", "klasa_zasobu": "ODB",
-         "status_procesu": "WARUNKI_WYDANE", "moc_pobierana": 1000.0,
-         "data_wniosku": "2024-01-10", "data_warunkow": "2024-05-10"},
+        {"application_id": "A-1", "location_text": "Stacja A", "resource_class": "LOAD",
+         "process_status": "CONDITIONS_ISSUED", "capacity_withdrawn": 1000.0,
+         "date_application": "2024-01-10", "date_conditions": "2024-05-10"},
     ]).reindex(columns=list(empty_frame().columns))
-    assert df["publikujacy"].isna().all()
+    assert df["publisher"].isna().all()
 
     report = run_quality(df).as_dict()
     r3 = [r for r in report["rules"] if r["code"] == "R3"][0]

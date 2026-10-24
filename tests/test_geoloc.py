@@ -2,7 +2,7 @@ import pytest
 
 from gridqueue.geoloc import LocationResolver, normalize, tokens
 
-GAZ = {
+GAS = {
     "Grochowska": (52.24, 21.09),
     "Świętego Wincentego": (52.28, 21.06),
     "Józefa Bema": (52.23, 20.98),
@@ -15,7 +15,7 @@ GAZ = {
 
 @pytest.fixture
 def r():
-    return LocationResolver(GAZ)
+    return LocationResolver(GAS)
 
 
 def test_normalize_and_tokens():
@@ -52,25 +52,25 @@ def test_reversed_with_title_abbreviation(r):
 def test_station_code_is_not_guessed(r):
     res = r.resolve("SKB3")
     assert res.confidence == "NONE"
-    assert res.reason == "kod_stacji_bez_slownika"
+    assert res.reason == "station_code_without_dictionary"
     assert res.matched is None
 
 
 def test_station_code_forced_by_a_flag(r):
     res = r.resolve("Grochowska", is_station_code=True)
     assert res.confidence == "NONE"
-    assert res.reason == "kod_stacji_bez_slownika"
+    assert res.reason == "station_code_without_dictionary"
 
 
 def test_empty_description(r):
-    assert r.resolve(None).reason == "pusty_opis"
-    assert r.resolve("   ").reason == "pusty_opis"
+    assert r.resolve(None).reason == "empty_description"
+    assert r.resolve("   ").reason == "empty_description"
 
 
 def test_no_candidates(r):
     res = r.resolve("Warszawa, Nieistniejąca")
     assert res.confidence == "NONE"
-    assert res.reason in {"brak_kandydatow", "wiele_kandydatow"}
+    assert res.reason in {"no_candidates", "multiple_candidates"}
 
 
 def test_summarize_computes_the_share(r):
@@ -80,12 +80,12 @@ def test_summarize_computes_the_share(r):
     assert s["resolved"] == 1
     assert abs(s["resolved_share"] - 1 / 3) < 1e-6
     assert s["per_confidence"]["EXACT"] == 1
-    assert s["missing_reasons"]["kod_stacji_bez_slownika"] == 1
+    assert s["missing_reasons"]["station_code_without_dictionary"] == 1
 
 
 def test_intersection(r):
     res = r.resolve("Warszawa, Marszałkowska/Nowy Świat")
-    assert res.confidence == "SKRZYZOWANIE"
+    assert res.confidence == "INTERSECTION"
     assert res.matched is not None and "/" in res.matched
     assert res.resolved
 

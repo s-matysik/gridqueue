@@ -71,42 +71,42 @@ _FALLBACK = ["#4e79a7", "#f28e2b", "#59a14f", "#b07aa1", "#9c755f", "#edc948", "
 
 #: English labels of the controlled status vocabulary.
 STATUS_LABELS: dict[str, str] = {
-    "WNIOSEK_ZLOZONY": "filed", "WNIOSEK_NIEKOMPLETNY": "incomplete",
-    "W_TRAKCIE_ANALIZY": "under review", "WARUNKI_WYDANE": "conditions issued",
-    "UMOWA_OBOWIAZUJACA": "agreement in force", "PRZYLACZONY": "connected",
-    "WARUNKI_WYGASLE": "conditions expired", "ODMOWA": "refused",
-    "UMOWA_ROZWIAZANA": "agreement terminated", "WNIOSEK_WYCOFANY": "withdrawn",
-    "NIEOKRESLONY": "unspecified",
+    "APPLICATION_FILED": "filed", "APPLICATION_INCOMPLETE": "incomplete",
+    "UNDER_REVIEW": "under review", "CONDITIONS_ISSUED": "conditions issued",
+    "AGREEMENT_IN_FORCE": "agreement in force", "CONNECTED": "connected",
+    "CONDITIONS_EXPIRED": "conditions expired", "REFUSED": "refused",
+    "AGREEMENT_TERMINATED": "agreement terminated", "APPLICATION_WITHDRAWN": "withdrawn",
+    "UNSPECIFIED": "unspecified",
 }
 
 #: English labels of the controlled resource-class vocabulary.
 CLASS_LABELS: dict[str, str] = {
-    "PV": "photovoltaics", "FW": "wind", "EW": "hydro", "BIOGAZ": "biogas", "GAZ": "gas",
-    "WEGIEL": "coal", "BESS": "energy storage", "ODB": "consumption", "MIX": "mixed",
-    "SIEC": "network", "INNE": "other", "NIEOKRESLONA": "unspecified",
+    "PV": "photovoltaics", "WIND": "wind", "HYDRO": "hydro", "BIOGAS": "biogas", "GAS": "gas",
+    "COAL": "coal", "BESS": "energy storage", "LOAD": "consumption", "MIX": "mixed",
+    "GRID": "network", "OTHER": "other", "UNSPECIFIED": "unspecified",
 }
 
 #: Statuses of an application still in the queue (the default of ``node_loading``).
 ACTIVE_STATUSES: tuple[str, ...] = (
-    "WNIOSEK_ZLOZONY", "WNIOSEK_NIEKOMPLETNY", "W_TRAKCIE_ANALIZY", "WARUNKI_WYDANE",
-    "UMOWA_OBOWIAZUJACA")
+    "APPLICATION_FILED", "APPLICATION_INCOMPLETE", "UNDER_REVIEW", "CONDITIONS_ISSUED",
+    "AGREEMENT_IN_FORCE")
 
 #: Readable names of the closing events of a proceeding, for chart titles.
 EVENT_LABELS: dict[str, str] = {
-    "data_warunkow": "issue of connection conditions", "data_umowy": "connection agreement",
-    "data_odmowy": "refusal", "data_energizacji": "energisation",
-    "data_wniosku": "application",
+    "date_conditions": "issue of connection conditions", "date_agreement": "connection agreement",
+    "date_refusal": "refusal", "date_energisation": "energisation",
+    "date_application": "application",
 }
-_DIRECTION = {"wytworcza": "generation direction", "odbiorcza": "demand direction"}
+_DIRECTION = {"generation": "generation direction", "demand": "demand direction"}
 
 _GREY = "#6b7280"
 _INK = "#222222"
 _STATUS_COLORS = {
-    "WNIOSEK_ZLOZONY": "#c9dcea", "WNIOSEK_NIEKOMPLETNY": "#a3c4dc",
-    "W_TRAKCIE_ANALIZY": "#5b93b8", "WARUNKI_WYDANE": "#1b5e8c",
-    "UMOWA_OBOWIAZUJACA": "#2e8b78", "PRZYLACZONY": "#14532d",
-    "WARUNKI_WYGASLE": "#e0a96d", "ODMOWA": "#a33b4e", "UMOWA_ROZWIAZANA": "#c77a1e",
-    "WNIOSEK_WYCOFANY": "#d4b8a0", "NIEOKRESLONY": "#d1d5db",
+    "APPLICATION_FILED": "#c9dcea", "APPLICATION_INCOMPLETE": "#a3c4dc",
+    "UNDER_REVIEW": "#5b93b8", "CONDITIONS_ISSUED": "#1b5e8c",
+    "AGREEMENT_IN_FORCE": "#2e8b78", "CONNECTED": "#14532d",
+    "CONDITIONS_EXPIRED": "#e0a96d", "REFUSED": "#a33b4e", "AGREEMENT_TERMINATED": "#c77a1e",
+    "APPLICATION_WITHDRAWN": "#d4b8a0", "UNSPECIFIED": "#d1d5db",
 }
 
 
@@ -165,7 +165,7 @@ def _groups(df: pd.DataFrame, by: Optional[str]) -> list[tuple[str, pd.DataFrame
         return [("panel", df)]
     keys = df[by].fillna("").astype(str)
     order = keys.value_counts().index.tolist()
-    return [(publisher_label(k) if by == "publikujacy" else (k or "(empty)"),
+    return [(publisher_label(k) if by == "publisher" else (k or "(empty)"),
              df[keys == k]) for k in order]
 
 
@@ -189,8 +189,8 @@ def _group_key(df: pd.DataFrame, by) -> pd.Series:
 
 
 def _applications(df: pd.DataFrame) -> pd.DataFrame:
-    if "_encja" in df.columns:
-        return df[df["_encja"].fillna("WNIOSEK").astype(str).str.upper() != "WEZEL"]
+    if "_entity" in df.columns:
+        return df[df["_entity"].fillna("APPLICATION").astype(str).str.upper() != "NODE"]
     return df
 
 
@@ -198,7 +198,7 @@ def _applications(df: pd.DataFrame) -> pd.DataFrame:
 # what a disclosure contains
 # ---------------------------------------------------------------------------
 
-def plot_field_coverage(df: pd.DataFrame, by: str = "publikujacy", ax=None,
+def plot_field_coverage(df: pd.DataFrame, by: str = "publisher", ax=None,
                         annotate: bool = True):
     """Heat map: share of rows in which each of the 21 schema fields is populated.
 
@@ -218,11 +218,15 @@ def plot_field_coverage(df: pd.DataFrame, by: str = "publikujacy", ax=None,
         for i, f in enumerate(fields):
             Z[i, j] = float(_filled(sub[f]).mean()) if f in sub.columns and len(sub) else 0.0
 
-    fig, ax = _figure(max(3.2, 1.6 + 0.62 * len(groups)), 5.6, ax)
+    fig, ax = _figure(max(3.4, 1.8 + 0.72 * len(groups)), 5.8, ax)
     cmap = LinearSegmentedColormap.from_list("cov", ["#f7f7f7", "#c9dcea", "#5b93b8", "#1b5e8c"])
     im = ax.imshow(Z, cmap=cmap, vmin=0, vmax=1, aspect="auto")
     ax.set_xticks(range(len(groups)))
-    ax.set_xticklabels([f"{k}\n{_th(len(s))}" for k, s in groups], fontsize=6.5)
+    import textwrap
+
+    # long publisher names are wrapped, so that neighbouring column headers do not overlap
+    ax.set_xticklabels([textwrap.fill(str(k), 12) + f"\n{_th(len(s))}" for k, s in groups],
+                       fontsize=6.3)
     ax.set_yticks(range(len(fields)))
     ax.set_yticklabels([("\u2022 " if core[f] else "") + f for f in fields], fontsize=6.5)
     for i, f in enumerate(fields):
@@ -253,7 +257,7 @@ def plot_field_coverage(df: pd.DataFrame, by: str = "publikujacy", ax=None,
     return fig
 
 
-def plot_quality(df: pd.DataFrame, by: str = "publikujacy", ax=None):
+def plot_quality(df: pd.DataFrame, by: str = "publisher", ax=None):
     """Violations of the eight quality rules, stacked by publisher.
 
     The rules are evaluated per publisher with :func:`~gridqueue.quality.run_quality`, as
@@ -344,13 +348,13 @@ def plot_column_shift(df: pd.DataFrame, ax=None):
 
 def _status_order(values: Iterable[str]) -> list[str]:
     ordered = [s for s in STATUSES if s in set(values)]
-    ordered.sort(key=lambda s: (s in TERMINAL_NEGATIVE or s == "UMOWA_ROZWIAZANA",
+    ordered.sort(key=lambda s: (s in TERMINAL_NEGATIVE or s == "AGREEMENT_TERMINATED",
                                 STATUS_ORDER.get(s, 99), s))
     rest = sorted(set(values) - set(ordered))
     return ordered + rest
 
 
-def plot_status_distribution(df: pd.DataFrame, by: str = "publikujacy",
+def plot_status_distribution(df: pd.DataFrame, by: str = "publisher",
                              normalize: bool = False, codes: bool = False, ax=None):
     """Applications by stage of the proceeding, one bar per publisher.
 
@@ -362,13 +366,13 @@ def plot_status_distribution(df: pd.DataFrame, by: str = "publikujacy",
     import numpy as np
 
     app = _applications(df)
-    if "status_procesu" not in app.columns or not _filled(app["status_procesu"]).any():
+    if "process_status" not in app.columns or not _filled(app["process_status"]).any():
         fig, ax = _figure(5.5, 2.0, ax)
         _empty_note(ax, "the disclosure carries no process status")
         return fig
     groups = [(k, s) for k, s in _groups(app, by) if len(s)]
-    st = _status_order(app["status_procesu"].dropna().astype(str).unique())
-    M = pd.DataFrame({k: s["status_procesu"].astype(str).value_counts() for k, s in groups}
+    st = _status_order(app["process_status"].dropna().astype(str).unique())
+    M = pd.DataFrame({k: s["process_status"].astype(str).value_counts() for k, s in groups}
                      ).reindex(st).fillna(0).T
     if normalize:
         M = M.div(M.sum(axis=1).replace(0, 1), axis=0) * 100
@@ -396,7 +400,7 @@ def plot_status_distribution(df: pd.DataFrame, by: str = "publikujacy",
 
 
 def plot_capacity_by_class(df: pd.DataFrame, power: str = "auto",
-                           by: str = "klasa_zasobu", hue: Optional[str] = "poziom_napiecia",
+                           by: str = "resource_class", hue: Optional[str] = "voltage_level",
                            statuses: Optional[Sequence[str]] | str = "active",
                            codes: bool = False, ax=None):
     """Requested capacity in MW by resource class, split by voltage level.
@@ -411,17 +415,17 @@ def plot_capacity_by_class(df: pd.DataFrame, power: str = "auto",
     app = _applications(df).copy()
     if statuses == "active":
         statuses = ACTIVE_STATUSES
-    if statuses is not None and "status_procesu" in app.columns:
-        app = app[app["status_procesu"].isin(set(statuses))]
+    if statuses is not None and "process_status" in app.columns:
+        app = app[app["process_status"].isin(set(statuses))]
     if by not in app.columns:
         fig, ax = _figure(5.5, 2.0, ax)
         _empty_note(ax, f"the disclosure carries no field {by}")
         return fig
     if power == "auto":
-        w = pd.to_numeric(app.get("moc_wprowadzana"), errors="coerce") \
-            if "moc_wprowadzana" in app else pd.Series(np.nan, index=app.index)
-        p = pd.to_numeric(app.get("moc_pobierana"), errors="coerce") \
-            if "moc_pobierana" in app else pd.Series(np.nan, index=app.index)
+        w = pd.to_numeric(app.get("capacity_injected"), errors="coerce") \
+            if "capacity_injected" in app else pd.Series(np.nan, index=app.index)
+        p = pd.to_numeric(app.get("capacity_withdrawn"), errors="coerce") \
+            if "capacity_withdrawn" in app else pd.Series(np.nan, index=app.index)
         app["_mw"] = w.where(w.notna() & (w > 0), p) / 1000.0
         description = "requested capacity (injected, or consumed where no injection is declared)"
     else:
@@ -453,14 +457,14 @@ def plot_capacity_by_class(df: pd.DataFrame, power: str = "auto",
         left += P[c].values
     for yy, t, n in zip(y, left, N.values):
         ax.text(t, yy, f"  {t:,.0f} MW, {_th(n)} appl.", va="center", fontsize=6.3)
-    lab = (lambda k: k) if codes or by != "klasa_zasobu" else \
+    lab = (lambda k: k) if codes or by != "resource_class" else \
         (lambda k: CLASS_LABELS.get(k, k))
     ax.set_yticks(y)
     ax.set_yticklabels([lab(k) for k in P.index], fontsize=7)
     ax.set_xlim(0, left.max() * 1.42)
     ax.set_xlabel(f"MW, {description}", fontsize=7)
     which = "applications in the queue" if statuses is not None else "all applications"
-    ax.set_title(f"Requested capacity by {'resource class' if by == 'klasa_zasobu' else by}, "
+    ax.set_title(f"Requested capacity by {'resource class' if by == 'resource_class' else by}, "
                  f"{which}", fontsize=8.5, loc="left")
     if h:
         ax.legend(title=h, title_fontsize=6.5, fontsize=6.3, frameon=False,
@@ -469,8 +473,8 @@ def plot_capacity_by_class(df: pd.DataFrame, power: str = "auto",
     return fig
 
 
-def plot_processing_time(df: pd.DataFrame, by: Optional[str] = "klasa_zasobu",
-                         start: str = "data_wniosku", end: str = "data_warunkow",
+def plot_processing_time(df: pd.DataFrame, by: Optional[str] = "resource_class",
+                         start: str = "date_application", end: str = "date_conditions",
                          min_n: int = 30, max_groups: int = 6, ci: bool = True,
                          codes: bool = False, ax=None):
     """Kaplan-Meier curves of the time from application to the event ``end``.
@@ -503,15 +507,15 @@ def plot_processing_time(df: pd.DataFrame, by: Optional[str] = "klasa_zasobu",
         below = [tt for tt, ss in zip(t, S) if ss <= 0.01]
         xmax = max(xmax, below[0] if below else tmax)
         c = pal[i % len(pal)]
-        name = r.group if (codes or by != "klasa_zasobu") else \
+        name = r.group if (codes or by != "resource_class") else \
             f"{CLASS_LABELS.get(r.group, r.group)} ({r.group})"
         med = "not reached" if pd.isna(r.median) else f"{r.median:.0f} d"
         ax.step(t, [s * 100 for s in S], where="post", color=c, lw=1.4, zorder=3,
                 label=f"{name}: n={_th(r.n)}, censored {r.censored_share * 100:.1f}%, "
                       f"median {med}")
         if ci and len(km.table):
-            lo = [100.0] + (km.table["S_dolne"] * 100).tolist() + [km.table["S_dolne"].iloc[-1] * 100]
-            hi = [100.0] + (km.table["S_gorne"] * 100).tolist() + [km.table["S_gorne"].iloc[-1] * 100]
+            lo = [100.0] + (km.table["S_lower"] * 100).tolist() + [km.table["S_lower"].iloc[-1] * 100]
+            hi = [100.0] + (km.table["S_upper"] * 100).tolist() + [km.table["S_upper"].iloc[-1] * 100]
             ax.fill_between(t, lo, hi, step="post", color=c, alpha=0.13, lw=0, zorder=2)
         if not pd.isna(r.median):
             ax.plot([r.median], [50], "o", ms=3.5, color=c, zorder=4)
@@ -531,7 +535,7 @@ def plot_processing_time(df: pd.DataFrame, by: Optional[str] = "klasa_zasobu",
     return fig
 
 
-def plot_node_loading(loading: pd.DataFrame, ax=None, label: str = "nazwa_wezla",
+def plot_node_loading(loading: pd.DataFrame, ax=None, label: str = "node_name",
                       top: int = 12, title: Optional[str] = None):
     """Node loading: requested capacity of the active queue over declared free capacity.
 
@@ -753,7 +757,7 @@ _GEO_CATEGORY = {
     "resolver not run": "#e5e7eb",
 }
 _WITH_POINT = ("source coordinates", "placed by the gazetteer", "locality centroid only")
-_CONFIDENCE = {"EXACT": "exact", "UNIQUE_TOKEN": "unique member", "SKRZYZOWANIE": "intersection",
+_CONFIDENCE = {"EXACT": "exact", "UNIQUE_TOKEN": "unique member", "INTERSECTION": "intersection",
             "REVERSED": "reversed order", "TOKEN_SUBSET": "subset of members"}
 
 
@@ -761,52 +765,52 @@ def _geo_category(coords, confidence, reason, accuracy=None) -> str:
     p = "" if confidence is None or (isinstance(confidence, float) and confidence != confidence) \
         else str(confidence)
     if _filled(pd.Series([coords])).iloc[0]:
-        if not p or p == "ZRODLO":
+        if not p or p == "SOURCE":
             return "source coordinates"
-        if p == "NONE" or str(accuracy) == "CENTROID_MIEJSCOWOSCI":
+        if p == "NONE" or str(accuracy) == "LOCALITY_CENTROID":
             return "locality centroid only"
         return "placed by the gazetteer"
     s = "" if reason is None or (isinstance(reason, float) and reason != reason) else str(reason)
     if not s and not p:
         return "resolver not run"
-    if "bez_geometrii" in s or (p and p != "NONE"):
+    if "without_geometry" in s or (p and p != "NONE"):
         return "name resolved, no geometry"
-    if "kod_stacji" in s:
+    if "station_code" in s:
         return "station code with no dictionary"
-    if "brak_deklaracji_miejscowosci" in s:
+    if "no_locality_declared" in s:
         return "no locality declared"
-    if "pusty_opis" in s:
+    if "empty_description" in s:
         return "empty description"
-    if "poza_gazeterem" in s:
+    if "not_in_gazetteer" in s:
         return "locality outside the gazetteer"
-    if "wiele_kandydatow" in s or "niejednoznaczna" in s:
+    if "multiple_candidates" in s or "ambiguous" in s:
         return "several candidates"
-    if "brak_kandydatow" in s or "brak_tokenow" in s or "opis_slowny" in s:
+    if "no_candidates" in s or "no_distinguishing_tokens" in s or "verbal_description" in s:
         return "no candidate in the gazetteer"
     return "not resolved, other reason"
 
 
-def plot_location_resolution(df: pd.DataFrame, by: str = "publikujacy"):
+def plot_location_resolution(df: pd.DataFrame, by: str = "publisher"):
     """Where a coordinate comes from, and where it does not, by publisher.
 
     Left: share of rows with source coordinates, coordinates placed by the gazetteer, and
     each stated reason for absence. Right: confidence levels of the gazetteer placements.
-    Reads the resolver diagnostics ``_geo_pewnosc`` and ``_geo_powod`` when present.
+    Reads the resolver diagnostics ``_geo_confidence`` and ``_geo_reason`` when present.
     """
     import numpy as np
 
     Figure = _mpl()
     d = df.copy()
-    coords = d["wspolrzedne"] if "wspolrzedne" in d else pd.Series(None, index=d.index)
-    conf = d["_geo_pewnosc"] if "_geo_pewnosc" in d else pd.Series(None, index=d.index)
-    reason_ = d["_geo_powod"] if "_geo_powod" in d else pd.Series(None, index=d.index)
-    acc_level = d["_geo_dokladnosc"] if "_geo_dokladnosc" in d else pd.Series(None, index=d.index)
+    coords = d["coordinates"] if "coordinates" in d else pd.Series(None, index=d.index)
+    conf = d["_geo_confidence"] if "_geo_confidence" in d else pd.Series(None, index=d.index)
+    reason_ = d["_geo_reason"] if "_geo_reason" in d else pd.Series(None, index=d.index)
+    acc_level = d["_geo_accuracy"] if "_geo_accuracy" in d else pd.Series(None, index=d.index)
     d["_category"] = [_geo_category(w, p, r, k) for w, p, r, k in zip(coords, conf, reason_, acc_level)]
     groups = _groups(d, by)
     category = [k for k in _GEO_CATEGORY if (d["_category"] == k).any()]
     CT = pd.DataFrame({k: s["_category"].value_counts() for k, s in groups}).reindex(category).fillna(0).T
     placed = d.loc[d["_category"].isin(["placed by the gazetteer", "name resolved, no geometry"]),
-                   "_geo_pewnosc"] if "_geo_pewnosc" in d else pd.Series(dtype=object)
+                   "_geo_confidence"] if "_geo_confidence" in d else pd.Series(dtype=object)
     two = len(placed) > 0
     fig = Figure(figsize=(7.2 if two else 5.4, max(2.3, 1.4 + 0.3 * len(groups))), dpi=110,
                  layout="constrained")
@@ -856,7 +860,7 @@ def plot_location_resolution(df: pd.DataFrame, by: str = "publikujacy"):
 # one-call views
 # ---------------------------------------------------------------------------
 
-def plot_overview(df: pd.DataFrame, by: str = "publikujacy"):
+def plot_overview(df: pd.DataFrame, by: str = "publisher"):
     """Four panels for a first look: coverage, quality, status and capacity."""
     Figure = _mpl()
     n_pub = len(_groups(df, by))
@@ -905,17 +909,17 @@ def save_all(df: pd.DataFrame, out_dir, *, edition_b: Optional[pd.DataFrame] = N
     put("field_coverage", plot_field_coverage(df))
     put("quality_rules", plot_quality(df))
     put("column_shift", plot_column_shift(df))
-    if "status_procesu" in df and _filled(_applications(df)["status_procesu"]).any():
+    if "process_status" in df and _filled(_applications(df)["process_status"]).any():
         put("status_distribution", plot_status_distribution(df))
     else:
         skipped.append("status_distribution: no process status disclosed")
-    if "klasa_zasobu" in df and _filled(_applications(df)["klasa_zasobu"]).any():
+    if "resource_class" in df and _filled(_applications(df)["resource_class"]).any():
         put("capacity_by_class", plot_capacity_by_class(df))
     else:
         skipped.append("capacity_by_class: no resource class disclosed")
     app = _applications(df)
     cov = min((float(_filled(app[c]).mean()) if c in app and len(app) else 0.0)
-              for c in ("data_wniosku", "data_warunkow"))
+              for c in ("date_application", "date_conditions"))
     km = kaplan_meier_by_group(app, min_n=min_n) if cov >= min_coverage else []
     if cov < min_coverage:
         skipped.append(f"processing_time: date coverage {cov * 100:.1f}% is below the "
@@ -923,15 +927,15 @@ def save_all(df: pd.DataFrame, out_dir, *, edition_b: Optional[pd.DataFrame] = N
     elif len(km):
         put("processing_time", plot_processing_time(df, min_n=min_n))
     else:
-        skipped.append(f"processing_time: no group of {min_n} applications with data_wniosku")
-    if "wspolrzedne" in df:
+        skipped.append(f"processing_time: no group of {min_n} applications with date_application")
+    if "coordinates" in df:
         put("location_resolution", plot_location_resolution(df))
-    if "moc_dostepna" in df and "_encja" in df and (df["_encja"] == "WEZEL").any() \
-            and (df["_encja"] != "WEZEL").any():
+    if "capacity_available" in df and "_entity" in df and (df["_entity"] == "NODE").any() \
+            and (df["_entity"] != "NODE").any():
         mapping = station_node_map(df)
         if len(mapping):
             assigned = assign_to_nodes(df, mapping)
-            for field, name in (("moc_wprowadzana", "generation"), ("moc_pobierana", "demand")):
+            for field, name in (("capacity_injected", "generation"), ("capacity_withdrawn", "demand")):
                 L = node_loading(assigned, capacity_field=field)
                 if pd.to_numeric(L["loading"], errors="coerce").notna().any():
                     put(f"node_loading_{name}", plot_node_loading(L))

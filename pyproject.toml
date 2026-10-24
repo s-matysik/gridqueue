@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "gridqueue"
-version = "1.7.0"
+version = "1.0.0"
 description = "Harmonizer of statutory grid-connection disclosures into panel data for queue research"
 readme = "README.md"
 requires-python = ">=3.10"

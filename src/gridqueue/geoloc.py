@@ -16,7 +16,7 @@ Confidence levels (descending):
 
 For publishers that give the location as an INTERNAL STATION CODE
 (TAURON: "SKB3", "RCB4"), the resolver returns NONE with the reason
-``kod_stacji_bez_slownika``: it does not try to guess, because the operator does not publish
+``station_code_without_dictionary``: it does not try to guess, because the operator does not publish
 a code dictionary and any match would be confabulation.
 
 Extension with coordinates (version 0.2)
@@ -28,7 +28,7 @@ The result now carries a point and a SECOND, independent level: ``accuracy``
   ``accuracy`` : how precisely the returned point represents that place.
 
 They are disjoint by design: an EXACT match to a 6 km long street gives a point
-with accuracy ``PUNKT_NA_OSI_ULICY`` and a blur on the order of a kilometer, while a
+with accuracy ``STREET_AXIS_POINT`` and a blur on the order of a kilometer, while a
 UNIQUE_TOKEN match to a short street gives a better point.  The length of the matched
 street's axis is returned in ``street_length_m`` for exactly this reason: so that the blur
 can be computed, not merely declared.
@@ -36,7 +36,7 @@ can be computed, not merely declared.
 The distinction is preserved between **failing to resolve the name**
 (``pewnosc == "NONE"``) and **resolving the name without available geometry**
 (``pewnosc != "NONE"``, ``dokladnosc == "BRAK_GEOMETRII"``,
-``powod == "nazwa_rozwiazana_bez_geometrii"``): these are two different states of knowledge,
+``powod == "name_resolved_without_geometry"``): these are two different states of knowledge,
 and mixing them would overstate or understate coverage.  Predicates:
 ``Resolution.rozwiazane`` (name) and ``Resolution.ma_wspolrzedne`` (point).
 
@@ -59,7 +59,7 @@ __all__ = [
     "resolver_from_osm_json", "resolver_from_gazetteer_json", "geocode_frame",
 ]
 
-CONFIDENCE = ("EXACT", "UNIQUE_TOKEN", "TOKEN_SUBSET", "REVERSED", "SKRZYZOWANIE", "NONE")
+CONFIDENCE = ("EXACT", "UNIQUE_TOKEN", "TOKEN_SUBSET", "REVERSED", "INTERSECTION", "NONE")
 
 #: Level of placement ACCURACY (DOKLADNOSC): answers a different question than ``confidence``.
 #: ``confidence`` says how certain the IDENTIFICATION of the name is; ``accuracy`` says
@@ -74,9 +74,19 @@ CONFIDENCE = ("EXACT", "UNIQUE_TOKEN", "TOKEN_SUBSET", "REVERSED", "SKRZYZOWANIE
 #:   BRAK_GEOMETRII        : name RESOLVED, but the gazetteer has no coordinates for it
 #:   BRAK                  : name not resolved, so there is nothing to place
 ACCURACY = (
-    "PUNKT_ADRESOWY", "PUNKT_SKRZYZOWANIA", "PUNKT_NA_OSI_ULICY",
-    "CENTROID_MIEJSCOWOSCI", "BRAK_GEOMETRII", "BRAK",
+    "ADDRESS_POINT", "INTERSECTION_POINT", "STREET_AXIS_POINT",
+    "LOCALITY_CENTROID", "NO_GEOMETRY", "NO_POINT",
 )
+
+#: keys of gazetteers written for the first drafts of the package, read as their English names
+GAZETTEER_LEGACY_KEYS = {"miejscowosci": "localities", "ulice": "streets", "nazwa": "name",
+                         "dlugosc_m": "length_m", "os": "axis",
+                         "punkty_adresowe": "address_points"}
+
+
+def _gazetteer_keys(d: dict) -> dict:
+    return {GAZETTEER_LEGACY_KEYS.get(k, k): v for k, v in d.items()}
+
 
 #: prefixes and parts that do not distinguish a street
 _STOP = {
@@ -124,7 +134,7 @@ class Resolution:
     confidence: str
     reason: str = ""
     #: placement accuracy level: see DOKLADNOSC
-    accuracy: str = "BRAK"
+    accuracy: str = "NO_POINT"
     #: locality whose gazetteer was searched (None for a single-area gazetteer)
     locality: Optional[str] = None
     #: length of the matched street's axis in meters, if the gazetteer carries it;
@@ -195,11 +205,11 @@ class LocationResolver:
 
     def _meta(self, name: str) -> dict:
         c = self.gazetteer.get(name)
-        return c if isinstance(c, dict) else {}
+        return _gazetteer_keys(c) if isinstance(c, dict) else {}
 
     def axis(self, name: str) -> Optional[list[tuple[float, float]]]:
         """Street axis as a list of (lat, lon), if the gazetteer carries it."""
-        os_ = self._meta(name).get("os")
+        os_ = self._meta(name).get("axis")
         if not os_ or len(os_) < 2:
             return None
         return [(float(p[0]), float(p[1])) for p in os_]
@@ -239,11 +249,11 @@ class LocationResolver:
              locality: Optional[str] = None) -> Resolution:
         lat, lon = self._coords(name)
         meta = self._meta(name)
-        acc = "PUNKT_NA_OSI_ULICY" if lat is not None else "BRAK_GEOMETRII"
-        reason = "" if lat is not None else "nazwa_rozwiazana_bez_geometrii"
+        acc = "STREET_AXIS_POINT" if lat is not None else "NO_GEOMETRY"
+        reason = "" if lat is not None else "name_resolved_without_geometry"
         return Resolution(query, name, lat, lon, level, reason,
                           accuracy=acc, locality=locality,
-                          street_length_m=meta.get("dlugosc_m"),
+                          street_length_m=meta.get("length_m"),
                           n_components=meta.get("n_components"),
                           components_spread_m=meta.get("components_spread_m"))
 
@@ -311,7 +321,7 @@ class LocationResolver:
                 check_station_code: bool = True) -> Resolution:
         """Resolve a place description.
 
-        ``sprawdzaj_kod_stacji=False`` disables the station code heuristic.  This is
+        ``sprawdzaj_station_code=False`` disables the station code heuristic.  This is
         needed when the caller has already determined that the description is NOT a
         station code; for example :class:`MultiLocalityResolver` checks the code on
         the full description and then passes only the street part here.  Without this
@@ -321,9 +331,9 @@ class LocationResolver:
         """
         q = (query or "").strip()
         if not q:
-            return Resolution(q, None, None, None, "NONE", "pusty_opis")
+            return Resolution(q, None, None, None, "NONE", "empty_description")
         if is_station_code or (check_station_code and _RE_STATION_CODE.match(q)):
-            return Resolution(q, None, None, None, "NONE", "kod_stacji_bez_slownika")
+            return Resolution(q, None, None, None, "NONE", "station_code_without_dictionary")
 
         # strip the locality part, if given as "CITY, address"
         street = q.split(",", 1)[1] if "," in q else q
@@ -338,7 +348,7 @@ class LocationResolver:
 
         ts = tokens(street)
         if not ts:
-            return Resolution(q, None, None, None, "NONE", "brak_tokenow_wyrozniajacych")
+            return Resolution(q, None, None, None, "NONE", "no_distinguishing_tokens")
 
         # 2) unique token
         cands = {t: self._by_token.get(t, []) for t in ts}
@@ -384,7 +394,7 @@ class LocationResolver:
                     hits.append(sub)
             if len(hits) >= 2:
                 lat, lon = hits[0].lat, hits[0].lon
-                acc = "PUNKT_NA_OSI_ULICY" if lat is not None else "BRAK_GEOMETRII"
+                acc = "STREET_AXIS_POINT" if lat is not None else "NO_GEOMETRY"
                 reason = f"matched {len(hits)} of {len(parts)} parts"
                 # if the gazetteer carries the axes of both streets, the point is their
                 # intersection
@@ -393,19 +403,19 @@ class LocationResolver:
                     xp = self._intersection(ax[0], ax[1])
                     if xp is not None:
                         lat, lon = round(xp[0], 6), round(xp[1], 6)
-                        acc = "PUNKT_SKRZYZOWANIA"
+                        acc = "INTERSECTION_POINT"
                     else:
                         reason += "; the axes do not intersect, point taken from the first part"
                 return Resolution(q, " / ".join(h.matched for h in hits),
-                                  lat, lon, "SKRZYZOWANIE", reason,
+                                  lat, lon, "INTERSECTION", reason,
                                   accuracy=acc)
 
         if rejected_description:
             return Resolution(q, None, None, None, "NONE",
-                              "opis_slowny_nie_nazwa_ulicy")
+                              "verbal_description_not_street_name")
         if not any(cands.values()):
-            return Resolution(q, None, None, None, "NONE", "brak_kandydatow")
-        return Resolution(q, None, None, None, "NONE", "wiele_kandydatow")
+            return Resolution(q, None, None, None, "NONE", "no_candidates")
+        return Resolution(q, None, None, None, "NONE", "multiple_candidates")
 
     # ------------------------------------------------------------------
     def _resolve_reversed(self, street: str, ts: list[str]) -> Optional[str]:
@@ -469,23 +479,23 @@ class MultiLocalityResolver:
     Connection registers give the location as ``LOCALITY, street``.
     A single flat namespace of street names would be an error here: the same street
     name occurs in a dozen or so localities of the agglomeration, and a flat gazetteer
-    would have to either guess or return ``wiele_kandydatow``.  This class keeps a
+    would have to either guess or return ``multiple_candidates``.  This class keeps a
     separate :class:`LocationResolver` per locality and routes the query to the right
     one.
 
     The package's overriding principle is preserved: **a no-match with a reason
     instead of guessing**.  Two new, explicit no-match reasons are added:
 
-      ``miejscowosc_poza_gazeterem``     : the given locality is not in the gazetteer;
+      ``locality_not_in_gazetteer``     : the given locality is not in the gazetteer;
                                             this is a COVERAGE limitation, not a
                                             matching failure, and is reported
                                             separately
-      ``nazwa_rozwiazana_bez_geometrii`` : the name was matched, but the gazetteer
+      ``name_resolved_without_geometry`` : the name was matched, but the gazetteer
                                             entry has no coordinates
 
     When the street could not be resolved but the locality could, a
     **no-match** is returned (``pewnosc == "NONE"``): the locality centroid is NOT
-    substituted into the ``wspolrzedne`` field, because it would be a point with a
+    substituted into the ``coordinates`` field, because it would be a point with a
     different meaning than the rest of the column.  The centroid is instead made
     available in the ``lat``/``lon`` field with ``dokladnosc == "CENTROID_MIEJSCOWOSCI"``
     only when the caller explicitly asks for it (``dopusc_centroid=True``), and it can
@@ -498,10 +508,11 @@ class MultiLocalityResolver:
         self.resolvers: dict[str, LocationResolver] = {}
         self._alias: dict[str, str] = {}
         for key, m in localities.items():
+            m = _gazetteer_keys(m)
             k = normalize(key)
-            self.resolvers[k] = LocationResolver(m.get("ulice", {}))
+            self.resolvers[k] = LocationResolver(m.get("streets", {}))
             # optional index of address points: "<street>|<number>" -> [lat, lon]
-            pa = m.get("punkty_adresowe") or {}
+            pa = m.get("address_points") or {}
             if pa:
                 idx = {}
                 for kk, vv in pa.items():
@@ -511,7 +522,7 @@ class MultiLocalityResolver:
             if m.get("lat") is not None and m.get("lon") is not None:
                 self.centroids[k] = (float(m["lat"]), float(m["lon"]))
             self._alias[k] = k
-            self._alias.setdefault(normalize(m.get("nazwa") or key), k)
+            self._alias.setdefault(normalize(m.get("name") or key), k)
         # alias of the main part: "SEKOCIN NOWY"/"SEKOCIN STARY" -> the first part,
         # when it is unambiguous; when it is not, the alias is not created and a query
         # for "SEKOCIN" ends in an explicit no-match instead of a random choice
@@ -562,9 +573,9 @@ class MultiLocalityResolver:
                 allow_centroid: bool = False) -> Resolution:
         q = (query or "").strip()
         if not q:
-            return Resolution(q, None, None, None, "NONE", "pusty_opis")
+            return Resolution(q, None, None, None, "NONE", "empty_description")
         if is_station_code or _RE_STATION_CODE.match(q):
-            return Resolution(q, None, None, None, "NONE", "kod_stacji_bez_slownika")
+            return Resolution(q, None, None, None, "NONE", "station_code_without_dictionary")
 
         m_txt, street = self.split_number_part(q)
         if locality:
@@ -578,17 +589,17 @@ class MultiLocalityResolver:
             # is why the default locality is optional and OFF by default.
             if not self.default_locality:
                 return Resolution(q, None, None, None, "NONE",
-                                  "brak_deklaracji_miejscowosci")
+                                  "no_locality_declared")
             key = self.default_locality
         else:
             key = self._alias.get(normalize(m_txt))
         if key is None:
             return Resolution(q, None, None, None, "NONE",
-                              "miejscowosc_poza_gazeterem", locality=m_txt)
+                              "locality_not_in_gazetteer", locality=m_txt)
         if key.startswith("\x00AMBIG\x00"):
             variants = key[len("\x00AMBIG\x00"):]
             return Resolution(q, None, None, None, "NONE",
-                              f"miejscowosc_niejednoznaczna:{variants}",
+                              f"ambiguous_locality:{variants}",
                               locality=m_txt)
 
         sub = self.resolvers[key]
@@ -615,13 +626,13 @@ class MultiLocalityResolver:
             pt = sub.point_for_number(r.matched, num)
             if pt is not None:
                 r.lat, r.lon = pt
-                r.accuracy = "PUNKT_ADRESOWY"
-                r.reason = f"numer_domu={num}"
+                r.accuracy = "ADDRESS_POINT"
+                r.reason = f"house_number={num}"
 
         if not r.resolved and allow_centroid and key in self.centroids:
             lat, lon = self.centroids[key]
             return Resolution(q, None, lat, lon, "NONE", r.reason,
-                              accuracy="CENTROID_MIEJSCOWOSCI", locality=m_txt)
+                              accuracy="LOCALITY_CENTROID", locality=m_txt)
         return r
 
     def resolve_series(self, values: Iterable[Optional[str]], **kw) -> list[Resolution]:
@@ -641,14 +652,20 @@ class MultiLocalityResolver:
 def resolver_from_gazetteer_json(path, *, default_locality: Optional[str] = None) -> MultiLocalityResolver:
     """Build a :class:`MultiLocalityResolver` from a gazetteer with coordinates.
 
-    Expected file layout: ``{"miejscowosci": {KLUCZ: {"nazwa","lat","lon",
-    "ulice": {nazwa: {"lat","lon","length_m","os"}}}}}``.
+    Expected file layout: ``{"localities": {KEY: {"name", "lat", "lon",
+    "streets": {street name: {"lat", "lon", "length_m", "axis"}}}}}``. Gazetteers written
+    with the keys of the first drafts (``miejscowosci``, ``ulice``, ``nazwa``,
+    ``dlugosc_m``, ``os``, ``punkty_adresowe``) are read as well.
     """
     import json
 
     with open(path, encoding="utf-8") as fh:
         data = json.load(fh)
-    places = data["miejscowosci"] if "miejscowosci" in data else data
+    for top in ("localities", "miejscowosci"):
+        if top in data:
+            data = data[top]
+            break
+    places = data
     return MultiLocalityResolver(places, default_locality=default_locality)
 
 
@@ -679,16 +696,16 @@ def resolver_from_osm_json(path) -> LocationResolver:
     return LocationResolver(gaz_map)
 
 
-def geocode_frame(df, resolver, *, column: str = "lokalizacja_tekst",
+def geocode_frame(df, resolver, *, column: str = "location_text",
                   overwrite: bool = False, station_code_column: Optional[str] = None):
     """Resolve the place descriptions of a frame and write the result back to it.
 
-    Returns a copy of ``df`` with ``wspolrzedne`` filled as ``"lat,lon"`` (WGS84, the
+    Returns a copy of ``df`` with ``coordinates`` filled as ``"lat,lon"`` (WGS84, the
     format the schema validates) and three diagnostic columns that keep what the resolver
-    knows about each row: ``_geo_pewnosc`` (certainty of the name identification),
-    ``_geo_dokladnosc`` (precision of the returned point) and ``_geo_powod`` (reason, when
+    knows about each row: ``_geo_confidence`` (certainty of the name identification),
+    ``_geo_accuracy`` (precision of the returned point) and ``_geo_reason`` (reason, when
     no point is returned). Coordinates disclosed by the publisher are kept unless
-    ``overwrite=True``; such rows get ``_geo_pewnosc = "ZRODLO"``.
+    ``overwrite=True``; such rows get ``_geo_confidence = "ZRODLO"``.
 
     ``resolver`` is a :class:`LocationResolver` or :class:`MultiLocalityResolver`, for
     example from :func:`resolver_from_gazetteer_json`. ``station_code_column`` names a boolean
@@ -697,26 +714,26 @@ def geocode_frame(df, resolver, *, column: str = "lokalizacja_tekst",
     import pandas as pd
 
     out = df.copy()
-    if "wspolrzedne" not in out.columns:
-        out["wspolrzedne"] = None
-    src = out["wspolrzedne"]
+    if "coordinates" not in out.columns:
+        out["coordinates"] = None
+    src = out["coordinates"]
     have = src.notna() & src.astype(str).str.strip().ne("") & ~overwrite
     conf, acc_level, reason_, coords = [], [], [], []
     codes = out[station_code_column].fillna(False).astype(bool) \
         if station_code_column and station_code_column in out.columns else None
     for i, (idx, q) in enumerate(out[column].items()):
         if bool(have.loc[idx]):
-            conf.append("ZRODLO"); acc_level.append("ZRODLO"); reason_.append(""); coords.append(src.loc[idx])
+            conf.append("SOURCE"); acc_level.append("SOURCE"); reason_.append(""); coords.append(src.loc[idx])
             continue
         kw = {"is_station_code": bool(codes.loc[idx])} if codes is not None else {}
         r = resolver.resolve(None if pd.isna(q) else str(q), **kw)
         conf.append(r.confidence)
-        acc_level.append(getattr(r, "accuracy", "BRAK"))
+        acc_level.append(getattr(r, "accuracy", "NO_POINT"))
         has_pt = r.lat is not None and r.lon is not None
-        reason_.append(r.reason or ("" if has_pt else "brak_punktu"))
+        reason_.append(r.reason or ("" if has_pt else "no_point"))
         coords.append(f"{r.lat:.6f},{r.lon:.6f}" if has_pt else None)
-    out["wspolrzedne"] = pd.Series(coords, index=out.index, dtype=object)
-    out["_geo_pewnosc"] = conf
-    out["_geo_dokladnosc"] = acc_level
-    out["_geo_powod"] = reason_
+    out["coordinates"] = pd.Series(coords, index=out.index, dtype=object)
+    out["_geo_confidence"] = conf
+    out["_geo_accuracy"] = acc_level
+    out["_geo_reason"] = reason_
     return out

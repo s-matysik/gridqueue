@@ -83,7 +83,7 @@ def cmd_export(args) -> int:
     df = pd.concat(frames, ignore_index=True)
     if args.only_schema:
         keep = [c for c in FIELDS if c in df.columns] + \
-               [c for c in ("publikujacy", "jurysdykcja", "dokument_zrodlowy") if c in df.columns]
+               [c for c in ("publisher", "jurisdiction", "source_document") if c in df.columns]
         df = df[keep]
     _write_table(df, args.out)
     print(json.dumps({"rows": int(len(df)), "columns": int(df.shape[1]),
@@ -173,7 +173,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--label-a", default="A")
     p.add_argument("--label-b", default="B")
     p.add_argument("--node-key", action="store_true",
-                   help="use the node key (publikujacy, id_wezla) for NODE-entity registers")
+                   help="use the node key (publisher, node_id) for NODE-entity registers")
     p.add_argument("--out", help="JSON report file")
     p.add_argument("--transitions", help="CSV file for the status transition matrix")
     p.set_defaults(func=cmd_compare)

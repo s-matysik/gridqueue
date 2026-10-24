@@ -14,7 +14,7 @@ def test_schema_has_21_fields_and_a_4_field_unconditional_core():
     assert len(SCHEMA) == 21
     assert len(FIELDS) == len(set(FIELDS)) == 21
     assert set(CORE_FIELDS) == {
-        "id_wniosku", "lokalizacja_tekst", "klasa_zasobu", "status_procesu",
+        "application_id", "location_text", "resource_class", "process_status",
     }
     assert len(OPTIONAL_FIELDS) == 17
     assert SCHEMA_VERSION == "1.0"
@@ -23,38 +23,38 @@ def test_schema_has_21_fields_and_a_4_field_unconditional_core():
 def test_the_power_core_is_an_alternative_not_one_specific_field():
     # A power field cannot be required unconditionally: a purely generating
     # application declares export capacity, a demand one import capacity.
-    assert "moc_pobierana" not in CORE_FIELDS
-    assert "moc_wprowadzana" not in CORE_FIELDS
-    assert CORE_ALTERNATIVES == (("moc_pobierana", "moc_wprowadzana"),)
-    shared = {"id_wniosku": "X1", "lokalizacja_tekst": "Pozna\u0144", "klasa_zasobu": "PV",
-               "status_procesu": "WNIOSEK_ZLOZONY"}
+    assert "capacity_withdrawn" not in CORE_FIELDS
+    assert "capacity_injected" not in CORE_FIELDS
+    assert CORE_ALTERNATIVES == (("capacity_withdrawn", "capacity_injected"),)
+    shared = {"application_id": "X1", "location_text": "Pozna\u0144", "resource_class": "PV",
+               "process_status": "APPLICATION_FILED"}
     df = pd.DataFrame([
-        {**shared, "moc_wprowadzana": 1200.0, "moc_pobierana": None},   # generating
-        {**shared, "moc_wprowadzana": None, "moc_pobierana": 90.0},     # demand
-        {**shared, "moc_wprowadzana": 500.0, "moc_pobierana": 500.0},   # bidirectional
-        {**shared, "moc_wprowadzana": None, "moc_pobierana": None},     # no capacity
+        {**shared, "capacity_injected": 1200.0, "capacity_withdrawn": None},   # generating
+        {**shared, "capacity_injected": None, "capacity_withdrawn": 90.0},     # demand
+        {**shared, "capacity_injected": 500.0, "capacity_withdrawn": 500.0},   # bidirectional
+        {**shared, "capacity_injected": None, "capacity_withdrawn": None},     # no capacity
     ])
     assert core_complete_mask(df).tolist() == [True, True, True, False]
 
 
 def test_the_core_is_separate_for_each_entity_of_the_duty():
-    # A WEZEL entity row must not be judged by the requirements of the WNIOSEK
+    # A NODE entity row must not be judged by the requirements of the APPLICATION
     # entity: point 2 of the provision has a different subject than points 1/3/4.
-    assert set(CORE_BY_ENTITY) == {"WNIOSEK", "WEZEL"}
+    assert set(CORE_BY_ENTITY) == {"APPLICATION", "NODE"}
     df = pd.DataFrame([
-        {ENTITY_COLUMN: "WEZEL", "id_wezla": "SE-1", "moc_dostepna": 0.0},
-        {ENTITY_COLUMN: "WEZEL", "id_wezla": "SE-2", "ograniczenie_flaga": True},
-        {ENTITY_COLUMN: "WEZEL", "id_wezla": "SE-3"},
-        {ENTITY_COLUMN: "WNIOSEK", "id_wniosku": "X1", "lokalizacja_tekst": "Gda\u0144sk",
-         "klasa_zasobu": "BESS", "status_procesu": "WARUNKI_WYDANE", "moc_pobierana": 10.0},
+        {ENTITY_COLUMN: "NODE", "node_id": "SE-1", "capacity_available": 0.0},
+        {ENTITY_COLUMN: "NODE", "node_id": "SE-2", "constraint_flag": True},
+        {ENTITY_COLUMN: "NODE", "node_id": "SE-3"},
+        {ENTITY_COLUMN: "APPLICATION", "application_id": "X1", "location_text": "Gda\u0144sk",
+         "resource_class": "BESS", "process_status": "CONDITIONS_ISSUED", "capacity_withdrawn": 10.0},
     ])
     assert core_complete_mask(df).tolist() == [True, True, False, True]
 
 
 def test_a_missing_entity_annotation_means_an_application():
-    df = pd.DataFrame([{"id_wniosku": "X1", "lokalizacja_tekst": "\u0141\u00f3d\u017a",
-                        "klasa_zasobu": "ODB", "status_procesu": "PRZYLACZONY",
-                        "moc_pobierana": 40.0}])
+    df = pd.DataFrame([{"application_id": "X1", "location_text": "\u0141\u00f3d\u017a",
+                        "resource_class": "LOAD", "process_status": "CONNECTED",
+                        "capacity_withdrawn": 40.0}])
     assert ENTITY_COLUMN not in df.columns
     assert core_complete_mask(df).tolist() == [True]
 
@@ -68,7 +68,7 @@ def test_every_field_has_a_legal_basis_and_a_group():
 
 def test_the_canonical_power_unit_is_kw():
     for f in SCHEMA:
-        if f.name.startswith("moc_"):
+        if f.name.startswith("capacity_"):
             assert f.unit == "kW", f.name
 
 
@@ -107,53 +107,53 @@ def test_canonical_power_rejects_an_unknown_unit():
 
 
 def test_validate_instance_detects_a_missing_core():
-    row = {"id_wniosku": "X1", "lokalizacja_tekst": "Warszawa, Grochowska"}
+    row = {"application_id": "X1", "location_text": "Warszawa, Grochowska"}
     problems = validate_instance(row)
-    assert any("klasa_zasobu" in p for p in problems)
-    assert any("status_procesu" in p for p in problems)
+    assert any("resource_class" in p for p in problems)
+    assert any("process_status" in p for p in problems)
     # capacity is not a core field unconditionally, so its absence is not reported here
-    assert not any("moc_pobierana" in p for p in problems)
+    assert not any("capacity_withdrawn" in p for p in problems)
 
 
 def test_validate_instance_passes_a_correct_row():
     row = {
-        "id_wniosku": "X1", "lokalizacja_tekst": "Warszawa, Grochowska",
-        "klasa_zasobu": "ODB", "moc_pobierana": 12000.0,
-        "status_procesu": "WNIOSEK_ZLOZONY", "data_wniosku": "2026-06-29",
-        "wspolrzedne": (52.25, 21.07), "_annotation": "any_value",
+        "application_id": "X1", "location_text": "Warszawa, Grochowska",
+        "resource_class": "LOAD", "capacity_withdrawn": 12000.0,
+        "process_status": "APPLICATION_FILED", "date_application": "2026-06-29",
+        "coordinates": (52.25, 21.07), "_annotation": "any_value",
     }
     assert validate_instance(row, strict_vocab=True) == []
 
 
 def test_validate_instance_detects_a_field_outside_the_schema():
     row = {c: "x" for c in CORE_FIELDS}
-    row["moc_pobierana"] = 1.0
+    row["capacity_withdrawn"] = 1.0
     row["nonexistent_field"] = 1
     assert any("fields outside the schema" in p for p in validate_instance(row))
 
 
 def test_validate_instance_detects_a_wrong_type_and_a_wrong_geopoint():
     row = {c: "x" for c in CORE_FIELDS}
-    row["moc_pobierana"] = "dużo"
-    row["wspolrzedne"] = (999.0, 0.0)
+    row["capacity_withdrawn"] = "dużo"
+    row["coordinates"] = (999.0, 0.0)
     problems = validate_instance(row)
-    assert any("moc_pobierana" in p for p in problems)
-    assert any("wspolrzedne" in p for p in problems)
+    assert any("capacity_withdrawn" in p for p in problems)
+    assert any("coordinates" in p for p in problems)
 
 
 def test_validate_frame_counts_fill_rate_and_core():
     df = pd.DataFrame({
-        "id_wniosku": ["a", "b"],
-        "lokalizacja_tekst": ["x", None],
-        "klasa_zasobu": ["PV", "PV"],
-        "moc_pobierana": [1.0, 2.0],
-        "status_procesu": ["ODMOWA", "ODMOWA"],
+        "application_id": ["a", "b"],
+        "location_text": ["x", None],
+        "resource_class": ["PV", "PV"],
+        "capacity_withdrawn": [1.0, 2.0],
+        "process_status": ["REFUSED", "REFUSED"],
     })
     rep = validate_frame(df)
     assert rep["n_rows"] == 2
     assert rep["rows_with_complete_core"] == 1
-    assert rep["completion"]["lokalizacja_tekst"] == 0.5
-    assert rep["completion"]["data_umowy"] == 0.0
+    assert rep["completion"]["location_text"] == 0.5
+    assert rep["completion"]["date_agreement"] == 0.0
 
 
 def test_empty_frame_and_schema_table():

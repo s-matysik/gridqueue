@@ -29,8 +29,8 @@ from gridqueue.adapters.base import Adapter, ParseResult
 
 class MojAdapter(Adapter):
     key = "pl_moj_operator"
-    publikujacy = "Nazwa Operatora S.A."
-    jurysdykcja = "PL"
+    publisher = "Nazwa Operatora S.A."
+    jurisdiction = "PL"
     detekcja = [r"moj_operator", r"nazwa_operatora"]   # file name patterns
 
     def parse(self, source) -> ParseResult:
@@ -73,23 +73,23 @@ apparent power. The canonical unit of the schema is **kW of active power**. Thes
 physical quantities, and converting one into the other requires a power factor,
 which the publisher does not report.
 
-That is why `moc_dostepna` remains **empty**, and the values in MVA go into the
+That is why `capacity_available` remains **empty**, and the values in MVA go into the
 extension fields together with the source unit recorded explicitly:
 
 | extension field | meaning |
 |---|---|
-| `_jednostka_mocy_zrodlowa` | `MVA` |
-| `_moc_dostepna_mva` | MV+HV reception capability |
-| `_moc_przylaczona_mva` | capacity already connected |
-| `_moc_zakontraktowana_mva` | contracted capacity |
-| `_moc_w_potwierdzaniu_mva` | capacity under confirmation |
+| `_source_capacity_unit` | `MVA` |
+| `_capacity_available_mva` | MV+HV reception capability |
+| `_capacity_connected_mva` | capacity already connected |
+| `_capacity_contracted_mva` | contracted capacity |
+| `_capacity_being_confirmed_mva` | capacity under confirmation |
 
 This is the same principle that was applied to the publisher reporting a count of
 free connection slots instead of a capacity: entering a count of slots into a field with a different
 unit would be fabrication, not harmonization.
 
 The core of the NODE entity is nevertheless satisfied, because it is discharged by the second member of
-the alternative, `ograniczenie_flaga`, set on the basis of a zero reception capability. Zero is
+the alternative, `constraint_flag`, set on the basis of a zero reception capability. Zero is
 a **disclosed** value and means a constraint; an empty cell means non-disclosure
 and does not set the flag. This concerns 222 of 469 nodes.
 
@@ -101,7 +101,7 @@ a Polish category error, turned out to be the condition for absorbing a foreign 
 ```python
 from gridqueue import get_adapter
 r = get_adapter("pt_eredes").parse("pt_eredes_capacidade_rececao_rnd_2T2026.csv")
-r.frame[["id_wezla", "nazwa_wezla", "lokalizacja_tekst", "ograniczenie_flaga"]]
+r.frame[["node_id", "node_name", "location_text", "constraint_flag"]]
 r.report["note_units"]
 ```
 
@@ -150,7 +150,7 @@ transformers at a substation. Coordinates are present in 46,525 rows.
 ### Two units in one file
 
 The publisher reports the **offtake side in MVA** (apparent power) and the **generating side in MW**
-(active power). The `moc_dostepna` field therefore carries the available **firm generating**
+(active power). The `capacity_available` field therefore carries the available **firm generating**
 capacity, converted from MW to kW, while the offtake side stays in the extensions with the unit in the
 field name. Summing MW with MVA would give a figure with no physical sense, and choosing one side
 without saying so openly would be hiding a decision.

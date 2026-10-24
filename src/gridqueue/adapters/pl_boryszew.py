@@ -36,11 +36,11 @@ _SECTIONS = (
 
 LAYOUTS = {
     1: ("item_no", "entity_kind", "location", "capacity_mw", "installation_kind",
-        "data_warunkow", "data_umowy", "data_energizacji"),
+        "date_conditions", "date_agreement", "date_energisation"),
     3: ("item_no", "entity_kind", "location", "capacity_mw", "installation_kind",
         "date_submission", "date_advance_payment", "application_status"),
     4: ("item_no", "location", "capacity_mw", "installation_kind", "date_submission",
-        "date_advance_payment", "powod_odmowy"),
+        "date_advance_payment", "refusal_reason"),
 }
 
 
@@ -48,17 +48,17 @@ class BoryszewAdapter(Adapter):
     publisher = "Boryszew Green Energy&Gas Sp. z o.o."
     jurisdiction = "PL"
     declared_fields = (
-        "id_wniosku", "lokalizacja_tekst", "klasa_zasobu", "moc_pobierana",
-        "status_procesu", "data_wniosku", "data_warunkow", "data_umowy",
-        "data_energizacji", "data_publikacji",
+        "application_id", "location_text", "resource_class", "capacity_withdrawn",
+        "process_status", "date_application", "date_conditions", "date_agreement",
+        "date_energisation", "date_published",
     )
     declared_extensions = {
-        "_rodzaj_podmiotu": "description of the connected entity (legal person/natural person)",
-        "_data_zaliczki": "date of the deposit payment",
-        "_sekcja": "the point of Art. 7(8l) that the row originates from",
-        "_rodzaj_instalacji_raw": "type of installation exactly as in the document",
+        "_applicant_kind": "description of the connected entity (legal person/natural person)",
+        "_date_advance_payment": "date of the deposit payment",
+        "_section": "the point of Art. 7(8l) that the row originates from",
+        "_installation_kind_raw": "type of installation exactly as in the document",
         "_status_raw": "processing status exactly as in the document",
-        "_uwaga_zrodlowa": "publisher's annotation (e.g. 'Nie dotyczy / istniejące przyłącze')",
+        "_source_note": "publisher's annotation (e.g. 'Nie dotyczy / istniejące przyłącze')",
     }
     detect_patterns = (r"boryszew", r"elana")
 
@@ -146,37 +146,37 @@ class BoryszewAdapter(Adapter):
             return pd.DataFrame(), n_raw
 
         out = pd.DataFrame(index=raw.index)
-        out["id_wniosku"] = [f"boryszew:pkt{sec}:{i + 1}" for i in range(len(raw))]
-        out["lokalizacja_tekst"] = raw["location"].replace("", None)
-        out["klasa_zasobu"] = raw["installation_kind"].map(harmonize_class)
-        out["moc_pobierana"] = raw["capacity_mw"].map(lambda v: canonical_power_kw(v, "MW"))
-        out["data_publikacji"] = self.publication_date
-        out["_sekcja"] = f"Art. 7(8l), item {sec}"
-        out["_rodzaj_instalacji_raw"] = raw["installation_kind"].replace("", None)
+        out["application_id"] = [f"boryszew:pkt{sec}:{i + 1}" for i in range(len(raw))]
+        out["location_text"] = raw["location"].replace("", None)
+        out["resource_class"] = raw["installation_kind"].map(harmonize_class)
+        out["capacity_withdrawn"] = raw["capacity_mw"].map(lambda v: canonical_power_kw(v, "MW"))
+        out["date_published"] = self.publication_date
+        out["_section"] = f"Art. 7(8l), item {sec}"
+        out["_installation_kind_raw"] = raw["installation_kind"].replace("", None)
         if "entity_kind" in raw:
-            out["_rodzaj_podmiotu"] = raw["entity_kind"].replace("", None)
+            out["_applicant_kind"] = raw["entity_kind"].replace("", None)
         if sec == 1:
-            out["data_warunkow"] = raw["data_warunkow"].map(canonical_date)
-            out["data_umowy"] = raw["data_umowy"].map(canonical_date)
-            out["data_energizacji"] = raw["data_energizacji"].map(canonical_date)
-            out["_uwaga_zrodlowa"] = raw["data_umowy"].replace("", None)
+            out["date_conditions"] = raw["date_conditions"].map(canonical_date)
+            out["date_agreement"] = raw["date_agreement"].map(canonical_date)
+            out["date_energisation"] = raw["date_energisation"].map(canonical_date)
+            out["_source_note"] = raw["date_agreement"].replace("", None)
             _ok = lambda v: v is not None and not (isinstance(v, float) and v != v)
-            out["status_procesu"] = [
-                "PRZYLACZONY" if _ok(e) else ("UMOWA_OBOWIAZUJACA" if _ok(u) else
-                                              ("WARUNKI_WYDANE" if _ok(w) else "NIEOKRESLONY"))
-                for e, u, w in zip(out["data_energizacji"], out["data_umowy"],
-                                   out["data_warunkow"])
+            out["process_status"] = [
+                "CONNECTED" if _ok(e) else ("AGREEMENT_IN_FORCE" if _ok(u) else
+                                              ("CONDITIONS_ISSUED" if _ok(w) else "UNSPECIFIED"))
+                for e, u, w in zip(out["date_energisation"], out["date_agreement"],
+                                   out["date_conditions"])
             ]
         elif sec == 3:
-            out["data_wniosku"] = raw["date_submission"].map(canonical_date)
-            out["_data_zaliczki"] = raw["date_advance_payment"].map(canonical_date)
-            out["status_procesu"] = raw["application_status"].map(harmonize_status)
+            out["date_application"] = raw["date_submission"].map(canonical_date)
+            out["_date_advance_payment"] = raw["date_advance_payment"].map(canonical_date)
+            out["process_status"] = raw["application_status"].map(harmonize_status)
             out["_status_raw"] = raw["application_status"].replace("", None)
         else:
-            out["data_wniosku"] = raw["date_submission"].map(canonical_date)
-            out["powod_odmowy"] = raw["powod_odmowy"].replace("", None)
-            out["status_procesu"] = "ODMOWA"
-        out["_lp_dokumentu"] = raw["item_no"]
+            out["date_application"] = raw["date_submission"].map(canonical_date)
+            out["refusal_reason"] = raw["refusal_reason"].replace("", None)
+            out["process_status"] = "REFUSED"
+        out["_document_item_no"] = raw["item_no"]
         return out, n_raw
 
 
@@ -223,7 +223,7 @@ def _parse_nodes(lines: list[list[dict]]) -> list[dict]:
                     vals.append(w["text"])
                 else:
                     name_toks.append(w["text"])
-            rec = {"nazwa_wezla": " ".join(name_toks),
+            rec = {"node_name": " ".join(name_toks),
                    "available_capacity_kw": {}}
             for i, v in enumerate(vals):
                 y = years[i] if i < len(years) else f"kol{i}"

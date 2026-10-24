@@ -569,7 +569,7 @@ body.mode-full .simple-only{display:none !important}
   <sup>3</sup> The Parquet engine has no WebAssembly build; use the CSV or XLSX export, or the notebook.</div></div>
   <p class="small" style="margin-top:16px">For everything at once, open the
   <a href="https://colab.research.google.com/github/s-matysik/gridqueue/blob/main/notebooks/gridqueue_colab.ipynb">Colab notebook</a>,
-  or install the package with <span class="mono">pip install "gridqueue[plot] @ git+https://github.com/s-matysik/gridqueue@v1.7.0"</span>.</p>
+  or install the package with <span class="mono">pip install "gridqueue[plot] @ git+https://github.com/s-matysik/gridqueue@v1.0.0"</span>.</p>
 </section>
 
 <footer>
@@ -660,21 +660,21 @@ SIMPLE_ORDER = ["edition_comparison", "status_distribution", "capacity_by_class"
                 "node_loading_generation", "node_loading_demand", "quality_rules", "field_coverage"]
 
 def _coverage(df):
-    app = df[df["_encja"].fillna("WNIOSEK") != "WEZEL"] if "_encja" in df else df
-    return min(float(app[c].notna().mean()) if c in app and len(app) else 0.0 for c in ("data_wniosku", "data_warunkow"))
+    app = df[df["_entity"].fillna("APPLICATION") != "NODE"] if "_entity" in df else df
+    return min(float(app[c].notna().mean()) if c in app and len(app) else 0.0 for c in ("date_application", "date_conditions"))
 
 def _headlines(df, km, nodes, cmp_, min_cov):
     """Short sentences with the main numbers, for the simple view. Every number is computed."""
     out = []
-    app = df[df["_encja"].fillna("WNIOSEK") != "WEZEL"] if "_encja" in df else df
-    pubs = [P.publisher_label(p) for p in app["publikujacy"].dropna().unique()] if "publikujacy" in app else []
-    asat = sorted(app["data_publikacji"].dropna().astype(str).unique()) if "data_publikacji" in app else []
+    app = df[df["_entity"].fillna("APPLICATION") != "NODE"] if "_entity" in df else df
+    pubs = [P.publisher_label(p) for p in app["publisher"].dropna().unique()] if "publisher" in app else []
+    asat = sorted(app["date_published"].dropna().astype(str).unique()) if "date_published" in app else []
     out.append(f"{len(app):,} applications" + (f" from {', '.join(pubs)}" if pubs else "")
                + (f", as at {asat[-1]}" if asat else "") + ".")
-    if "status_procesu" in app:
-        act = app[app["status_procesu"].isin(P.ACTIVE_STATUSES)]
-        gen = act[~act["klasa_zasobu"].isin(["ODB", "SIEC"])] if "klasa_zasobu" in act else act
-        w = pd.to_numeric(gen["moc_wprowadzana"], errors="coerce") if "moc_wprowadzana" in gen else pd.Series(dtype=float)
+    if "process_status" in app:
+        act = app[app["process_status"].isin(P.ACTIVE_STATUSES)]
+        gen = act[~act["resource_class"].isin(["LOAD", "GRID"])] if "resource_class" in act else act
+        w = pd.to_numeric(gen["capacity_injected"], errors="coerce") if "capacity_injected" in gen else pd.Series(dtype=float)
         if len(act):
             mw = float(w[w > 0].sum()) / 1000.0 if len(w) else 0.0
             out.append(f"{len(act):,} are still in the queue" + (
@@ -708,12 +708,12 @@ def _core(df, df_b, reports, gazetteer_path, label_a, label_b, min_n, min_cov, s
     geo = None
     if gazetteer_path:
         df = G.geocode_frame(df, G.resolver_from_gazetteer_json(gazetteer_path))
-        geo = {"with_point": int(df["wspolrzedne"].notna().sum()), "rows": int(len(df)),
-               "reasons": _clean(df.loc[df["wspolrzedne"].isna(), "_geo_powod"].value_counts().head(12).to_dict())}
+        geo = {"with_point": int(df["coordinates"].notna().sum()), "rows": int(len(df)),
+               "reasons": _clean(df.loc[df["coordinates"].isna(), "_geo_reason"].value_counts().head(12).to_dict())}
     out = {"package": G.__version__, "schema": G.SCHEMA_VERSION, "rows": int(len(df)),
            "cols": int(df.shape[1]), "parse_reports": _clean(reports), "geocoding": geo,
            "label_a": label_a or "A", "label_b": label_b or "B"}
-    pubs = df["publikujacy"].dropna().astype(str).unique().tolist() if "publikujacy" in df else []
+    pubs = df["publisher"].dropna().astype(str).unique().tolist() if "publisher" in df else []
     out["publishers"] = [P.publisher_label(p) for p in pubs]
     q = G.run_quality(df).as_dict(); out["quality"] = _clean(q)
     out["violations"] = int(q.get("violations_total", 0))
@@ -726,16 +726,16 @@ def _core(df, df_b, reports, gazetteer_path, label_a, label_b, min_n, min_cov, s
     out["preview"] = _records(df[out["preview_cols"]], 200)
     km = G.kaplan_meier_by_group(df, min_n=min_n)
     out["km"] = _records(km)
-    app = df[df["_encja"].fillna("WNIOSEK") != "WEZEL"] if "_encja" in df else df
+    app = df[df["_entity"].fillna("APPLICATION") != "NODE"] if "_entity" in df else df
     cov = _coverage(df)
     nodes, nl_figs = [], {}
-    if "_encja" in df and (df["_encja"] == "WEZEL").any() and (df["_encja"] != "WEZEL").any():
+    if "_entity" in df and (df["_entity"] == "NODE").any() and (df["_entity"] != "NODE").any():
         mapping = G.station_node_map(df)
         if len(mapping):
             assigned = G.assign_to_nodes(df, mapping)
-            has110 = "poziom_napiecia" in df and df["poziom_napiecia"].astype("string").str.contains("110", na=False).any()
+            has110 = "voltage_level" in df and df["voltage_level"].astype("string").str.contains("110", na=False).any()
             variants = ((("110 kV queue", "110"),) if has110 else ()) + (("all voltages", None),)
-            for field, nm in (("moc_wprowadzana", "generation"), ("moc_pobierana", "demand")):
+            for field, nm in (("capacity_injected", "generation"), ("capacity_withdrawn", "demand")):
                 for i, (var, voltage) in enumerate(variants):
                     L = G.node_loading(assigned, capacity_field=field, voltage=voltage)
                     v = pd.to_numeric(L["loading"], errors="coerce")
@@ -762,9 +762,9 @@ def _core(df, df_b, reports, gazetteer_path, label_a, label_b, min_n, min_cov, s
     out["comparison"] = cmp_
     figs = {"overview": P.plot_overview(df), "field_coverage": P.plot_field_coverage(df),
             "quality_rules": P.plot_quality(df), "column_shift": P.plot_column_shift(df)}
-    if "status_procesu" in app and app["status_procesu"].notna().any():
+    if "process_status" in app and app["process_status"].notna().any():
         figs["status_distribution"] = P.plot_status_distribution(df, normalize=True)
-    if "klasa_zasobu" in app and app["klasa_zasobu"].notna().any():
+    if "resource_class" in app and app["resource_class"].notna().any():
         figs["capacity_by_class"] = P.plot_capacity_by_class(df)
     skipped = []
     if len(km) and cov >= min_cov:
@@ -867,7 +867,7 @@ def chart(name, fmt, path):
 </script>
 <script src="https://cdn.jsdelivr.net/pyodide/v0.28.3/full/pyodide.js"></script>
 <script>
-const WHEEL = "gridqueue-1.7.0-py3-none-any.whl";
+const WHEEL = "gridqueue-1.0.0-py3-none-any.whl";
 const $ = (id) => document.getElementById(id);
 let py = null, ready = false, busy = false;
 const files = { A: [], B: [], G: [], S: [] };
@@ -1114,7 +1114,7 @@ function render(d){
                                    new Set(["nodes","defined","above_1","median"]), "n/a");
   else $("nltab").innerHTML = `<tbody><tr><td class="nil">The panel carries no node rows with declared free capacity.</td></tr></tbody>`;
 
-  const numeric = new Set(["moc_pobierana","moc_wprowadzana","moc_dostepna","moc_zarezerwowana","pozycja_w_kolejce"]);
+  const numeric = new Set(["capacity_withdrawn","capacity_injected","capacity_available","capacity_reserved","queue_position"]);
   table($("tab"), d.preview_cols, d.preview, numeric);
   $("tabnote").textContent = `First ${fmt(Math.min(200, d.rows))} of ${fmt(d.rows)} rows, and the `
     + `${d.preview_cols.length} schema fields populated. The full table is in the downloads.`;

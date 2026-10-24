@@ -11,13 +11,13 @@ distribution", so the duty covers the OSP just as much as the OSD.
 What this really means for comparability:
   * the voltage range is different: 110/220/400 kV instead of MV/110 kV. This is not a
     mismatch with the schema (the duty applies to networks above 1 kV), just a measured
-    difference in the ``poziom_napiecia`` field;
+    difference in the ``voltage_level`` field;
   * PSE fulfills items 1), 3) and 4) in a single compilation (the APPLICATION entity);
   * item 2) (available capacity at the stations) PSE discloses DIFFERENTLY: not as capacity
     in MW, but as a "Listę rozdzielni, dla których brak jest dostępnych miejsc przyłączenia"
     with the NUMBER of available slots. This is information about the node and about the
-    constraint, but it is NOT a capacity value: we map it to ``ograniczenie_flaga`` and the
-    extension ``_liczba_dostepnych_miejsc``, and we leave the ``moc_dostepna`` field empty.
+    constraint, but it is NOT a capacity value: we map it to ``constraint_flag`` and the
+    extension ``_free_slots``, and we leave the ``capacity_available`` field empty.
     Putting a zero or the number of slots there would be a fabrication of the unit.
 
 The carrier is XLSX, not PDF, so column geometry is not a problem here at all: the worksheet
@@ -44,14 +44,14 @@ _SHEET_VOCAB = "Listy rozwijane"
 class PSEAdapter(Adapter):
     publisher = "PSE S.A."
     jurisdiction = "PL"
-    declared_fields = T.DECLARED_FIELDS + ("id_wezla", "nazwa_wezla", "ograniczenie_flaga")
+    declared_fields = T.DECLARED_FIELDS + ("node_id", "node_name", "constraint_flag")
     declared_extensions = dict(
         T.DECLARED_EXTENSIONS,
-        _liczba_dostepnych_miejsc="number of free connection slots at the switching station",
-        _symbol_stacji="station symbol in PSE nomenclature",
-        _zko_pse="PSE Coordination Centre",
-        _rozdzielnia="identifier of the switching station within the station",
-        _przypisy="footnote references stripped from the cell contents (field=marker)",
+        _free_slots="number of free connection slots at the switching station",
+        _station_symbol="station symbol in PSE nomenclature",
+        _pse_coordination_centre="PSE Coordination Centre",
+        _switchgear="identifier of the switching station within the station",
+        _footnotes="footnote references stripped from the cell contents (field=marker)",
     )
     detect_patterns = (r"pse", r"art_7_ust_8l", r"polskie sieci elektroenergetyczne")
 
@@ -130,14 +130,14 @@ class PSEAdapter(Adapter):
             m = {T.PSE_XLSX_LAYOUT.get(ci, f"kol{ci}"): txt
                  for (rr, ci), txt in footnotes.items() if rr == ri}
             markers.append("; ".join(f"{k}={v}" for k, v in sorted(m.items())) or None)
-        out["_przypisy"] = markers
+        out["_footnotes"] = markers
         n_footnotes = sum(1 for z in markers if z)
 
         vocab = self._read_vocab(xl)
         return out, {
             "file_name": str(src),
             "sheet": _SHEET_MAIN,
-            "entity": "WNIOSEK",
+            "entity": "APPLICATION",
             "n_source_columns": int(body.shape[1]),
             "header_row": hdr_row,
             "rejected_legend_rows": legend,
@@ -184,33 +184,33 @@ class PSEAdapter(Adapter):
         idx = [i for i in range(len(body)) if keep.iloc[i]]
 
         out = pd.DataFrame(index=range(len(idx)))
-        out["id_wniosku"] = None
-        out["id_wezla"] = [f"pse:{symbol.iloc[i]}:{_volt_tag(switchgear.iloc[i])}" for i in idx]
-        out["nazwa_wezla"] = [label_name.iloc[i] for i in idx]
-        out["lokalizacja_tekst"] = [label_name.iloc[i] for i in idx]
-        out["poziom_napiecia"] = [_volt_of(switchgear.iloc[i]) for i in idx]
-        out["klasa_zasobu"] = "NIEOKRESLONA"
-        out["status_procesu"] = "NIEOKRESLONY"
-        # moc_dostepna is NOT filled in: the source gives the NUMBER OF SLOTS, not capacity.
-        out["moc_dostepna"] = None
-        out["ograniczenie_flaga"] = [
+        out["application_id"] = None
+        out["node_id"] = [f"pse:{symbol.iloc[i]}:{_volt_tag(switchgear.iloc[i])}" for i in idx]
+        out["node_name"] = [label_name.iloc[i] for i in idx]
+        out["location_text"] = [label_name.iloc[i] for i in idx]
+        out["voltage_level"] = [_volt_of(switchgear.iloc[i]) for i in idx]
+        out["resource_class"] = "UNSPECIFIED"
+        out["process_status"] = "UNSPECIFIED"
+        # capacity_available is NOT filled in: the source gives the NUMBER OF SLOTS, not capacity.
+        out["capacity_available"] = None
+        out["constraint_flag"] = [
             (float(places.iloc[i]) == 0.0) if _num(places.iloc[i]) is not None else None
             for i in idx
         ]
-        out["data_publikacji"] = as_at
-        out["_encja"] = "WEZEL"
-        out["_liczba_dostepnych_miejsc"] = [_num(places.iloc[i]) for i in idx]
-        out["_symbol_stacji"] = [symbol.iloc[i] for i in idx]
-        out["_rozdzielnia"] = [switchgear.iloc[i] for i in idx]
-        out["_zko_pse"] = [zko.iloc[i] for i in idx]
+        out["date_published"] = as_at
+        out["_entity"] = "NODE"
+        out["_free_slots"] = [_num(places.iloc[i]) for i in idx]
+        out["_station_symbol"] = [symbol.iloc[i] for i in idx]
+        out["_switchgear"] = [switchgear.iloc[i] for i in idx]
+        out["_pse_coordination_centre"] = [zko.iloc[i] for i in idx]
         return out, {
             "file_name": str(src),
             "sheet": sheet,
-            "entity": "WEZEL",
+            "entity": "NODE",
             "n_rows": int(len(out)),
             "parse_as_at": as_at,
             "note": "the source gives the number of free connection slots, not capacity in "
-                     "MW; moc_dostepna remains empty",
+                     "MW; capacity_available remains empty",
         }
 
     # ------------------------------------------------------------------
@@ -254,7 +254,7 @@ def _read_sheet_without_footnotes(src, sheet: str):
     ``font.vertAlign == "superscript"``. So we cut it off based on FORMATTING, not
     by guessing that a trailing capital letter "is probably a footnote": such
     guessing would mutilate real station names ending in a letter.
-    The reference itself is not discarded: it comes back in the ``_przypisy`` extension.
+    The reference itself is not discarded: it comes back in the ``_footnotes`` extension.
     """
     import pandas as pd
     from openpyxl import load_workbook

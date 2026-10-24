@@ -71,16 +71,16 @@ def test_domain_predicates():
 
 def test_audit_column_shift_detects_capacity_in_the_status_field():
     df = pd.DataFrame({
-        "status_procesu": ["UMOWA obowiązująca", "1,5 10,0 UMOWA O PRZYŁĄCZENIE"],
-        "moc_pobierana": [1.0, None],
+        "process_status": ["UMOWA obowiązująca", "1,5 10,0 UMOWA O PRZYŁĄCZENIE"],
+        "capacity_withdrawn": [1.0, None],
     })
     a = audit_column_shift(df)
     assert a.n_rows == 2
     assert a.n_shifted == 1
-    assert a.per_field == {"status_procesu": 1}
+    assert a.per_field == {"process_status": 1}
     assert 0.49 < a.share < 0.51
 
 
 def test_audit_column_shift_ignores_empty_values():
-    df = pd.DataFrame({"status_procesu": ["", "-", None], "moc_pobierana": [None] * 3})
+    df = pd.DataFrame({"process_status": ["", "-", None], "capacity_withdrawn": [None] * 3})
     assert audit_column_shift(df).n_shifted == 0

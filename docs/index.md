@@ -5,7 +5,7 @@ title: gridqueue
 # gridqueue
 
 Harmonizer of statutory grid-connection disclosures for the electricity network.
-Version **1.7.0** · [repository](https://github.com/s-matysik/gridqueue) ·
+Version **1.0.0** · [repository](https://github.com/s-matysik/gridqueue) ·
 [run in the browser](app/) · [open in Colab](https://colab.research.google.com/github/s-matysik/gridqueue/blob/main/notebooks/gridqueue_colab.ipynb)
 
 > **In English.** `gridqueue` parses the statutory grid-connection disclosures that Polish
@@ -63,7 +63,7 @@ confidence level and a placement accuracy level.
 * [Running in Google Colab](colab.md)
 * [Command line](cli.md)
 * [Limitations](limitations.md)
-* [Renamed identifiers in 1.7.0](renamed.md)
+* [Names in the wording of the statute](schema.md#names-in-the-wording-of-the-statute)
 
 ## Installation
 

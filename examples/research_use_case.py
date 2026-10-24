@@ -9,8 +9,8 @@ What this example shows about the tool
 --------------------------------------
 Adapters are source specific, but **the research analysis is not**. The code
 below contains not a single branch that depends on the publisher: it works only
-on the fields of the common schema (`data_wniosku`, `data_warunkow`,
-`klasa_zasobu`, `publikujacy`) and runs identically on the output of every
+on the fields of the common schema (`date_application`, `date_conditions`,
+`resource_class`, `publisher`) and runs identically on the output of every
 adapter. That, and not the mere fact that a document could be broken down into
 rows, is what harmonisation produces.
 
@@ -45,15 +45,15 @@ MIN_N = 30
 
 #: Readable names of the resource classes from the controlled vocabulary of the schema.
 CLASS_NAMES = {
-    "ODB": "demand",
+    "LOAD": "demand",
     "PV": "photovoltaics",
-    "FW": "wind",
+    "WIND": "wind",
     "BESS": "energy storage",
-    "GAZ": "gas",
-    "EW": "hydro",
+    "GAS": "gas",
+    "HYDRO": "hydro",
     "MIX": "mixed installation",
-    "SIEC": "network",
-    "BIOGAZ": "biogas",
+    "GRID": "network",
+    "BIOGAS": "biogas",
 }
 
 
@@ -66,9 +66,9 @@ def load_panel(path: Path) -> pd.DataFrame:
 def processing_time(panel: pd.DataFrame) -> pd.DataFrame:
     """Time from lodging the application to the issue of conditions, in days."""
     df = panel.copy()
-    for col in ("data_wniosku", "data_warunkow"):
+    for col in ("date_application", "date_conditions"):
         df[col] = pd.to_datetime(df[col], errors="coerce")
-    df["time_days"] = (df["data_warunkow"] - df["data_wniosku"]).dt.days
+    df["time_days"] = (df["date_conditions"] - df["date_application"]).dt.days
     return df
 
 
@@ -83,15 +83,15 @@ def summary_table(df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
     negative = countable & (df["time_days"] < 0)
     ok = df.loc[countable & ~negative]
 
-    tab = (ok.groupby(["publikujacy", "klasa_zasobu"])["time_days"]
+    tab = (ok.groupby(["publisher", "resource_class"])["time_days"]
              .agg(n="size", median="median",
                   quartile_1=lambda s: s.quantile(0.25),
                   quartile_3=lambda s: s.quantile(0.75))
              .reset_index())
     tab = tab.loc[tab["n"] >= MIN_N].copy()
     tab["iqr"] = tab["quartile_3"] - tab["quartile_1"]
-    tab["class_description"] = tab["klasa_zasobu"].map(CLASS_NAMES).fillna(tab["klasa_zasobu"])
-    tab = tab.sort_values(["publikujacy", "median"]).reset_index(drop=True)
+    tab["class_description"] = tab["resource_class"].map(CLASS_NAMES).fillna(tab["resource_class"])
+    tab = tab.sort_values(["publisher", "median"]).reset_index(drop=True)
 
     meta = {
         "gridqueue": __version__,
@@ -101,7 +101,7 @@ def summary_table(df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
         "rows_with_countable_time": int(len(ok)),
         "rejected_negative": int(negative.sum()),
         "groups_below_threshold_skipped": int(
-            ok.groupby(["publikujacy", "klasa_zasobu"]).size().lt(MIN_N).sum()),
+            ok.groupby(["publisher", "resource_class"]).size().lt(MIN_N).sum()),
         "min_n_group": MIN_N,
         "median_total_days": float(ok["time_days"].median()),
     }
@@ -115,8 +115,7 @@ def fig(tab: pd.DataFrame, file_name: Path) -> None:
 
     # The colour is bound to the NAME of the publisher, not to the position in the
     # sorted list: otherwise adding a publisher would repaint the others and the
-    # figure would drift away from the other figures of the project. A regression
-    # from release 1.1.0, restored here.
+    # figure would drift away from the other figures of the project.
     COLORS = {
         "TAURON Dystrybucja S.A.": "#1b5e8c",
         "ENERGA-OPERATOR S.A.": "#2e8b78",
@@ -129,13 +128,13 @@ def fig(tab: pd.DataFrame, file_name: Path) -> None:
     fig, ax = plt.subplots(figsize=(6.6, 0.30 * len(tab) + 1.7))
     for i, (_, r) in enumerate(tab.iterrows()):
         ax.plot([r["quartile_1"], r["quartile_3"]], [i, i], lw=3.2, alpha=0.35,
-                color=COLORS.get(r["publikujacy"], RESERVE),
+                color=COLORS.get(r["publisher"], RESERVE),
                 solid_capstyle="butt")
-        ax.plot([r["median"]], [i], "o", ms=5, color=COLORS.get(r["publikujacy"], RESERVE))
+        ax.plot([r["median"]], [i], "o", ms=5, color=COLORS.get(r["publisher"], RESERVE))
         ax.text(r["quartile_3"] + 8, i, f"{r['median']:.0f} d  (n={int(r['n'])})",
                 va="center", fontsize=7)
     ax.set_yticks(list(range(len(tab))))
-    ax.set_yticklabels([f"{r['class_description']}, {r['publikujacy'].split()[0]}"
+    ax.set_yticklabels([f"{r['class_description']}, {r['publisher'].split()[0]}"
                         for _, r in tab.iterrows()], fontsize=7)
     ax.invert_yaxis()
     ax.set_xlim(0, tab["quartile_3"].max() * 1.30)
@@ -169,7 +168,7 @@ def main(argv: list[str]) -> int:
     for k, v in meta.items():
         print(f"{k}: {v}")
     print()
-    columns = ["publikujacy", "class_description", "n", "median", "quartile_1", "quartile_3"]
+    columns = ["publisher", "class_description", "n", "median", "quartile_1", "quartile_3"]
     print(tab[columns].to_string(index=False))
     print(f"\nsaved: {csv_path} and {outdir / 'processing_time.png'}")
     return 0

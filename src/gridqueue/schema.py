@@ -14,19 +14,19 @@ imposes four separate disclosure duties on the distribution system operator:
 
 From this follow three axes, which the schema maps as field groups:
 
-  IDENTITY   : what is being connected and where (id_wniosku, id_wezla, nazwa_wezla,
-                lokalizacja_tekst, wspolrzedne, poziom_napiecia, klasa_zasobu)
+  IDENTITY   : what is being connected and where (application_id, node_id, node_name,
+                location_text, coordinates, voltage_level, resource_class)
   CAPACITY   : how much capacity, in which direction, and how much of it is still left
-                (moc_wprowadzana, moc_pobierana, moc_dostepna, moc_zarezerwowana,
-                 ograniczenie_flaga, pozycja_w_kolejce)
+                (capacity_injected, capacity_withdrawn, capacity_available, capacity_reserved,
+                 constraint_flag, queue_position)
   PROCESS    : where the case stands in the administrative proceedings
-                (status_procesu, data_wniosku, data_warunkow, data_odmowy,
-                 powod_odmowy, data_umowy, data_energizacji, data_publikacji)
+                (process_status, date_application, date_conditions, date_refusal,
+                 refusal_reason, date_agreement, date_energisation, date_published)
 
 The PROCESS axis is a direct mapping of the statute's procedural path: application ->
 (advance payment) -> connection conditions or refusal -> connection agreement ->
 start of energy supply.  Connection conditions are valid for two years
-(Article 7(8i)), which makes the pair (data_warunkow, data_umowy) a checkable rule,
+(Article 7(8i)), which makes the pair (date_conditions, date_agreement) a checkable rule,
 not just two columns.
 
 The MANDATORY CORE (5 fields) is the minimum without which the disclosure fulfills
@@ -57,6 +57,10 @@ __all__ = [
     "validate_instance",
     "validate_frame",
     "empty_frame",
+    "LEGACY_COLUMNS",
+    "LEGACY_CODES",
+    "LEGACY_REASONS",
+    "from_legacy_names",
 ]
 
 # --------------------------------------------------------------------------
@@ -206,59 +210,59 @@ def _is_bool(v: Any) -> bool:
 
 SCHEMA: tuple[Field, ...] = (
     # ---------------- IDENTITY ----------------
-    Field("id_wniosku", "string", "identity", True, None, "Art. 7(8l), item 1/3/4",
+    Field("application_id", "string", "identity", True, None, "Art. 7(8l), item 1/3/4",
           "Identifier of the entry in the publisher's register; unique within the "
           "publication, not globally."),
-    Field("id_wezla", "string", "identity", False, None, "Art. 7(8l), item 2",
+    Field("node_id", "string", "identity", False, None, "Art. 7(8l), item 2",
           "Identifier of the electricity substation or its group, by "
           "which the statute requires the available capacity to be reported."),
-    Field("nazwa_wezla", "string", "identity", False, None, "Art. 7(8l), item 2",
+    Field("node_name", "string", "identity", False, None, "Art. 7(8l), item 2",
           "Proper name of the station/supply point, if the publisher discloses it."),
-    Field("lokalizacja_tekst", "string", "identity", True, None, "Art. 7(8l), item 1/3/4",
+    Field("location_text", "string", "identity", True, None, "Art. 7(8l), item 1/3/4",
           "Location of the connection point exactly as given by the publisher "
           "(address, locality, station code), without interpretation."),
-    Field("wspolrzedne", "geopoint", "identity", False, "WGS84", "Art. 7(8l), item 1/2",
+    Field("coordinates", "geopoint", "identity", False, "WGS84", "Art. 7(8l), item 1/2",
           "Geographic coordinates (lat, lon); result of location resolution or "
           "source data.", _is_geopoint),
-    Field("poziom_napiecia", "string", "identity", False, None, "Art. 7(8l), item 1 (>1 kV)",
+    Field("voltage_level", "string", "identity", False, None, "Art. 7(8l), item 1 (>1 kV)",
           "Voltage level of the connection; the duty applies to networks above 1 kV, so "
           "the field determines the scope of the disclosure."),
-    Field("klasa_zasobu", "string", "identity", True, None, "Art. 7(8l), item 1/3/4",
+    Field("resource_class", "string", "identity", True, None, "Art. 7(8l), item 1/3/4",
           "Type of installation, equipment or network, harmonized to the controlled "
           "vocabulary (PV, FW, BESS, ODB, ...)."),
     # ---------------- CAPACITY ----------------
-    Field("moc_wprowadzana", "number", "capacity", False, "kW", "Art. 7(8l), item 1/3",
+    Field("capacity_injected", "number", "capacity", False, "kW", "Art. 7(8l), item 1/3",
           "Connection capacity fed into the network (generation/export).", _num_nonneg),
-    Field("moc_pobierana", "number", "capacity", False, "kW", "Art. 7(8l), item 1/3/4",
+    Field("capacity_withdrawn", "number", "capacity", False, "kW", "Art. 7(8l), item 1/3/4",
           "Connection capacity drawn from the network (consumption/import); for "
           "consumption applications this is the main quantity of the application.  It is "
           "not unconditionally a core field: the core requires AT LEAST ONE "
-          "of the pair (moc_pobierana, moc_wprowadzana), see CORE_ALTERNATIVES.", _num_nonneg),
-    Field("moc_dostepna", "number", "capacity", False, "kW", "Art. 7(8l), item 2",
+          "of the pair (capacity_withdrawn, capacity_injected), see CORE_ALTERNATIVES.", _num_nonneg),
+    Field("capacity_available", "number", "capacity", False, "kW", "Art. 7(8l), item 2",
           "Total available connection capacity at the node.", _num_nonneg),
-    Field("moc_zarezerwowana", "number", "capacity", False, "kW", "Art. 7(8l), item 2",
+    Field("capacity_reserved", "number", "capacity", False, "kW", "Art. 7(8l), item 2",
           "Capacity taken up by issued and valid connection conditions / reservation.", _num_nonneg),
-    Field("ograniczenie_flaga", "boolean", "capacity", False, None, "Art. 7(8l), item 2",
+    Field("constraint_flag", "boolean", "capacity", False, None, "Art. 7(8l), item 2",
           "Whether there is a factor at the node limiting the connection.", _is_bool),
-    Field("pozycja_w_kolejce", "number", "capacity", False, None, "Art. 7(8l), item 1",
+    Field("queue_position", "number", "capacity", False, None, "Art. 7(8l), item 1",
           "Position of the application in the connection queue, if the publisher maintains one."),
     # ---------------- PROCESS ----------------
-    Field("status_procesu", "string", "process", True, None, "Art. 7(8l), item 1/3/4",
+    Field("process_status", "string", "process", True, None, "Art. 7(8l), item 1/3/4",
           "Stage of the proceedings, harmonized to the controlled vocabulary."),
-    Field("data_wniosku", "date", "process", False, "ISO-8601", "Art. 7(8l), item 3",
+    Field("date_application", "date", "process", False, "ISO-8601", "Art. 7(8l), item 3",
           "Date the application for determination of connection conditions was filed.", _is_iso_date),
-    Field("data_warunkow", "date", "process", False, "ISO-8601", "Art. 7(8l), item 1/3",
+    Field("date_conditions", "date", "process", False, "ISO-8601", "Art. 7(8l), item 1/3",
           "Date the connection conditions were determined; the start of the two-year "
           "validity period (Article 7(8i)).", _is_iso_date),
-    Field("data_odmowy", "date", "process", False, "ISO-8601", "Art. 7(8l), item 4",
+    Field("date_refusal", "date", "process", False, "ISO-8601", "Art. 7(8l), item 4",
           "Date the refusal to determine connection conditions was issued.", _is_iso_date),
-    Field("powod_odmowy", "string", "process", False, None, "Art. 7(8l), item 4",
+    Field("refusal_reason", "string", "process", False, None, "Art. 7(8l), item 4",
           "Justification for the refusal (technical / economic / other reasons)."),
-    Field("data_umowy", "date", "process", False, "ISO-8601", "Art. 7(8l), item 1",
+    Field("date_agreement", "date", "process", False, "ISO-8601", "Art. 7(8l), item 1",
           "Date the connection agreement was concluded.", _is_iso_date),
-    Field("data_energizacji", "date", "process", False, "ISO-8601", "Art. 7(8l), item 1",
+    Field("date_energisation", "date", "process", False, "ISO-8601", "Art. 7(8l), item 1",
           "Date electricity supply began.", _is_iso_date),
-    Field("data_publikacji", "date", "process", False, "ISO-8601", "Art. 7(8m)",
+    Field("date_published", "date", "process", False, "ISO-8601", "Art. 7(8m)",
           "Status as of the date for which the publisher prepared the disclosure; "
           "the statute requires updates at least once per quarter.", _is_iso_date),
 )
@@ -273,7 +277,7 @@ OPTIONAL_FIELDS: tuple[str, ...] = tuple(f.name for f in SCHEMA if not f.core)
 #
 # The schema has two entities, because the provision has two points with a different
 # subject, and the core of one of them is not a requirement for the other.  Assessing a
-# WEZEL entity row against the requirements of the WNIOSEK entity would measure entity
+# NODE entity row against the requirements of the APPLICATION entity would measure entity
 # mismatch, not disclosure gaps.
 #
 # In both entities, part of the requirements is an ALTERNATIVE, not a specific field.  A
@@ -283,23 +287,23 @@ OPTIONAL_FIELDS: tuple[str, ...] = tuple(f.name for f in SCHEMA if not f.core)
 # implemented via the available capacity or via the number of free connection slots
 # (in that case via the constraint flag); we have encountered both forms from different
 # publishers.
-ENTITY_COLUMN: str = "_encja"
-DEFAULT_ENTITY: str = "WNIOSEK"
+ENTITY_COLUMN: str = "_entity"
+DEFAULT_ENTITY: str = "APPLICATION"
 
 CORE_BY_ENTITY: dict[str, dict[str, tuple]] = {
-    "WNIOSEK": {
+    "APPLICATION": {
         "required": CORE_FIELDS,
-        "alternatives": (("moc_pobierana", "moc_wprowadzana"),),
+        "alternatives": (("capacity_withdrawn", "capacity_injected"),),
     },
-    "WEZEL": {
-        "required": ("id_wezla",),
-        "alternatives": (("moc_dostepna", "ograniczenie_flaga"),),
+    "NODE": {
+        "required": ("node_id",),
+        "alternatives": (("capacity_available", "constraint_flag"),),
     },
 }
 
-# kept for backward compatibility with 0.3.x; refers to the WNIOSEK entity
+# kept for backward compatibility with 0.3.x; refers to the APPLICATION entity
 CORE_ALTERNATIVES: tuple[tuple[str, ...], ...] = tuple(
-    CORE_BY_ENTITY["WNIOSEK"]["alternatives"])
+    CORE_BY_ENTITY["APPLICATION"]["alternatives"])
 
 
 def _mask_for_entity(df, sub_idx, spec):
@@ -324,8 +328,8 @@ def _mask_for_entity(df, sub_idx, spec):
 def core_complete_mask(df):
     """Mask of rows with a complete core FOR THEIR OWN ENTITY.
 
-    The entity is read from the annotation column ``_encja``; rows without this
-    annotation are treated as ``WNIOSEK`` (this is how rows are emitted by adapters that
+    The entity is read from the annotation column ``_entity``; rows without this
+    annotation are treated as ``APPLICATION`` (this is how rows are emitted by adapters that
     do not distinguish entities, because their publisher fulfills only points 1/3/4).  A
     missing required column is treated like an empty column: the core is a requirement on
     the ROW, not on the shape of the frame.
@@ -351,18 +355,18 @@ GROUPS: dict[str, tuple[str, ...]] = {
 }
 
 # accompanying columns, not part of the schema (panel metadata / annotations)
-META_COLUMNS: tuple[str, ...] = ("publikujacy", "jurysdykcja", "dokument_zrodlowy")
+META_COLUMNS: tuple[str, ...] = ("publisher", "jurisdiction", "source_document")
 ANNOTATION_PREFIX = "_"
 
 # controlled vocabularies
 RESOURCE_CLASSES = (
-    "PV", "FW", "EW", "BIOGAZ", "GAZ", "WEGIEL", "BESS", "ODB", "MIX", "SIEC",
-    "INNE", "NIEOKRESLONA",
+    "PV", "WIND", "HYDRO", "BIOGAS", "GAS", "COAL", "BESS", "LOAD", "MIX", "GRID",
+    "OTHER", "UNSPECIFIED",
 )
 STATUSES = (
-    "WNIOSEK_ZLOZONY", "WNIOSEK_NIEKOMPLETNY", "W_TRAKCIE_ANALIZY",
-    "WARUNKI_WYDANE", "WARUNKI_WYGASLE", "ODMOWA", "UMOWA_OBOWIAZUJACA",
-    "UMOWA_ROZWIAZANA", "PRZYLACZONY", "WNIOSEK_WYCOFANY", "NIEOKRESLONY",
+    "APPLICATION_FILED", "APPLICATION_INCOMPLETE", "UNDER_REVIEW",
+    "CONDITIONS_ISSUED", "CONDITIONS_EXPIRED", "REFUSED", "AGREEMENT_IN_FORCE",
+    "AGREEMENT_TERMINATED", "CONNECTED", "APPLICATION_WITHDRAWN", "UNSPECIFIED",
 )
 
 
@@ -397,12 +401,12 @@ def validate_instance(row: dict[str, Any], *, strict_vocab: bool = False) -> lis
         if f.check is not None and not f.check(value):
             problems.append(f"{name}: value does not pass the type check ({value!r})")
     if strict_vocab:
-        kz = row.get("klasa_zasobu")
+        kz = row.get("resource_class")
         if not _is_null(kz) and kz not in RESOURCE_CLASSES:
-            problems.append(f"klasa_zasobu outside the vocabulary: {kz!r}")
-        st = row.get("status_procesu")
+            problems.append(f"resource_class outside the vocabulary: {kz!r}")
+        st = row.get("process_status")
         if not _is_null(st) and st not in STATUSES:
-            problems.append(f"status_procesu outside the vocabulary: {st!r}")
+            problems.append(f"process_status outside the vocabulary: {st!r}")
     return problems
 
 
@@ -448,7 +452,7 @@ def validate_frame(df, *, strict_vocab: bool = True) -> dict[str, Any]:
     report["rows_with_complete_core"] = int(core_complete_mask(df).sum())
     report["schema_version"] = SCHEMA_VERSION
     if strict_vocab:
-        for c, vocab in (("klasa_zasobu", RESOURCE_CLASSES), ("status_procesu", STATUSES)):
+        for c, vocab in (("resource_class", RESOURCE_CLASSES), ("process_status", STATUSES)):
             if c in df.columns:
                 bad = sorted({v for v in df[c].dropna().unique() if v not in vocab and not _is_null(v)})
                 report["dictionary"][c] = bad
@@ -463,17 +467,17 @@ def empty_frame():
 
 
 def _entity_fields(name: str) -> str:
-    """Entity in which the field occurs: WNIOSEK, WEZEL, or obie.
+    """Entity in which the field occurs: APPLICATION, NODE, or obie.
 
     Derived from CORE_BY_ENTITY and from the field's membership in a point of the duty:
     point 2 describes the node, points 1, 3 and 4 describe the application.
     """
-    nodal = {"id_wezla", "nazwa_wezla", "moc_dostepna", "moc_zarezerwowana",
-               "ograniczenie_flaga"}
-    both = {"wspolrzedne", "data_publikacji"}
+    nodal = {"node_id", "node_name", "capacity_available", "capacity_reserved",
+               "constraint_flag"}
+    both = {"coordinates", "date_published"}
     if name in both:
         return "both"
-    return "WEZEL" if name in nodal else "WNIOSEK"
+    return "NODE" if name in nodal else "APPLICATION"
 
 
 def _core_status(name: str) -> str:
@@ -514,3 +518,224 @@ def schema_table():
             for f in SCHEMA
         ]
     )
+
+
+# --------------------------------------------------------------------------
+# names in the wording of the statute
+# --------------------------------------------------------------------------
+
+#: Column names in the Polish wording of the statute, as used by the first drafts of the
+#: schema and by panels exported before the schema was written in English. Tables that use
+#: them are read through :func:`from_legacy_names`; the Supplement gives the same table.
+LEGACY_COLUMNS: dict[str, str] = {
+    '_adres': '_address',
+    '_danm': '_danm',
+    '_data_rozwiazania': '_date_termination',
+    '_data_rozwiazania_umowy': '_date_agreement_termination',
+    '_data_utraty_waznosci': '_date_expiry',
+    '_data_wygasniecia': '_date_lapse',
+    '_data_wygasniecia_umowy': '_date_agreement_lapse',
+    '_data_zaliczki': '_date_advance_payment',
+    '_dystrykt': '_district',
+    '_encja': '_entity',
+    '_energizacja_tekst': '_energisation_text',
+    '_geo_dokladnosc': '_geo_accuracy',
+    '_geo_pewnosc': '_geo_confidence',
+    '_geo_powod': '_geo_reason',
+    '_gmina': '_municipality',
+    '_gsp': '_gsp',
+    '_jednostka_mocy_odbiorczej': '_demand_capacity_unit',
+    '_jednostka_mocy_zrodlowa': '_source_capacity_unit',
+    '_kierunek': '_direction',
+    '_klasa_napiecia': '_voltage_class',
+    '_komentarz': '_comment',
+    '_konfiguracja_transformatorow': '_transformer_configuration',
+    '_licence_area': '_licence_area',
+    '_liczba_dostepnych_miejsc': '_free_slots',
+    '_lp_dokumentu': '_document_item_no',
+    '_machine_export_kw': '_machine_export_kw',
+    '_machine_id': '_machine_id',
+    '_machine_import_kw': '_machine_import_kw',
+    '_miejscowosc': '_locality',
+    '_moc_dostepna_2026': '_capacity_available_2026',
+    '_moc_dostepna_2027': '_capacity_available_2027',
+    '_moc_dostepna_2028': '_capacity_available_2028',
+    '_moc_dostepna_2029': '_capacity_available_2029',
+    '_moc_dostepna_2030': '_capacity_available_2030',
+    '_moc_dostepna_2031': '_capacity_available_2031',
+    '_moc_dostepna_2035': '_capacity_available_2035',
+    '_moc_dostepna_analityczna': '_capacity_available_analytical',
+    '_moc_dostepna_mva': '_capacity_available_mva',
+    '_moc_pobierana_skladowe_mw': '_capacity_withdrawn_components_mw',
+    '_moc_przyjeta_nierozstrzygnieta_kw': '_capacity_accepted_pending_kw',
+    '_moc_przylaczona_mva': '_capacity_connected_mva',
+    '_moc_w_potwierdzaniu_mva': '_capacity_being_confirmed_mva',
+    '_moc_wprowadzana_skladowe_mw': '_capacity_injected_components_mw',
+    '_moc_zainstalowana_kw': '_capacity_installed_kw',
+    '_moc_zainstalowana_mva': '_capacity_installed_mva',
+    '_moc_zajeta_w_toku_kw': '_capacity_occupied_in_progress_kw',
+    '_moc_zajeta_z_pozwoleniem_kw': '_capacity_occupied_with_permit_kw',
+    '_moc_zakontraktowana_mva': '_capacity_contracted_mva',
+    '_mz_fw': '_ic_wind',
+    '_mz_inne': '_ic_other',
+    '_mz_mee_ladowania': '_ic_storage_charging',
+    '_mz_mee_rozladowania': '_ic_storage_discharging',
+    '_mz_odb': '_ic_load',
+    '_mz_pv': '_ic_pv',
+    '_nazwa_obiektu': '_facility_name',
+    '_nr_grupy': '_group_no',
+    '_nuts3': '_nuts3',
+    '_odbior_bez_ograniczenia_kva': '_demand_unconstrained_kva',
+    '_odbior_dostepna_mva': '_demand_available_mva',
+    '_odbior_nadrzedna_mva': '_demand_upstream_mva',
+    '_odbior_ograniczenie': '_demand_constraint',
+    '_odbior_ograniczenie_opis': '_demand_constraint_description',
+    '_odbior_trwala_mva': '_demand_firm_mva',
+    '_oddzial': '_branch',
+    '_osd_osp': '_dso_tso',
+    '_plik_zrodlowy': '_source_file',
+    '_podmiot': '_applicant',
+    '_prowincja': '_province',
+    '_przypisy': '_footnotes',
+    '_rodzaj_instalacji_raw': '_installation_kind_raw',
+    '_rodzaj_podmiotu': '_applicant_kind',
+    '_rodzaj_raw': '_kind_raw',
+    '_rozbicie_pozycyjne_kw': '_breakdown_by_item_kw',
+    '_rozbicie_technologiczne_kw': '_breakdown_by_technology_kw',
+    '_rozdzielnia': '_switchgear',
+    '_sekcja': '_section',
+    '_stacja_nadrzedna': '_upstream_station',
+    '_stacje_grupy': '_group_stations',
+    '_status_raw': '_status_raw',
+    '_styk_przesylowy': '_transmission_interface',
+    '_symbol_stacji': '_station_symbol',
+    '_tanm': '_tanm',
+    '_typ_instalacji': '_installation_type',
+    '_uwaga_zrodlowa': '_source_note',
+    '_uwagi': '_remarks',
+    '_wezel_przesylowy': '_transmission_node',
+    '_wezel_rnt': '_rnt_node',
+    '_wiele_miejsc': '_multiple_points',
+    '_wspolnota_autonomiczna': '_autonomous_community',
+    '_wytw_bez_ograniczenia_kva': '_generation_unconstrained_kva',
+    '_wytw_dostepna_nietrwala_kw': '_generation_available_non_firm_kw',
+    '_wytw_ograniczenie': '_generation_constraint',
+    '_wytw_ograniczenie_opis': '_generation_constraint_description',
+    '_wytw_trwala_kw': '_generation_firm_kw',
+    '_wytw_zakontraktowana_kw': '_generation_contracted_kw',
+    '_zasilanie': '_supply',
+    '_zestawienie': '_listing',
+    '_zko_pse': '_pse_coordination_centre',
+    '_zmiany_w_latach': '_changes_by_year',
+    'data_energizacji': 'date_energisation',
+    'data_odmowy': 'date_refusal',
+    'data_publikacji': 'date_published',
+    'data_umowy': 'date_agreement',
+    'data_warunkow': 'date_conditions',
+    'data_wniosku': 'date_application',
+    'dokument_zrodlowy': 'source_document',
+    'id_wezla': 'node_id',
+    'id_wniosku': 'application_id',
+    'jurysdykcja': 'jurisdiction',
+    'klasa_zasobu': 'resource_class',
+    'lokalizacja_tekst': 'location_text',
+    'moc_dostepna': 'capacity_available',
+    'moc_pobierana': 'capacity_withdrawn',
+    'moc_wprowadzana': 'capacity_injected',
+    'moc_zarezerwowana': 'capacity_reserved',
+    'nazwa_wezla': 'node_name',
+    'ograniczenie_flaga': 'constraint_flag',
+    'powod_odmowy': 'refusal_reason',
+    'poziom_napiecia': 'voltage_level',
+    'pozycja_w_kolejce': 'queue_position',
+    'publikujacy': 'publisher',
+    'status_procesu': 'process_status',
+    'wspolrzedne': 'coordinates',
+}
+
+#: Codes of the controlled vocabularies in the same wording, per (English) column.
+LEGACY_CODES: dict[str, dict[str, str]] = {
+    '_entity': {
+        'WNIOSEK': 'APPLICATION',
+        'WEZEL': 'NODE',
+    },
+    '_direction': {
+        'wytworcza': 'generation',
+        'odbiorcza': 'demand',
+    },
+    'process_status': {
+        'WNIOSEK_ZLOZONY': 'APPLICATION_FILED',
+        'WNIOSEK_NIEKOMPLETNY': 'APPLICATION_INCOMPLETE',
+        'W_TRAKCIE_ANALIZY': 'UNDER_REVIEW',
+        'WARUNKI_WYDANE': 'CONDITIONS_ISSUED',
+        'WARUNKI_WYGASLE': 'CONDITIONS_EXPIRED',
+        'ODMOWA': 'REFUSED',
+        'UMOWA_OBOWIAZUJACA': 'AGREEMENT_IN_FORCE',
+        'UMOWA_ROZWIAZANA': 'AGREEMENT_TERMINATED',
+        'PRZYLACZONY': 'CONNECTED',
+        'WNIOSEK_WYCOFANY': 'APPLICATION_WITHDRAWN',
+        'NIEOKRESLONY': 'UNSPECIFIED',
+    },
+    'resource_class': {
+        'FW': 'WIND',
+        'EW': 'HYDRO',
+        'BIOGAZ': 'BIOGAS',
+        'GAZ': 'GAS',
+        'WEGIEL': 'COAL',
+        'ODB': 'LOAD',
+        'SIEC': 'GRID',
+        'INNE': 'OTHER',
+        'NIEOKRESLONA': 'UNSPECIFIED',
+    },
+    '_geo_confidence': {
+        'SKRZYZOWANIE': 'INTERSECTION',
+        'ZRODLO': 'SOURCE',
+    },
+    '_geo_accuracy': {
+        'PUNKT_ADRESOWY': 'ADDRESS_POINT',
+        'PUNKT_SKRZYZOWANIA': 'INTERSECTION_POINT',
+        'PUNKT_NA_OSI_ULICY': 'STREET_AXIS_POINT',
+        'CENTROID_MIEJSCOWOSCI': 'LOCALITY_CENTROID',
+        'BRAK_GEOMETRII': 'NO_GEOMETRY',
+        'BRAK': 'NO_POINT',
+    },
+}
+
+#: Reason codes of the location resolver in the same wording (a prefix of ``_geo_reason``).
+LEGACY_REASONS: dict[str, str] = {
+    'brak_deklaracji_miejscowosci': 'no_locality_declared',
+    'brak_kandydatow': 'no_candidates',
+    'brak_punktu': 'no_point',
+    'brak_tokenow_wyrozniajacych': 'no_distinguishing_tokens',
+    'kod_stacji_bez_slownika': 'station_code_without_dictionary',
+    'miejscowosc_niejednoznaczna': 'ambiguous_locality',
+    'miejscowosc_poza_gazeterem': 'locality_not_in_gazetteer',
+    'nazwa_rozwiazana_bez_geometrii': 'name_resolved_without_geometry',
+    'opis_slowny_nie_nazwa_ulicy': 'verbal_description_not_street_name',
+    'pusty_opis': 'empty_description',
+    'wiele_kandydatow': 'multiple_candidates',
+    'numer_domu': 'house_number',
+}
+
+
+def from_legacy_names(df: "pd.DataFrame") -> "pd.DataFrame":
+    """Return ``df`` with column names and codes in the English schema.
+
+    Columns named in the wording of the statute (``id_wniosku``, ``moc_wprowadzana``, ...)
+    are renamed, and the codes of the controlled vocabularies (``WNIOSEK``,
+    ``WARUNKI_WYDANE``, ``FW``, ...) are translated. A frame already in English is returned
+    unchanged, so the function can be applied to any table read from disk.
+    """
+    import re as _re
+
+    import pandas as pd
+
+    out = df.rename(columns={k: v for k, v in LEGACY_COLUMNS.items() if k in df.columns})
+    for col, codes in LEGACY_CODES.items():
+        if col in out.columns and not pd.api.types.is_numeric_dtype(out[col]):
+            out[col] = out[col].map(lambda v: codes.get(v, v) if isinstance(v, str) else v)
+    if "_geo_reason" in out.columns:
+        rx = _re.compile(r"\b(" + "|".join(map(_re.escape, LEGACY_REASONS)) + r")\b")
+        out["_geo_reason"] = out["_geo_reason"].map(
+            lambda v: rx.sub(lambda m: LEGACY_REASONS[m.group(1)], v) if isinstance(v, str) else v)
+    return out

@@ -8,9 +8,9 @@ from gridqueue import examples as X
 
 def test_synthetic_panel_is_clean_and_complete():
     df = X.synthetic_panel(300, seed=3)
-    assert set(df["publikujacy"].dropna()) <= set(X.SYNTHETIC_PUBLISHERS)
+    assert set(df["publisher"].dropna()) <= set(X.SYNTHETIC_PUBLISHERS)
     assert G.run_quality(df).as_dict()["violations_total"] == 0
-    assert (df["_encja"] == "WEZEL").sum() == 16
+    assert (df["_entity"] == "NODE").sum() == 16
     assert len(G.kaplan_meier_by_group(df, min_n=20)) >= 2
 
 
@@ -31,15 +31,15 @@ def test_geocode_frame_writes_schema_points_and_reasons(tmp_path):
     p.write_text(json.dumps(X.synthetic_gazetteer()), encoding="utf-8")
     res = G.resolver_from_gazetteer_json(p)
     df = X.synthetic_panel(200, seed=5, with_nodes=False)
-    df["wspolrzedne"] = df["wspolrzedne"].astype(object)
-    df.loc[df.index[0], "wspolrzedne"] = "50.0,20.0"
+    df["coordinates"] = df["coordinates"].astype(object)
+    df.loc[df.index[0], "coordinates"] = "50.0,20.0"
     out = G.geocode_frame(df, res)
-    assert out.loc[out.index[0], "_geo_pewnosc"] == "ZRODLO"
-    assert out.loc[out.index[0], "wspolrzedne"] == "50.0,20.0"
-    placed = out["wspolrzedne"].notna()
+    assert out.loc[out.index[0], "_geo_confidence"] == "SOURCE"
+    assert out.loc[out.index[0], "coordinates"] == "50.0,20.0"
+    placed = out["coordinates"].notna()
     assert placed.sum() > 1
-    assert (out.loc[~placed, "_geo_powod"].str.len() > 0).all()
+    assert (out.loc[~placed, "_geo_reason"].str.len() > 0).all()
     # every point is in the format the schema validates
     assert G.validate_frame(out)["n_rows"] == len(out)
-    lat = out.loc[placed, "wspolrzedne"].str.split(",").str[0].astype(float)
+    lat = out.loc[placed, "coordinates"].str.split(",").str[0].astype(float)
     assert lat.between(-90, 90).all()

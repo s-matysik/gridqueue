@@ -20,25 +20,25 @@ def test_the_registry_has_nine_adapters_in_five_jurisdictions():
 
 def test_field_declarations_are_a_subset_of_the_schema():
     for d in declarations():
-        assert set(d["declared_fields"]) <= set(FIELDS), d["publikujacy"]
-        assert all(k.startswith("_") for k in d["extensions"]), d["publikujacy"]
+        assert set(d["declared_fields"]) <= set(FIELDS), d["publisher"]
+        assert all(k.startswith("_") for k in d["extensions"]), d["publisher"]
 
 
 def test_every_adapter_declares_the_core_of_ITS_OWN_entity():
     """The core is conditional per entity, so this check has to be conditional too.
 
-    The previous version required the core of the WNIOSEK entity from EVERY
+    The previous version required the core of the APPLICATION entity from EVERY
     adapter. This is the same category error that was fixed in rule R7: a
     publisher carrying out point 2 of the duty alone discloses nodes, not
     applications, so it has neither an application identifier nor its capacity.
     The Portuguese adapter showed that the test carried an outdated contract.
     """
-    application_core = {"id_wniosku", "lokalizacja_tekst", "klasa_zasobu", "status_procesu"}
-    node_core = {"id_wezla"}
+    application_core = {"application_id", "location_text", "resource_class", "process_status"}
+    node_core = {"node_id"}
     for key in REGISTRY:
         fields = set(get_adapter(key).declared_fields)
         application = application_core <= fields
-        node = node_core <= fields and bool({"moc_dostepna", "ograniczenie_flaga"} & fields)
+        node = node_core <= fields and bool({"capacity_available", "constraint_flag"} & fields)
         assert application or node, key
 
 
@@ -49,25 +49,25 @@ def test_get_adapter_rejects_an_unknown_key():
 
 @pytest.mark.parametrize("raw,expected", [
     ("PV", "PV"), ("Elektrownia fotowoltaiczna", "PV"), ("Solar", "PV"),
-    ("FW", "FW"), ("Wind", "FW"), ("MEE", "BESS"), ("Magazyn energii", "BESS"),
-    ("BESS", "BESS"), ("ODB", "ODB"), ("Instalacja odbiorcza", "ODB"),
-    ("Demand", "ODB"), ("OSDn", "SIEC"), ("Stacja transformatorowa", "SIEC"),
-    ("", "NIEOKRESLONA"),
+    ("WIND", "WIND"), ("Wind", "WIND"), ("MEE", "BESS"), ("Magazyn energii", "BESS"),
+    ("BESS", "BESS"), ("LOAD", "LOAD"), ("ODB", "LOAD"), ("FW", "WIND"), ("Instalacja odbiorcza", "LOAD"),
+    ("Demand", "LOAD"), ("OSDn", "GRID"), ("Stacja transformatorowa", "GRID"),
+    ("", "UNSPECIFIED"),
 ])
 def test_harmonize_class(raw, expected):
     assert harmonize_class(raw) == expected
 
 
 @pytest.mark.parametrize("raw,expected", [
-    ("UMOWA O PRZYŁĄCZENIE obowiązująca", "UMOWA_OBOWIAZUJACA"),
-    ("WARUNKI PRZYŁĄCZENIA wydane", "WARUNKI_WYDANE"),
-    ("WARUNKI PRZYŁĄCZENIA utraciły ważność", "WARUNKI_WYGASLE"),
-    ("WNIOSEK niekompletny", "WNIOSEK_NIEKOMPLETNY"),
-    ("WNIOSEK wycofany", "WNIOSEK_WYCOFANY"),
-    ("OBIEKT przyłączony", "PRZYLACZONY"),
-    ("Accepted not yet Connected", "UMOWA_OBOWIAZUJACA"),
-    ("Recently Connected", "PRZYLACZONY"),
-    ("", "NIEOKRESLONY"),
+    ("UMOWA O PRZYŁĄCZENIE obowiązująca", "AGREEMENT_IN_FORCE"),
+    ("WARUNKI PRZYŁĄCZENIA wydane", "CONDITIONS_ISSUED"),
+    ("WARUNKI PRZYŁĄCZENIA utraciły ważność", "CONDITIONS_EXPIRED"),
+    ("WNIOSEK niekompletny", "APPLICATION_INCOMPLETE"),
+    ("WNIOSEK wycofany", "APPLICATION_WITHDRAWN"),
+    ("OBIEKT przyłączony", "CONNECTED"),
+    ("Accepted not yet Connected", "AGREEMENT_IN_FORCE"),
+    ("Recently Connected", "CONNECTED"),
+    ("", "UNSPECIFIED"),
 ])
 def test_harmonize_status(raw, expected):
     assert harmonize_status(raw) == expected
@@ -86,12 +86,12 @@ def test_detect_layout_stoen():
 
 def test_finalize_sets_the_column_order_and_the_metadata():
     a = get_adapter("pl_tauron")
-    df = a.finalize(pd.DataFrame({"id_wniosku": ["x"], "_extra": [1]}), document="d.pdf")
+    df = a.finalize(pd.DataFrame({"application_id": ["x"], "_extra": [1]}), document="d.pdf")
     assert list(df.columns)[:21] == list(FIELDS)
     assert list(df.columns)[21:24] == list(META_COLUMNS)
-    assert df["publikujacy"].iloc[0] == "TAURON Dystrybucja S.A."
-    assert df["jurysdykcja"].iloc[0] == "PL"
-    assert df["dokument_zrodlowy"].iloc[0] == "d.pdf"
+    assert df["publisher"].iloc[0] == "TAURON Dystrybucja S.A."
+    assert df["jurisdiction"].iloc[0] == "PL"
+    assert df["source_document"].iloc[0] == "d.pdf"
 
 
 def test_as_bool():
@@ -112,14 +112,14 @@ def test_nationalgrid_maps_a_frame_with_no_network_access():
     out = NationalGridAdapter().parse(raw).frame
     assert len(out) == 1
     r = out.iloc[0]
-    assert r["id_wniosku"] == "nged:241:1:PA"
-    assert r["moc_wprowadzana"] == 20000.0
-    assert r["moc_pobierana"] == 50.0
-    assert r["klasa_zasobu"] == "PV"
-    assert r["status_procesu"] == "UMOWA_OBOWIAZUJACA"
-    assert bool(r["ograniczenie_flaga"]) is True
-    assert r["pozycja_w_kolejce"] == 99.0
-    assert r["jurysdykcja"] == "UK"
+    assert r["application_id"] == "nged:241:1:PA"
+    assert r["capacity_injected"] == 20000.0
+    assert r["capacity_withdrawn"] == 50.0
+    assert r["resource_class"] == "PV"
+    assert r["process_status"] == "AGREEMENT_IN_FORCE"
+    assert bool(r["constraint_flag"]) is True
+    assert r["queue_position"] == 99.0
+    assert r["jurisdiction"] == "UK"
 
 
 def test_the_base_adapter_does_not_implement_parse():
@@ -138,9 +138,9 @@ def test_cli_schema_and_adapters(capsys, tmp_path):
 def test_cli_validate_and_export(tmp_path, capsys):
     p = tmp_path / "a.csv"
     pd.DataFrame({
-        "id_wniosku": ["a", "b"], "lokalizacja_tekst": ["x", "y"],
-        "klasa_zasobu": ["PV", "PV"], "moc_pobierana": [1.0, 2.0],
-        "status_procesu": ["ODMOWA", "ODMOWA"], "data_odmowy": ["2026-01-01", "2026-01-02"],
+        "application_id": ["a", "b"], "location_text": ["x", "y"],
+        "resource_class": ["PV", "PV"], "capacity_withdrawn": [1.0, 2.0],
+        "process_status": ["REFUSED", "REFUSED"], "date_refusal": ["2026-01-01", "2026-01-02"],
     }).to_csv(p, index=False)
     assert main(["validate", str(p), "--out", str(tmp_path / "rep.json")]) == 0
     rep = json.loads((tmp_path / "rep.json").read_text())

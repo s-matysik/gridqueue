@@ -83,21 +83,21 @@ def _tokens(s: str) -> tuple[str, ...]:
     return tuple(s.split())
 
 
-def _substring(needle: Sequence[str], stog: Sequence[str]) -> bool:
-    """Whether `needle` is a contiguous subsequence of the tokens of `stog`."""
-    n, m = len(needle), len(stog)
+def _substring(needle: Sequence[str], haystack: Sequence[str]) -> bool:
+    """Whether `needle` is a contiguous subsequence of the tokens of `haystack`."""
+    n, m = len(needle), len(haystack)
     if n == 0 or n > m:
         return False
-    return any(tuple(stog[i : i + n]) == tuple(needle) for i in range(m - n + 1))
+    return any(tuple(haystack[i : i + n]) == tuple(needle) for i in range(m - n + 1))
 
 
 def station_node_map(
     df: pd.DataFrame,
-    entity_column: str = "_encja",
-    group_column: str = "_nr_grupy",
+    entity_column: str = "_entity",
+    group_column: str = "_group_no",
     separator: str = ",",
 ) -> pd.DataFrame:
-    """Mapping: station -> station group, read from WEZEL entity rows.
+    """Mapping: station -> station group, read from NODE entity rows.
 
     A publisher that carries out point 2 of the duty by splitting stations into GROUPS
     lists the composition of the group in the location field. This is the only place where
@@ -109,16 +109,16 @@ def station_node_map(
     ambiguous, which would be an artifact of the document layout, not a property of the network.
     When the group column is not present, the key becomes the node identifier.
 
-    Returns a frame: publikujacy, grupa, nazwa_wezla, stacja, station_norm.
+    Returns a frame: publisher, group, node_name, station, station_norm.
     """
     if entity_column in df.columns:
-        nodes_df = df[df[entity_column] == "WEZEL"]
+        nodes_df = df[df[entity_column] == "NODE"]
     else:  # without entity annotation, we recognize a node by the presence of available capacity
-        nodes_df = df[df["moc_dostepna"].notna()] if "moc_dostepna" in df else df.iloc[0:0]
-    key = group_column if group_column in df.columns else "id_wezla"
+        nodes_df = df[df["capacity_available"].notna()] if "capacity_available" in df else df.iloc[0:0]
+    key = group_column if group_column in df.columns else "node_id"
     rows = []
     for _, r in nodes_df.iterrows():
-        item_list = r.get("lokalizacja_tekst")
+        item_list = r.get("location_text")
         if item_list is None or (isinstance(item_list, float) and item_list != item_list):
             continue
         for part in str(item_list).split(separator):
@@ -127,9 +127,9 @@ def station_node_map(
                 continue
             rows.append(
                 {
-                    "publikujacy": r.get("publikujacy"),
+                    "publisher": r.get("publisher"),
                     "group": r.get(key),
-                    "nazwa_wezla": r.get("nazwa_wezla"),
+                    "node_name": r.get("node_name"),
                     "station": name,
                     "station_norm": normalize_name(name),
                 }
@@ -144,7 +144,7 @@ def station_node_map(
 def assign_to_nodes(
     df: pd.DataFrame,
     mapping: pd.DataFrame,
-    entity_column: str = "_encja",
+    entity_column: str = "_entity",
 ) -> pd.DataFrame:
     """Assigns application rows to station groups by station name.
 
@@ -169,18 +169,18 @@ def assign_to_nodes(
         out["_group_name"] = None
         out["_group_match"] = "NONE"
         return out
-    mask = df[entity_column] != "WEZEL" if entity_column in df.columns \
+    mask = df[entity_column] != "NODE" if entity_column in df.columns \
         else pd.Series(True, index=df.index)
     listing = (
         mapping.groupby("station_norm")
         .agg(group=("group", lambda s: tuple(dict.fromkeys(s))),
-             name=("nazwa_wezla", lambda s: tuple(dict.fromkeys(s))))
+             name=("node_name", lambda s: tuple(dict.fromkeys(s))))
         .reset_index()
     )
     pairs = [(s, _tokens(s), g, n) for s, g, n in
             zip(listing["station_norm"], listing["group"], listing["name"])]
     col = {"_group": [], "_group_name": [], "_group_match": []}
-    for idx, loc in df["lokalizacja_tekst"].items():
+    for idx, loc in df["location_text"].items():
         if not mask.loc[idx]:
             col["_group"].append(None); col["_group_name"].append(None)
             col["_group_match"].append(None); continue
@@ -213,12 +213,12 @@ def assign_to_nodes(
 
 def node_loading(
     df: pd.DataFrame,
-    capacity_field: str = "moc_wprowadzana",
+    capacity_field: str = "capacity_injected",
     direction: str | None = None,
-    direction_column: str = "_kierunek",
-    group_column: str = "_nr_grupy",
+    direction_column: str = "_direction",
+    group_column: str = "_group_no",
     active_statuses: Iterable[str] | None = None,
-    entity_column: str = "_encja",
+    entity_column: str = "_entity",
     voltage: str | None = None,
 ) -> pd.DataFrame:
     """Node loading: the capacity of the active queue against the disclosed available capacity.
@@ -236,42 +236,42 @@ def node_loading(
     and averaging it would be an error. The row nonetheless retains the capacity applied for,
     because a queue at a node with no free capacity is information, not missing data.
 
-    ``voltage`` keeps only applications whose ``poziom_napiecia`` contains the given text.
+    ``voltage`` keeps only applications whose ``voltage_level`` contains the given text.
     The base variant of the article counts the 110 kV queue (``napiecie="110"``), because the
     available capacity a distribution operator discloses for a node is the capacity of its
     high-voltage busbars; the default (``None``) counts applications at every voltage level,
     which is the article's upper variant.
     """
     if active_statuses is None:
-        active_statuses = ("WNIOSEK_ZLOZONY", "WNIOSEK_NIEKOMPLETNY",
-                          "W_TRAKCIE_ANALIZY", "WARUNKI_WYDANE", "UMOWA_OBOWIAZUJACA")
+        active_statuses = ("APPLICATION_FILED", "APPLICATION_INCOMPLETE",
+                          "UNDER_REVIEW", "CONDITIONS_ISSUED", "AGREEMENT_IN_FORCE")
     if direction is None and direction_column in df.columns:
         available = set(df[direction_column].dropna().unique())
-        default = "wytworcza" if "wprowadzana" in capacity_field else "odbiorcza"
+        default = "generation" if "injected" in capacity_field else "demand"
         direction = default if default in available else None
-    is_node = df[entity_column] == "WEZEL" if entity_column in df.columns \
-        else df["moc_dostepna"].notna()
+    is_node = df[entity_column] == "NODE" if entity_column in df.columns \
+        else df["capacity_available"].notna()
     applications = df[~is_node]
-    applications = applications[applications["status_procesu"].isin(set(active_statuses))]
-    if voltage is not None and "poziom_napiecia" in applications.columns:
-        applications = applications[applications["poziom_napiecia"].astype("string")
+    applications = applications[applications["process_status"].isin(set(active_statuses))]
+    if voltage is not None and "voltage_level" in applications.columns:
+        applications = applications[applications["voltage_level"].astype("string")
                           .str.contains(voltage, regex=False, na=False)]
     applications = applications[applications["_group"].notna()]
     total = applications.groupby("_group")[capacity_field].sum(min_count=1).rename("capacity_requested")
     count = applications.groupby("_group").size().rename("applications")
     nodes_df = df[is_node]
-    nodes_df = nodes_df[nodes_df["moc_dostepna"].notna()]
+    nodes_df = nodes_df[nodes_df["capacity_available"].notna()]
     if direction is not None and direction_column in nodes_df.columns:
         nodes_df = nodes_df[nodes_df[direction_column] == direction]
-    key = group_column if group_column in nodes_df.columns else "id_wezla"
-    columns = [c for c in ("id_wezla", "nazwa_wezla", "moc_dostepna", "poziom_napiecia")
+    key = group_column if group_column in nodes_df.columns else "node_id"
+    columns = [c for c in ("node_id", "node_name", "capacity_available", "voltage_level")
                if c in nodes_df.columns]
     base = nodes_df.set_index(nodes_df[key])[columns].join(total).join(count)
     base.index.name = "group"
     base["capacity_requested"] = base["capacity_requested"].fillna(0.0)
     base["applications"] = base["applications"].fillna(0).astype(int)
-    base["available_capacity_zero"] = base["moc_dostepna"] == 0
-    free = base["moc_dostepna"].where(~base["available_capacity_zero"])
+    base["available_capacity_zero"] = base["capacity_available"] == 0
+    free = base["capacity_available"].where(~base["available_capacity_zero"])
     base["loading"] = base["capacity_requested"] / free
     base["direction"] = direction
     return base.reset_index()
@@ -279,8 +279,8 @@ def node_loading(
 
 def processing_time(
     df: pd.DataFrame,
-    start: str = "data_wniosku",
-    end: str = "data_warunkow",
+    start: str = "date_application",
+    end: str = "date_conditions",
     as_at=None,
 ) -> pd.DataFrame:
     """Processing time together with censoring classification.
@@ -291,24 +291,24 @@ def processing_time(
     for censored ones, in the form expected by the survival estimator.
 
     By default (``na_dzien=None``) every open application is censored at the publication
-    date of ITS OWN row (``data_publikacji``), so that a panel of several publishers, or a
+    date of ITS OWN row (``date_published``), so that a panel of several publishers, or a
     publisher whose node and application documents carry different as-at dates, censors
     each application at the date its document describes. Rows without a publication date
     are censored at the latest publication date of the application rows, and failing that
     at the latest resolution date. A date given explicitly applies to every row.
 
-    Up to 1.5.2 the default was the single latest publication date of the whole frame,
-    node rows included; for ENERGA-OPERATOR (applications as at 30 June, nodes as at
-    31 August 2026) that lengthened every censored time by two months.
+    The censoring date is taken per row and not as the single latest publication date of the
+    whole frame: for ENERGA-OPERATOR (applications as at 30 June, nodes as at 31 August 2026)
+    the latter would lengthen every censored time by two months.
     """
     d = df.copy()
     for c in (start, end):
         d[c] = pd.to_datetime(d[c], errors="coerce")
     if as_at is None:
-        own = pd.to_datetime(d["data_publikacji"], errors="coerce") \
-            if "data_publikacji" in d else pd.Series(pd.NaT, index=d.index)
-        applications = d["_encja"].fillna("WNIOSEK").astype(str).str.upper() != "WEZEL" \
-            if "_encja" in d else pd.Series(True, index=d.index)
+        own = pd.to_datetime(d["date_published"], errors="coerce") \
+            if "date_published" in d else pd.Series(pd.NaT, index=d.index)
+        applications = d["_entity"].fillna("APPLICATION").astype(str).str.upper() != "NODE" \
+            if "_entity" in d else pd.Series(True, index=d.index)
         reserve = own[applications].max()
         if pd.isna(reserve):
             reserve = d[end].max()
@@ -361,7 +361,7 @@ def kaplan_meier(time, event, alpha: float = 0.05) -> KMResult:
     d = d[d["t"] >= 0]
     n0 = len(d)
     if n0 == 0:
-        empty = pd.DataFrame(columns=["t", "n_at_risk", "events", "S", "S_dolne", "S_gorne"])
+        empty = pd.DataFrame(columns=["t", "n_at_risk", "events", "S", "S_lower", "S_upper"])
         return KMResult(empty, float("nan"), float("nan"), float("nan"), 0, 0, 0)
     try:
         from scipy.stats import norm
@@ -380,23 +380,23 @@ def kaplan_meier(time, event, alpha: float = 0.05) -> KMResult:
             cumulative_value += zd / (at_risk * (at_risk - zd))
         se = S * math.sqrt(cumulative_value) if S > 0 else 0.0
         rows.append({"t": float(t), "n_at_risk": at_risk, "events": zd, "S": S,
-                        "S_dolne": max(0.0, S - z * se), "S_gorne": min(1.0, S + z * se)})
+                        "S_lower": max(0.0, S - z * se), "S_upper": min(1.0, S + z * se)})
     # Explicit columns: a group in which every observation is censored has no event time,
     # and a frame built from an empty list would have no columns at all (KeyError: 'S').
-    tab = pd.DataFrame(rows, columns=["t", "n_at_risk", "events", "S", "S_dolne", "S_gorne"])
+    tab = pd.DataFrame(rows, columns=["t", "n_at_risk", "events", "S", "S_lower", "S_upper"])
 
     def first_below(col):
         under = tab[tab[col] <= 0.5]
         return float(under["t"].iloc[0]) if len(under) else float("nan")
 
     # The lower band reaches 0.5 FIRST, so it gives the LOWER bound of the median; the upper
-    # band reaches it last and gives the upper bound. Versions up to 1.5.2 had the two
-    # swapped, which returned an interval with median_lower > mediana > median_upper.
+    # band reaches it last and gives the upper bound; with the two swapped the interval would
+    # come out as median_lower > median > median_upper.
     return KMResult(
         table=tab,
         median=first_below("S"),
-        median_lower=first_below("S_dolne"),
-        median_upper=first_below("S_gorne"),
+        median_lower=first_below("S_lower"),
+        median_upper=first_below("S_upper"),
         n=n0,
         events=int((d["e"] == 1).sum()),
         censored=int((d["e"] == 0).sum()),
@@ -405,9 +405,9 @@ def kaplan_meier(time, event, alpha: float = 0.05) -> KMResult:
 
 def kaplan_meier_by_group(
     df: pd.DataFrame,
-    by: str | Sequence[str] | None = "klasa_zasobu",
-    start: str = "data_wniosku",
-    end: str = "data_warunkow",
+    by: str | Sequence[str] | None = "resource_class",
+    start: str = "date_application",
+    end: str = "date_conditions",
     min_n: int = 30,
     as_at=None,
 ) -> pd.DataFrame:

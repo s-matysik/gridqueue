@@ -21,8 +21,8 @@ from gridqueue import station_node_map, assign_to_nodes, node_loading
 
 mapping = station_node_map(panel)              # station -> group of stations
 panel = assign_to_nodes(panel, mapping)        # assignment of applications to groups
-L = node_loading(panel, capacity_field="moc_wprowadzana")
-L[["nazwa_wezla", "applications", "capacity_requested", "moc_dostepna", "loading"]]
+L = node_loading(panel, capacity_field="capacity_injected")
+L[["node_name", "applications", "capacity_requested", "capacity_available", "loading"]]
 ```
 
 **The key is the group of stations, not the node row.** The publisher lists the same

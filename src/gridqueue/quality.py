@@ -14,13 +14,13 @@ Rules:
   R4  spojnosc_jednostek_mocy   : capacity values in kW must fall within the physical
                                    range of connections >1 kV (detects an MW/kW mix-up)
   R5  zakresy_wartosci          : capacities non-negative, dates in the 1990-2100 window
-  R6  duplikaty_identyfikatorow : the same id_wniosku in multiple rows
-  R7  kompletnosc_rdzenia       : core of the ENTITY PROPER TO THE ROW: for WNIOSEK
+  R6  duplikaty_identyfikatorow : the same application_id in multiple rows
+  R7  kompletnosc_rdzenia       : core of the ENTITY PROPER TO THE ROW: for APPLICATION
                                    4 fields non-empty plus at least one of the pair
-                                   (moc_pobierana, moc_wprowadzana); for WEZEL
-                                   id_wezla plus at least one of the pair
-                                   (moc_dostepna, ograniczenie_flaga)
-  R8  slownik_kontrolowany      : klasa_zasobu and status_procesu from the dictionary
+                                   (capacity_withdrawn, capacity_injected); for NODE
+                                   node_id plus at least one of the pair
+                                   (capacity_available, constraint_flag)
+  R8  slownik_kontrolowany      : resource_class and process_status from the dictionary
 """
 
 from __future__ import annotations
@@ -93,7 +93,7 @@ def _d(v) -> Optional[_dt.date]:
 
 
 def r1_date_monotonicity(df) -> tuple[int, dict]:
-    order = ["data_wniosku", "data_warunkow", "data_umowy", "data_energizacji"]
+    order = ["date_application", "date_conditions", "date_agreement", "date_energisation"]
     have = [c for c in order if c in df.columns]
     n_bad, pairs = 0, {}
     for i in range(len(have) - 1):
@@ -124,14 +124,14 @@ def r2_condition_validity(df) -> tuple[int, dict]:
     than two years after the date the conditions were determined.  We also check agreements
     concluded after two years have elapsed from the conditions that did not expire.
     """
-    if "data_warunkow" not in df.columns:
-        return 0, {"note": "missing field data_warunkow"}
-    col_utr = "_data_utraty_waznosci" if "_data_utraty_waznosci" in df.columns else None
+    if "date_conditions" not in df.columns:
+        return 0, {"note": "missing field date_conditions"}
+    col_utr = "_date_expiry" if "_date_expiry" in df.columns else None
     n_expiry_bad = n_contract_bad = 0
     n_checked_utr = 0
     surpluses: list[int] = []
     for i in range(len(df)):
-        dw = _d(df["data_warunkow"].iloc[i])
+        dw = _d(df["date_conditions"].iloc[i])
         if not dw:
             continue
         limit = _plus_years(dw, 2)
@@ -142,8 +142,8 @@ def r2_condition_validity(df) -> tuple[int, dict]:
                 if du > limit:
                     n_expiry_bad += 1
                     surpluses.append((du - limit).days)
-        if "data_umowy" in df.columns:
-            dm = _d(df["data_umowy"].iloc[i])
+        if "date_agreement" in df.columns:
+            dm = _d(df["date_agreement"].iloc[i])
             if dm and dm > limit:
                 n_contract_bad += 1
     det = {
@@ -173,13 +173,13 @@ def r2_condition_validity(df) -> tuple[int, dict]:
 #: which dates MUST / MUST NOT exist for a given status
 _STATUS_REQUIRES: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
     # status: (required fields, forbidden fields)
-    "WARUNKI_WYDANE": (("data_warunkow",), ("data_odmowy",)),
-    "ODMOWA": (("data_odmowy",), ("data_umowy", "data_energizacji")),
-    "UMOWA_OBOWIAZUJACA": (("data_umowy",), ("data_odmowy",)),
-    "PRZYLACZONY": (("data_energizacji",), ("data_odmowy",)),
-    "WNIOSEK_ZLOZONY": ((), ("data_umowy", "data_energizacji")),
-    "W_TRAKCIE_ANALIZY": ((), ("data_umowy", "data_energizacji")),
-    "WNIOSEK_NIEKOMPLETNY": ((), ("data_umowy", "data_energizacji")),
+    "CONDITIONS_ISSUED": (("date_conditions",), ("date_refusal",)),
+    "REFUSED": (("date_refusal",), ("date_agreement", "date_energisation")),
+    "AGREEMENT_IN_FORCE": (("date_agreement",), ("date_refusal",)),
+    "CONNECTED": (("date_energisation",), ("date_refusal",)),
+    "APPLICATION_FILED": ((), ("date_agreement", "date_energisation")),
+    "UNDER_REVIEW": ((), ("date_agreement", "date_energisation")),
+    "APPLICATION_INCOMPLETE": ((), ("date_agreement", "date_energisation")),
 }
 
 
@@ -192,28 +192,28 @@ def r3_transition_admissibility(df) -> tuple[int, dict]:
     We determine the disclosed fields empirically: a column with at least one non-empty
     value within the publisher.
     """
-    if "status_procesu" not in df.columns:
+    if "process_status" not in df.columns:
         return 0, {}
-    date_cols = [c for c in ("data_wniosku", "data_warunkow", "data_odmowy",
-                             "data_umowy", "data_energizacji") if c in df.columns]
+    date_cols = [c for c in ("date_application", "date_conditions", "date_refusal",
+                             "date_agreement", "date_energisation") if c in df.columns]
     global_rules = {c for c in date_cols if df[c].map(lambda v: not _is_null(v)).any()}
-    if "publikujacy" in df.columns:
+    if "publisher" in df.columns:
         disclosed = {}
-        for pub, g in df.groupby("publikujacy"):
+        for pub, g in df.groupby("publisher"):
             disclosed[pub] = {c for c in date_cols if g[c].map(lambda v: not _is_null(v)).any()}
     else:
         disclosed = None
     details: dict[str, int] = {}
     n_bad = 0
     for i in range(len(df)):
-        st = df["status_procesu"].iloc[i]
+        st = df["process_status"].iloc[i]
         spec = _STATUS_REQUIRES.get(st)
         if not spec:
             continue
         # The key may not exist: groupby skips the group with an empty publisher name,
         # so a row without that annotation has no entry of its own.  In that case we use the
         # global set instead of raising a KeyError and losing the whole rule.
-        avail = (disclosed.get(df["publikujacy"].iloc[i], global_rules)
+        avail = (disclosed.get(df["publisher"].iloc[i], global_rules)
                 if disclosed is not None else global_rules)
         required = tuple(c for c in spec[0] if c in avail)
         forbidden = spec[1]
@@ -237,8 +237,8 @@ _CAPACITY_MIN_KW, _CAPACITY_MAX_KW = 1.0, 5_000_000.0
 
 
 def r4_unit_consistency(df) -> tuple[int, dict]:
-    cols = [c for c in ("moc_wprowadzana", "moc_pobierana", "moc_dostepna",
-                        "moc_zarezerwowana") if c in df.columns]
+    cols = [c for c in ("capacity_injected", "capacity_withdrawn", "capacity_available",
+                        "capacity_reserved") if c in df.columns]
     per: dict[str, int] = {}
     mask = [False] * len(df)
     for c in cols:
@@ -261,7 +261,7 @@ def r5_value_ranges(df) -> tuple[int, dict]:
     per: dict[str, int] = {}
     mask = [False] * len(df)
     for c in df.columns:
-        if c.startswith("data_") or c.startswith("_data_"):
+        if c.startswith("date_") or c.startswith("_date_"):
             cnt = 0
             for j, v in enumerate(df[c]):
                 d = _d(v)
@@ -270,7 +270,7 @@ def r5_value_ranges(df) -> tuple[int, dict]:
                     mask[j] = True
             if cnt:
                 per[c] = cnt
-        if c.startswith("moc_"):
+        if c.startswith("capacity_"):
             cnt = 0
             for j, v in enumerate(df[c]):
                 if isinstance(v, (int, float)) and not _is_null(v) and v < 0:
@@ -282,9 +282,9 @@ def r5_value_ranges(df) -> tuple[int, dict]:
 
 
 def r6_identifier_duplicates(df) -> tuple[int, dict]:
-    if "id_wniosku" not in df.columns:
+    if "application_id" not in df.columns:
         return 0, {}
-    s = df["id_wniosku"].dropna()
+    s = df["application_id"].dropna()
     vc = s.value_counts()
     dup = vc[vc > 1]
     return int(dup.sum() - len(dup)), {
@@ -339,7 +339,7 @@ def r7_core_completeness(df) -> tuple[int, dict]:
 def r8_controlled_vocabulary(df) -> tuple[int, dict]:
     per = {}
     mask = [False] * len(df)
-    for c, vocab in (("klasa_zasobu", RESOURCE_CLASSES), ("status_procesu", STATUSES)):
+    for c, vocab in (("resource_class", RESOURCE_CLASSES), ("process_status", STATUSES)):
         if c not in df.columns:
             continue
         cnt = 0

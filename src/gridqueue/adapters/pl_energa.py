@@ -10,7 +10,7 @@ data in tabular form:
                    ``_ptpiree``), moved into a PDF.  APPLICATION entity.
   pt. 2)         : two documents "Information on the total value of available
                    {off-take|generation} connection capacity [MW]".  NODE entity.
-                   THIS IS THE FIRST SOURCE IN THE PANEL THAT FILLS ``moc_dostepna``.
+                   THIS IS THE FIRST SOURCE IN THE PANEL THAT FILLS ``capacity_available``.
 
 Geometry for pt. 1/3/4: the document has no ``line`` objects, but instead has 176
 thin rectangles acting as grid lines; pdfplumber reports them as edges, so the
@@ -26,14 +26,14 @@ vector grid.
 Substantive resolution for the generation document: it contains TWO value tables.
 Table 2.3 is the statutory disclosure; table 2.4 is, in the words of the document
 itself, provided "additionally", for the analytical approach as in the expert
-opinions under the Act on Offshore Wind Farms.  For ``moc_dostepna`` we take 2.3;
+opinions under the Act on Offshore Wind Farms.  For ``capacity_available`` we take 2.3;
 2.4 goes into the extension.  The opposite choice would overstate the disclosed
 capacity without basis in the document.
 
 Date discrepancy that must be reported, not smoothed over: the file for pt. 1/3/4
 is named ``2026_08_31_pusop_wnioski_i_odmowy_eop.pdf`` and sits in the August
 cycle, but its own header declares "Stan na 30.06.2026 r.".  We take
-``data_publikacji`` FROM THE DOCUMENT (30.06.2026), because it is the document
+``date_published`` FROM THE DOCUMENT (30.06.2026), because it is the document
 that is the disclosure, not the file name.
 """
 
@@ -56,15 +56,15 @@ _RE_YEAR = re.compile(r"^(19|20)\d{2}$")
 class EnergaAdapter(Adapter):
     publisher = "ENERGA-OPERATOR S.A."
     jurisdiction = "PL"
-    declared_fields = T.DECLARED_FIELDS + ("id_wezla", "nazwa_wezla", "moc_dostepna")
+    declared_fields = T.DECLARED_FIELDS + ("node_id", "node_name", "capacity_available")
     declared_extensions = dict(
         T.DECLARED_EXTENSIONS,
-        _kierunek="direction of available capacity: off-take or generation",
-        _nr_grupy="number of the coherent node group in the document",
-        _stacje_grupy="stations forming the group (network model for the base year)",
-        _zmiany_w_latach="changes in group composition in subsequent years (remarks column)",
-        _oddzial="ENERGA-OPERATOR branch in whose area the group lies",
-        _moc_dostepna_analityczna="value from table 2.4 (analytical approach), base year [kW]",
+        _direction="direction of available capacity: off-take or generation",
+        _group_no="number of the coherent node group in the document",
+        _group_stations="stations forming the group (network model for the base year)",
+        _changes_by_year="changes in group composition in subsequent years (remarks column)",
+        _branch="ENERGA-OPERATOR branch in whose area the group lies",
+        _capacity_available_analytical="value from table 2.4 (analytical approach), base year [kW]",
     )
     detect_patterns = (r"energa", r"eop")
 
@@ -108,9 +108,9 @@ class EnergaAdapter(Adapter):
         with pdfplumber.open(src) as pdf:
             t = norm_text(pdf.pages[0].extract_text() or "")
         if "dostepnej odbiorczej mocy" in t:
-            return "odbiorcza"
+            return "demand"
         if "dostepnej wytworczej mocy" in t:
-            return "wytworcza"
+            return "generation"
         return "applications"
 
     # ------------------------------------------------------------------
@@ -147,7 +147,7 @@ class EnergaAdapter(Adapter):
         out = T.to_schema(raw, publisher_key="energa", publication_date=self.publication_date)
         return out, {
             "file_name": str(src),
-            "entity": "WNIOSEK",
+            "entity": "APPLICATION",
             "pages": n_pages,
             "n_source_columns": sorted(n_cols_seen),
             "n_rows": int(len(out)),
@@ -164,7 +164,7 @@ class EnergaAdapter(Adapter):
 
         groups: dict[str, dict] = {}       # group no. -> composition
         values: dict[str, dict] = {}    # group no. -> {year: MW} from table 2.3
-        analit: dict[str, dict] = {}      # group no. -> {year: MW} from table 2.4
+        analytical: dict[str, dict] = {}      # group no. -> {year: MW} from table 2.4
         current_branch = None
         as_at = None
         n_pages = 0
@@ -188,56 +188,56 @@ class EnergaAdapter(Adapter):
                 elif caption.startswith("tabela 2.3"):
                     self._collect_values(tbl, values)
                 elif caption.startswith("tabela 2.4"):
-                    self._collect_values(tbl, analit)
+                    self._collect_values(tbl, analytical)
 
-        if direction == "odbiorcza" and as_at and self.publication_date is None:
+        if direction == "demand" and as_at and self.publication_date is None:
             self.publication_date = as_at
 
         nry = sorted(values, key=lambda s: int(s))
         out = pd.DataFrame(index=range(len(nry)))
         g = [groups.get(n, {}) for n in nry]
-        out["id_wniosku"] = None
-        out["id_wezla"] = [f"energa:grupa110:{n}:{direction}" for n in nry]
-        out["nazwa_wezla"] = [values[n].get("_name") for n in nry]
-        out["lokalizacja_tekst"] = [
+        out["application_id"] = None
+        out["node_id"] = [f"energa:grupa110:{n}:{direction}" for n in nry]
+        out["node_name"] = [values[n].get("_name") for n in nry]
+        out["location_text"] = [
             gi.get("stations") or values[n].get("_name") for n, gi in zip(nry, g)
         ]
-        out["poziom_napiecia"] = "110 kV"
+        out["voltage_level"] = "110 kV"
         # The capacity direction is not a kind of installation: the pt. 2 disclosure
         # concerns the NODE, not the resource.  For off-take capacity the class is
-        # unambiguous (ODB); for generation, the document does not indicate the
+        # unambiguous (LOAD); for generation, the document does not indicate the
         # technology, so it remains as is.
-        out["klasa_zasobu"] = "ODB" if direction == "odbiorcza" else "NIEOKRESLONA"
-        out["status_procesu"] = "NIEOKRESLONY"
-        out["moc_dostepna"] = [
+        out["resource_class"] = "LOAD" if direction == "demand" else "UNSPECIFIED"
+        out["process_status"] = "UNSPECIFIED"
+        out["capacity_available"] = [
             canonical_power_kw(values[n].get(self.base_year), "MW") for n in nry
         ]
-        out["data_publikacji"] = as_at
-        out["_encja"] = "WEZEL"
-        out["_kierunek"] = direction
-        out["_nr_grupy"] = nry
-        out["_stacje_grupy"] = [gi.get("stations") for gi in g]
-        out["_zmiany_w_latach"] = [gi.get("changes") for gi in g]
-        out["_oddzial"] = [gi.get("branch") for gi in g]
+        out["date_published"] = as_at
+        out["_entity"] = "NODE"
+        out["_direction"] = direction
+        out["_group_no"] = nry
+        out["_group_stations"] = [gi.get("stations") for gi in g]
+        out["_changes_by_year"] = [gi.get("changes") for gi in g]
+        out["_branch"] = [gi.get("branch") for gi in g]
         for year in self.HORIZON:
-            out[f"_moc_dostepna_{year}"] = [
+            out[f"_capacity_available_{year}"] = [
                 canonical_power_kw(values[n].get(year), "MW") for n in nry
             ]
-        out["_moc_dostepna_analityczna"] = [
-            canonical_power_kw(analit.get(n, {}).get(self.base_year), "MW") for n in nry
+        out["_capacity_available_analytical"] = [
+            canonical_power_kw(analytical.get(n, {}).get(self.base_year), "MW") for n in nry
         ]
         for year in self.HORIZON:
-            self.declared_extensions[f"_moc_dostepna_{year}"] = (
+            self.declared_extensions[f"_capacity_available_{year}"] = (
                 f"available connection capacity in the {year} horizon [kW]"
             )
         return out, {
             "file_name": str(src),
-            "entity": "WEZEL",
+            "entity": "NODE",
             "direction": direction,
             "pages": n_pages,
             "n_groups_with_values": len(nry),
             "n_groups_with_composition": len(groups),
-            "n_analytical_groups": len(analit),
+            "n_analytical_groups": len(analytical),
             "horizon": list(self.HORIZON),
             "base_year": self.base_year,
             "n_rows": int(len(out)),

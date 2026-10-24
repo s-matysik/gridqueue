@@ -8,7 +8,7 @@ title: Charts
 `plot` extra:
 
 ```bash
-pip install "gridqueue[plot] @ git+https://github.com/s-matysik/gridqueue@v1.7.0"
+pip install "gridqueue[plot] @ git+https://github.com/s-matysik/gridqueue@v1.0.0"
 ```
 
 ## Principles
@@ -35,7 +35,7 @@ pip install "gridqueue[plot] @ git+https://github.com/s-matysik/gridqueue@v1.7.0
 | `plot_column_shift(df)` | panel | rows with a value in a field it cannot belong to |
 | `plot_status_distribution(df, normalize=True)` | panel | applications by stage of the proceeding |
 | `plot_capacity_by_class(df)` | panel | requested capacity of the active queue by class and voltage |
-| `plot_processing_time(df, by="klasa_zasobu")` | panel | Kaplan-Meier curves, censored at the as-at date, 95% band |
+| `plot_processing_time(df, by="resource_class")` | panel | Kaplan-Meier curves, censored at the as-at date, 95% band |
 | `plot_node_loading(L)` | `node_loading(...)` | queue over declared free capacity per node, log scale |
 | `plot_edition_flows(delta)` | `compare_editions(...)` | shared, new and absent rows, with the warning segments |
 | `plot_transitions(delta)` | `compare_editions(...)` | status transition matrix; backward moves outlined |
@@ -53,7 +53,7 @@ from gridqueue import (parse_sources, compare_editions, linkage_audit, linkage_r
                        assign_to_nodes, node_loading, station_node_map, plots)
 
 panel, _ = parse_sources(["applications.pdf", "demand_capacity.pdf", "generation_capacity.pdf"])
-plots.plot_processing_time(panel, by="klasa_zasobu", min_n=30)
+plots.plot_processing_time(panel, by="resource_class", min_n=30)
 
 L = node_loading(assign_to_nodes(panel, station_node_map(panel)), voltage="110")
 plots.save_figure(plots.plot_node_loading(L), "node_loading.pdf")

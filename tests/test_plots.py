@@ -23,17 +23,17 @@ def _frame(rows):
 def _panel(n=80):
     rows = []
     for i in range(n):
-        resource_class = "PV" if i % 2 else "ODB"
+        resource_class = "PV" if i % 2 else "LOAD"
         rows.append({
-            "id_wniosku": f"A{i}", "lokalizacja_tekst": f"Stacja {i % 4}",
-            "klasa_zasobu": resource_class, "poziom_napiecia": "SN" if i % 3 else "110 kV",
-            "moc_wprowadzana": 1000.0 + i if resource_class == "PV" else None,
-            "moc_pobierana": 500.0 + i if resource_class == "ODB" else None,
-            "status_procesu": "WARUNKI_WYDANE" if i % 5 else "WNIOSEK_ZLOZONY",
-            "data_wniosku": f"2025-01-{1 + i % 28:02d}",
-            "data_warunkow": f"2025-0{3 + i % 6}-15" if i % 5 else None,
-            "data_publikacji": "2025-12-31",
-            "publikujacy": "PSE S.A." if i < n // 2 else "ENERGA-OPERATOR S.A.",
+            "application_id": f"A{i}", "location_text": f"Stacja {i % 4}",
+            "resource_class": resource_class, "voltage_level": "SN" if i % 3 else "110 kV",
+            "capacity_injected": 1000.0 + i if resource_class == "PV" else None,
+            "capacity_withdrawn": 500.0 + i if resource_class == "LOAD" else None,
+            "process_status": "CONDITIONS_ISSUED" if i % 5 else "APPLICATION_FILED",
+            "date_application": f"2025-01-{1 + i % 28:02d}",
+            "date_conditions": f"2025-0{3 + i % 6}-15" if i % 5 else None,
+            "date_published": "2025-12-31",
+            "publisher": "PSE S.A." if i < n // 2 else "ENERGA-OPERATOR S.A.",
         })
     return _frame(rows)
 
@@ -61,8 +61,8 @@ def test_every_panel_chart_draws(panel):
 
 
 def test_charts_tolerate_a_minimal_frame():
-    df = _frame([{"id_wniosku": "X", "lokalizacja_tekst": "a", "klasa_zasobu": "ODB",
-                  "status_procesu": "WNIOSEK_ZLOZONY", "moc_pobierana": 10.0}])
+    df = _frame([{"application_id": "X", "location_text": "a", "resource_class": "LOAD",
+                  "process_status": "APPLICATION_FILED", "capacity_withdrawn": 10.0}])
     for f in (plots.plot_field_coverage, plots.plot_quality, plots.plot_status_distribution,
               plots.plot_capacity_by_class, plots.plot_processing_time,
               plots.plot_location_resolution, plots.plot_overview):
@@ -87,7 +87,7 @@ def test_quality_chart_total_matches_run_quality(panel):
 
 
 def test_km_chart_legend_uses_the_estimator(panel):
-    tab = kaplan_meier_by_group(panel, by="klasa_zasobu", min_n=10)
+    tab = kaplan_meier_by_group(panel, by="resource_class", min_n=10)
     fig = plots.plot_processing_time(panel, min_n=10)
     legend = " ".join(t.get_text() for t in fig.axes[0].get_legend().get_texts())
     for r in tab.itertuples():
@@ -96,7 +96,7 @@ def test_km_chart_legend_uses_the_estimator(panel):
 
 
 def test_km_median_interval_is_ordered():
-    # Regression: up to 1.5.2 the two bounds of the median interval were swapped.
+    # The lower bound of the median interval must not exceed the upper one.
     t = list(range(1, 201))
     e = [1] * 200
     km = kaplan_meier(t, e)
@@ -111,14 +111,14 @@ def test_km_all_censored_group_does_not_raise():
 
 def test_km_by_group_respects_min_n(panel):
     assert kaplan_meier_by_group(panel, min_n=10_000).empty
-    tab = kaplan_meier_by_group(panel, by=["publikujacy", "klasa_zasobu"], min_n=5)
+    tab = kaplan_meier_by_group(panel, by=["publisher", "resource_class"], min_n=5)
     assert tab["group"].str.contains(" / ").all()
 
 
 def _editions():
     a = _panel(40)
     b = a.copy()
-    b.loc[b.index[:5], "status_procesu"] = "UMOWA_OBOWIAZUJACA"
+    b.loc[b.index[:5], "process_status"] = "AGREEMENT_IN_FORCE"
     b = b.iloc[2:]
     return a, b
 
@@ -134,17 +134,17 @@ def test_edition_charts_show_the_delta():
 
 def test_node_loading_chart_skips_zero_capacity():
     rows = [
-        {"_encja": "WEZEL", "id_wezla": "G1", "nazwa_wezla": "Alfa", "_nr_grupy": 1,
-         "lokalizacja_tekst": "Alfa, Beta", "moc_dostepna": 1000.0, "_kierunek": "wytworcza"},
-        {"_encja": "WEZEL", "id_wezla": "G2", "nazwa_wezla": "Gamma", "_nr_grupy": 2,
-         "lokalizacja_tekst": "Gamma", "moc_dostepna": 0.0, "_kierunek": "wytworcza"},
-        {"_encja": "WNIOSEK", "lokalizacja_tekst": "Alfa", "moc_wprowadzana": 2500.0,
-         "status_procesu": "WARUNKI_WYDANE"},
-        {"_encja": "WNIOSEK", "lokalizacja_tekst": "Gamma", "moc_wprowadzana": 500.0,
-         "status_procesu": "WARUNKI_WYDANE"},
+        {"_entity": "NODE", "node_id": "G1", "node_name": "Alfa", "_group_no": 1,
+         "location_text": "Alfa, Beta", "capacity_available": 1000.0, "_direction": "generation"},
+        {"_entity": "NODE", "node_id": "G2", "node_name": "Gamma", "_group_no": 2,
+         "location_text": "Gamma", "capacity_available": 0.0, "_direction": "generation"},
+        {"_entity": "APPLICATION", "location_text": "Alfa", "capacity_injected": 2500.0,
+         "process_status": "CONDITIONS_ISSUED"},
+        {"_entity": "APPLICATION", "location_text": "Gamma", "capacity_injected": 500.0,
+         "process_status": "CONDITIONS_ISSUED"},
     ]
     df = pd.DataFrame(rows)
-    L = node_loading(assign_to_nodes(df, station_node_map(df)), capacity_field="moc_wprowadzana")
+    L = node_loading(assign_to_nodes(df, station_node_map(df)), capacity_field="capacity_injected")
     fig = plots.plot_node_loading(L)
     title = fig.axes[0].get_title(loc="left")
     assert "median 2.500" in title and "1 node with zero free capacity" in title

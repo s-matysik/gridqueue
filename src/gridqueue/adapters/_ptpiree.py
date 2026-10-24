@@ -60,11 +60,11 @@ LOGICAL: tuple[str, ...] = (
     "osd_osp",
     "applicant",
     "location",
-    "poziom_napiecia",
+    "voltage_level",
     "multiple_places",
     "kind",
-    "moc_wprowadzana",
-    "moc_pobierana",
+    "capacity_injected",
+    "capacity_withdrawn",
     "mz_pv",
     "mz_fw",
     "mz_mee_discharging",
@@ -74,12 +74,12 @@ LOGICAL: tuple[str, ...] = (
     "status",
     "date_submission",
     "date_advance_payment",
-    "data_warunkow",
-    "data_odmowy",
+    "date_conditions",
+    "date_refusal",
     "refusal_justification",
     "date_expiry",
-    "data_umowy",
-    "data_energizacji",
+    "date_agreement",
+    "date_energisation",
     "date_contract_termination",
     "date_contract_expiration",
     "notes",
@@ -88,58 +88,58 @@ LOGICAL: tuple[str, ...] = (
 #: physical column index -> logical column.  PSE spreadsheet, 27 columns.
 PSE_XLSX_LAYOUT: dict[int, str] = {
     0: "object_id", 1: "object_name", 2: "osd_osp", 3: "applicant",
-    4: "location", 5: "poziom_napiecia", 6: "multiple_places", 7: "kind",
-    8: "moc_wprowadzana", 9: "moc_pobierana",
+    4: "location", 5: "voltage_level", 6: "multiple_places", 7: "kind",
+    8: "capacity_injected", 9: "capacity_withdrawn",
     10: "mz_pv", 11: "mz_fw", 12: "mz_mee_discharging", 13: "mz_mee_charging",
     14: "mz_odb", 15: "mz_other",
-    16: "status", 17: "date_submission", 18: "date_advance_payment", 19: "data_warunkow",
-    20: "data_odmowy", 21: "refusal_justification", 22: "date_expiry",
-    23: "data_umowy", 24: "data_energizacji", 25: "date_contract_termination",
+    16: "status", 17: "date_submission", 18: "date_advance_payment", 19: "date_conditions",
+    20: "date_refusal", 21: "refusal_justification", 22: "date_expiry",
+    23: "date_agreement", 24: "date_energisation", 25: "date_contract_termination",
     26: "date_contract_expiration",
 }
 
 #: physical column index -> logical column.  Energa-Operator PDF, 28 columns.
 ENERGA_PDF_LAYOUT: dict[int, str] = {
     0: "item_no", 1: "object_id", 2: "osd_osp", 3: "applicant",
-    4: "location", 5: "poziom_napiecia", 6: "multiple_places", 7: "kind",
-    8: "moc_wprowadzana", 9: "moc_pobierana",
+    4: "location", 5: "voltage_level", 6: "multiple_places", 7: "kind",
+    8: "capacity_injected", 9: "capacity_withdrawn",
     10: "mz_pv", 11: "mz_fw", 12: "mz_mee_discharging", 13: "mz_mee_charging",
     14: "mz_odb", 15: "mz_other",
-    16: "status", 17: "date_submission", 18: "date_advance_payment", 19: "data_warunkow",
-    20: "data_odmowy", 21: "refusal_justification", 22: "date_expiry",
-    23: "data_umowy", 24: "data_energizacji", 25: "date_contract_termination",
+    16: "status", 17: "date_submission", 18: "date_advance_payment", 19: "date_conditions",
+    20: "date_refusal", 21: "refusal_justification", 22: "date_expiry",
+    23: "date_agreement", 24: "date_energisation", 25: "date_contract_termination",
     26: "date_contract_expiration", 27: "notes",
 }
 
 #: optional schema fields that the template populates for EVERY publisher
 DECLARED_FIELDS: tuple[str, ...] = (
-    "id_wniosku", "lokalizacja_tekst", "poziom_napiecia", "klasa_zasobu",
-    "moc_wprowadzana", "moc_pobierana", "status_procesu", "data_wniosku",
-    "data_warunkow", "data_odmowy", "powod_odmowy", "data_umowy",
-    "data_energizacji", "data_publikacji",
+    "application_id", "location_text", "voltage_level", "resource_class",
+    "capacity_injected", "capacity_withdrawn", "process_status", "date_application",
+    "date_conditions", "date_refusal", "refusal_reason", "date_agreement",
+    "date_energisation", "date_published",
 )
 
 #: extensions beyond the 21-field schema, shared by the template
 DECLARED_EXTENSIONS: dict[str, str] = {
-    "_podmiot": "name of the entity applying for connection",
-    "_osd_osp": "operator indicated in the document (template field)",
-    "_nazwa_obiektu": "proper name of the object (PSE only)",
-    "_wiele_miejsc": "whether the application concerns multiple connection points / voltage levels",
-    "_rodzaj_raw": "installation type as given in the document",
+    "_applicant": "name of the entity applying for connection",
+    "_dso_tso": "operator indicated in the document (template field)",
+    "_facility_name": "proper name of the object (PSE only)",
+    "_multiple_points": "whether the application concerns multiple connection points / voltage levels",
+    "_kind_raw": "installation type as given in the document",
     "_status_raw": "project stage status as given in the document",
-    "_data_zaliczki": "date the deposit was paid",
-    "_data_utraty_waznosci": "date the connection conditions expired / were withdrawn",
-    "_data_rozwiazania_umowy": "date the agreement was terminated / cancelled / withdrawn from",
-    "_data_wygasniecia_umowy": "date the agreement expired by operation of law",
-    "_mz_pv": "installed PV capacity [kW]",
-    "_mz_fw": "installed FW capacity [kW]",
-    "_mz_mee_rozladowania": "installed storage capacity: discharge [kW]",
-    "_mz_mee_ladowania": "installed storage capacity: charge [kW]",
-    "_mz_odb": "installed consumption capacity [kW]",
-    "_mz_inne": "installed capacity of other sources [kW]",
-    "_uwagi": "UWAGI column (Energa only)",
-    "_lp_dokumentu": "sequence number in the source document",
-    "_encja": "WNIOSEK or WEZEL: which entity of the duty the row implements",
+    "_date_advance_payment": "date the deposit was paid",
+    "_date_expiry": "date the connection conditions expired / were withdrawn",
+    "_date_agreement_termination": "date the agreement was terminated / cancelled / withdrawn from",
+    "_date_agreement_lapse": "date the agreement expired by operation of law",
+    "_ic_pv": "installed PV capacity [kW]",
+    "_ic_wind": "installed FW capacity [kW]",
+    "_ic_storage_discharging": "installed storage capacity: discharge [kW]",
+    "_ic_storage_charging": "installed storage capacity: charge [kW]",
+    "_ic_load": "installed consumption capacity [kW]",
+    "_ic_other": "installed capacity of other sources [kW]",
+    "_remarks": "UWAGI column (Energa only)",
+    "_document_item_no": "sequence number in the source document",
+    "_entity": "APPLICATION or NODE: which entity of the duty the row implements",
 }
 
 _NULLISH = {"", "-", "--", "---", "nan", "none", "brak", "nie dotyczy", "n/d"}
@@ -283,52 +283,52 @@ def to_schema(raw, *, publisher_key: str, publication_date: Optional[str]):
     # and ``nan`` is TRUTHY in Python.  The emptiness test must be explicit, otherwise
     # the identifier fallback never runs, and 866 of 876 PSE rows
     # (those with "-" in the ID Obiektu field) are left without an identifier.
-    out["id_wniosku"] = [
+    out["application_id"] = [
         i if not _blank(i)
         else f"{publisher_key}:poz:{(str(l).rstrip('.') if not _blank(l) else str(k + 1))}"
         for k, (i, l) in enumerate(zip(ident, item_no))
     ]
-    out["lokalizacja_tekst"] = col("location")
-    out["poziom_napiecia"] = col("poziom_napiecia").map(_volt)
-    out["klasa_zasobu"] = col("kind").map(harmonize_class)
-    out["moc_wprowadzana"], _injection_component = mw("moc_wprowadzana")
-    out["moc_pobierana"], _withdrawal_component = mw("moc_pobierana")
-    out["status_procesu"] = col("status").map(harmonize_status)
-    out["data_wniosku"] = dcol("date_submission")
-    out["data_warunkow"] = dcol("data_warunkow")
-    out["data_odmowy"] = dcol("data_odmowy")
-    out["powod_odmowy"] = col("refusal_justification")
-    out["data_umowy"] = dcol("data_umowy")
+    out["location_text"] = col("location")
+    out["voltage_level"] = col("voltage_level").map(_volt)
+    out["resource_class"] = col("kind").map(harmonize_class)
+    out["capacity_injected"], _injection_component = mw("capacity_injected")
+    out["capacity_withdrawn"], _withdrawal_component = mw("capacity_withdrawn")
+    out["process_status"] = col("status").map(harmonize_status)
+    out["date_application"] = dcol("date_submission")
+    out["date_conditions"] = dcol("date_conditions")
+    out["date_refusal"] = dcol("date_refusal")
+    out["refusal_reason"] = col("refusal_justification")
+    out["date_agreement"] = dcol("date_agreement")
     # Energa records the planned energization as an INEQUALITY ("po 30.06.2026"),
     # not a date.  ``canonical_date`` is anchored at the start of the string, so it
     # rightly returns None: recording 2026-06-30 would lose the word "po" and turn
     # a lower bound into an exact date.  However, to avoid losing the data, the raw
     # text goes into the extension, and the schema field remains blank.
-    _energ = col("data_energizacji")
-    out["data_energizacji"] = dcol("data_energizacji")
-    out["_energizacja_tekst"] = [
+    _energ = col("date_energisation")
+    out["date_energisation"] = dcol("date_energisation")
+    out["_energisation_text"] = [
         t if (not _blank(t) and canonical_date(t) is None) else None for t in _energ
     ]
-    out["data_publikacji"] = publication_date
+    out["date_published"] = publication_date
 
-    out["_encja"] = "WNIOSEK"
-    out["_podmiot"] = col("applicant")
-    out["_osd_osp"] = col("osd_osp")
-    out["_nazwa_obiektu"] = col("object_name")
-    out["_wiele_miejsc"] = col("multiple_places")
-    out["_rodzaj_raw"] = col("kind")
+    out["_entity"] = "APPLICATION"
+    out["_applicant"] = col("applicant")
+    out["_dso_tso"] = col("osd_osp")
+    out["_facility_name"] = col("object_name")
+    out["_multiple_points"] = col("multiple_places")
+    out["_kind_raw"] = col("kind")
     out["_status_raw"] = col("status")
-    out["_data_zaliczki"] = dcol("date_advance_payment")
-    out["_data_utraty_waznosci"] = dcol("date_expiry")
-    out["_data_rozwiazania_umowy"] = dcol("date_contract_termination")
-    out["_data_wygasniecia_umowy"] = dcol("date_contract_expiration")
-    for src, dst in (("mz_pv", "_mz_pv"), ("mz_fw", "_mz_fw"),
-                     ("mz_mee_discharging", "_mz_mee_rozladowania"),
-                     ("mz_mee_charging", "_mz_mee_ladowania"),
-                     ("mz_odb", "_mz_odb"), ("mz_other", "_mz_inne")):
+    out["_date_advance_payment"] = dcol("date_advance_payment")
+    out["_date_expiry"] = dcol("date_expiry")
+    out["_date_agreement_termination"] = dcol("date_contract_termination")
+    out["_date_agreement_lapse"] = dcol("date_contract_expiration")
+    for src, dst in (("mz_pv", "_ic_pv"), ("mz_fw", "_ic_wind"),
+                     ("mz_mee_discharging", "_ic_storage_discharging"),
+                     ("mz_mee_charging", "_ic_storage_charging"),
+                     ("mz_odb", "_ic_load"), ("mz_other", "_ic_other")):
         out[dst], _ = mw(src)
-    out["_uwagi"] = col("notes")
-    out["_moc_wprowadzana_skladowe_mw"] = _injection_component
-    out["_moc_pobierana_skladowe_mw"] = _withdrawal_component
-    out["_lp_dokumentu"] = item_no
+    out["_remarks"] = col("notes")
+    out["_capacity_injected_components_mw"] = _injection_component
+    out["_capacity_withdrawn_components_mw"] = _withdrawal_component
+    out["_document_item_no"] = item_no
     return out

@@ -1,4 +1,4 @@
-"""Regressions fixed in 1.6.0: censoring date per row, voltage filter of node loading."""
+"""Censoring date per row and the voltage filter of node loading."""
 
 import pandas as pd
 
@@ -8,10 +8,10 @@ import gridqueue as G
 def test_censoring_uses_the_rows_own_publication_date():
     # Node rows published later must not lengthen the censored times of applications.
     df = pd.DataFrame([
-        {"_encja": "WNIOSEK", "data_wniosku": "2026-01-01", "data_publikacji": "2026-06-30"},
-        {"_encja": "WNIOSEK", "data_wniosku": "2026-01-01", "data_warunkow": "2026-03-01",
-         "data_publikacji": "2026-06-30"},
-        {"_encja": "WEZEL", "data_publikacji": "2026-08-31"},
+        {"_entity": "APPLICATION", "date_application": "2026-01-01", "date_published": "2026-06-30"},
+        {"_entity": "APPLICATION", "date_application": "2026-01-01", "date_conditions": "2026-03-01",
+         "date_published": "2026-06-30"},
+        {"_entity": "NODE", "date_published": "2026-08-31"},
     ])
     pt = G.processing_time(df)
     assert pt.loc[0, "time_days"] == (pd.Timestamp("2026-06-30") - pd.Timestamp("2026-01-01")).days
@@ -20,27 +20,27 @@ def test_censoring_uses_the_rows_own_publication_date():
 
 def test_censoring_per_publisher_in_a_panel():
     df = pd.DataFrame([
-        {"publikujacy": "A", "data_wniosku": "2026-01-01", "data_publikacji": "2026-03-31"},
-        {"publikujacy": "B", "data_wniosku": "2026-01-01", "data_publikacji": "2026-06-30"},
-    ]).assign(data_warunkow=None)
+        {"publisher": "A", "date_application": "2026-01-01", "date_published": "2026-03-31"},
+        {"publisher": "B", "date_application": "2026-01-01", "date_published": "2026-06-30"},
+    ]).assign(date_conditions=None)
     pt = G.processing_time(df)
     assert list(pt["time_days"]) == [89, 180]
 
 
 def test_explicit_as_at_date_applies_to_every_row():
-    df = pd.DataFrame([{"data_wniosku": "2026-01-01", "data_publikacji": "2026-03-31",
-                        "data_warunkow": None}])
+    df = pd.DataFrame([{"date_application": "2026-01-01", "date_published": "2026-03-31",
+                        "date_conditions": None}])
     assert G.processing_time(df, as_at="2026-01-11")["time_days"].iloc[0] == 10
 
 
 def test_node_loading_voltage_filter():
     rows = [
-        {"_encja": "WEZEL", "id_wezla": "G1", "nazwa_wezla": "Alfa", "_nr_grupy": 1,
-         "lokalizacja_tekst": "Alfa", "moc_dostepna": 1000.0, "_kierunek": "wytworcza"},
-        {"_encja": "WNIOSEK", "lokalizacja_tekst": "Alfa", "moc_wprowadzana": 3000.0,
-         "status_procesu": "WARUNKI_WYDANE", "poziom_napiecia": "110 kV"},
-        {"_encja": "WNIOSEK", "lokalizacja_tekst": "Alfa", "moc_wprowadzana": 500.0,
-         "status_procesu": "WARUNKI_WYDANE", "poziom_napiecia": "SN"},
+        {"_entity": "NODE", "node_id": "G1", "node_name": "Alfa", "_group_no": 1,
+         "location_text": "Alfa", "capacity_available": 1000.0, "_direction": "generation"},
+        {"_entity": "APPLICATION", "location_text": "Alfa", "capacity_injected": 3000.0,
+         "process_status": "CONDITIONS_ISSUED", "voltage_level": "110 kV"},
+        {"_entity": "APPLICATION", "location_text": "Alfa", "capacity_injected": 500.0,
+         "process_status": "CONDITIONS_ISSUED", "voltage_level": "SN"},
     ]
     df = pd.DataFrame(rows)
     assigned = G.assign_to_nodes(df, G.station_node_map(df))
@@ -58,8 +58,8 @@ def test_split_editions_by_application_date():
 
 def test_split_editions_keeps_one_edition_with_node_rows_of_another_date():
     df = pd.DataFrame([
-        {"_encja": "WNIOSEK", "publikujacy": "P", "data_publikacji": "2026-06-30"},
-        {"_encja": "WEZEL", "publikujacy": "P", "data_publikacji": "2026-08-31"},
+        {"_entity": "APPLICATION", "publisher": "P", "date_published": "2026-06-30"},
+        {"_entity": "NODE", "publisher": "P", "date_published": "2026-08-31"},
     ])
     eds = G.split_editions(df)
     assert len(eds) == 1 and eds[0][0] is None
@@ -67,9 +67,9 @@ def test_split_editions_keeps_one_edition_with_node_rows_of_another_date():
 
 def test_split_editions_assigns_node_rows_to_the_nearest_edition():
     df = pd.DataFrame([
-        {"_encja": "WNIOSEK", "publikujacy": "P", "data_publikacji": "2026-03-31"},
-        {"_encja": "WNIOSEK", "publikujacy": "P", "data_publikacji": "2026-06-30"},
-        {"_encja": "WEZEL", "publikujacy": "P", "data_publikacji": "2026-07-15"},
+        {"_entity": "APPLICATION", "publisher": "P", "date_published": "2026-03-31"},
+        {"_entity": "APPLICATION", "publisher": "P", "date_published": "2026-06-30"},
+        {"_entity": "NODE", "publisher": "P", "date_published": "2026-07-15"},
     ])
     eds = dict(G.split_editions(df))
     assert len(eds["2026-03-31"]) == 1 and len(eds["2026-06-30"]) == 2
