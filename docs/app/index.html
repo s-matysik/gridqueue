@@ -372,7 +372,7 @@ body.mode-full .simple-only{display:none !important}
          aria-label="Drop disclosure files, or click to choose them">
       <div class="dz-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
         <path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M4 15v3.5A1.5 1.5 0 005.5 20h13a1.5 1.5 0 001.5-1.5V15" stroke-linecap="round"/></svg></div>
+        <path d="M4 15v3.5A1.5 1.5 0.005.5 20h13a1.5 1.5 0.001.5-1.5V15" stroke-linecap="round"/></svg></div>
       <p class="big" id="dropSBig">Preparing, one moment</p>
       <p class="sub">PDF or XLSX as published: one disclosure, all documents of one edition, or two editions</p>
       <input type="file" id="fileS" accept=".pdf,.xlsx,.xls,.csv" multiple class="vis-hidden">
@@ -393,7 +393,7 @@ body.mode-full .simple-only{display:none !important}
            aria-label="Drop disclosure files, or click to choose them">
         <div class="dz-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
           <path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M4 15v3.5A1.5 1.5 0 005.5 20h13a1.5 1.5 0 001.5-1.5V15" stroke-linecap="round"/></svg></div>
+          <path d="M4 15v3.5A1.5 1.5 0.005.5 20h13a1.5 1.5 0.001.5-1.5V15" stroke-linecap="round"/></svg></div>
         <p class="big" id="dropBig">Preparing, one moment</p>
         <p class="sub">PDF, XLSX or CSV, as published, several at once</p>
         <input type="file" id="fileA" accept=".pdf,.xlsx,.xls,.csv" multiple class="vis-hidden">
@@ -505,7 +505,7 @@ body.mode-full .simple-only{display:none !important}
   <div class="twocol">
     <div>
       <p class="small">Time from application to connection conditions, per resource class
-      (Kaplan-Meier, open applications censored at the as-at date, 95 % Greenwood interval of the median).</p>
+      (Kaplan-Meier, open applications censored at the as-at date, 95% Greenwood interval of the median).</p>
       <div class="glass tablecard"><div class="tablescroll"><table id="kmtab"></table></div></div>
     </div>
     <div>
@@ -569,7 +569,7 @@ body.mode-full .simple-only{display:none !important}
   <sup>3</sup> The Parquet engine has no WebAssembly build; use the CSV or XLSX export, or the notebook.</div></div>
   <p class="small" style="margin-top:16px">For everything at once, open the
   <a href="https://colab.research.google.com/github/s-matysik/gridqueue/blob/main/notebooks/gridqueue_colab.ipynb">Colab notebook</a>,
-  or install the package with <span class="mono">pip install "gridqueue[plot] @ git+https://github.com/s-matysik/gridqueue@v1.6.0"</span>.</p>
+  or install the package with <span class="mono">pip install "gridqueue[plot] @ git+https://github.com/s-matysik/gridqueue@v1.7.0"</span>.</p>
 </section>
 
 <footer>
@@ -681,8 +681,8 @@ def _headlines(df, km, nodes, cmp_, min_cov):
                 f"; generation and storage in the queue ask to feed in {mw:,.0f} MW." if mw > 0 else "."))
     if len(km) and _coverage(df) >= min_cov:
         top = km.sort_values("n", ascending=False).head(3)
-        parts = [f"{P.CLASS_LABELS.get(r.grupa, r.grupa)} {r.mediana:.0f} days" for r in top.itertuples()
-                 if r.mediana == r.mediana]
+        parts = [f"{P.CLASS_LABELS.get(r.group, r.group)} {r.median:.0f} days" for r in top.itertuples()
+                 if r.median == r.median]
         if parts:
             out.append("Half of the applications had their connection conditions within: " + "; ".join(parts) + ".")
     for nl in nodes:
@@ -692,22 +692,22 @@ def _headlines(df, km, nodes, cmp_, min_cov):
                        f"{q} already exceeds the free capacity the operator declares.")
     if cmp_:
         x = cmp_["delta"]
-        out.append(f"Between the editions {x['nowych']:,} applications appeared, {x['ubylych']:,} disappeared "
-                   f"and {x['zmian_statusu']:,} changed stage.")
+        out.append(f"Between the editions {x['new']:,} applications appeared, {x['gone']:,} disappeared "
+                   f"and {x['status_changes']:,} changed stage.")
     return out
 
-def _core(df, df_b, reports, gaz_path, label_a, label_b, min_n, min_cov, synthetic=""):
+def _core(df, df_b, reports, gazetteer_path, label_a, label_b, min_n, min_cov, synthetic=""):
     import matplotlib
     matplotlib.use("agg")
     if df is None or not len(df):
         raise ValueError("the documents produced no rows")
-    if synthetic == "panel" and not gaz_path:
-        gaz_path = os.path.join(tempfile.gettempdir(), "synthetic_gazetteer.json")
-        with open(gaz_path, "w", encoding="utf-8") as fh:
+    if synthetic == "panel" and not gazetteer_path:
+        gazetteer_path = os.path.join(tempfile.gettempdir(), "synthetic_gazetteer.json")
+        with open(gazetteer_path, "w", encoding="utf-8") as fh:
             json.dump(X.synthetic_gazetteer(), fh)
     geo = None
-    if gaz_path:
-        df = G.geocode_frame(df, G.resolver_from_gazeter_json(gaz_path))
+    if gazetteer_path:
+        df = G.geocode_frame(df, G.resolver_from_gazetteer_json(gazetteer_path))
         geo = {"with_point": int(df["wspolrzedne"].notna().sum()), "rows": int(len(df)),
                "reasons": _clean(df.loc[df["wspolrzedne"].isna(), "_geo_powod"].value_counts().head(12).to_dict())}
     out = {"package": G.__version__, "schema": G.SCHEMA_VERSION, "rows": int(len(df)),
@@ -716,7 +716,7 @@ def _core(df, df_b, reports, gaz_path, label_a, label_b, min_n, min_cov, synthet
     pubs = df["publikujacy"].dropna().astype(str).unique().tolist() if "publikujacy" in df else []
     out["publishers"] = [P.publisher_label(p) for p in pubs]
     q = G.run_quality(df).as_dict(); out["quality"] = _clean(q)
-    out["violations"] = int(q.get("naruszen_lacznie", 0))
+    out["violations"] = int(q.get("violations_total", 0))
     out["validation"] = _clean(G.validate_frame(df))
     out["column_shift"] = _clean(G.audit_column_shift(df).as_dict())
     fields = [f for f in G.FIELDS if f in df.columns]
@@ -730,15 +730,15 @@ def _core(df, df_b, reports, gaz_path, label_a, label_b, min_n, min_cov, synthet
     cov = _coverage(df)
     nodes, nl_figs = [], {}
     if "_encja" in df and (df["_encja"] == "WEZEL").any() and (df["_encja"] != "WEZEL").any():
-        mapa = G.station_node_map(df)
-        if len(mapa):
-            przyp = G.assign_to_nodes(df, mapa)
+        mapping = G.station_node_map(df)
+        if len(mapping):
+            assigned = G.assign_to_nodes(df, mapping)
             has110 = "poziom_napiecia" in df and df["poziom_napiecia"].astype("string").str.contains("110", na=False).any()
             variants = ((("110 kV queue", "110"),) if has110 else ()) + (("all voltages", None),)
-            for pole, nm in (("moc_wprowadzana", "generation"), ("moc_pobierana", "demand")):
-                for i, (var, nap) in enumerate(variants):
-                    L = G.node_loading(przyp, pole_mocy=pole, napiecie=nap)
-                    v = pd.to_numeric(L["obciazenie"], errors="coerce")
+            for field, nm in (("moc_wprowadzana", "generation"), ("moc_pobierana", "demand")):
+                for i, (var, voltage) in enumerate(variants):
+                    L = G.node_loading(assigned, capacity_field=field, voltage=voltage)
+                    v = pd.to_numeric(L["loading"], errors="coerce")
                     rec = {"direction": nm, "queue": var, "nodes": int(len(L)), "defined": int(v.notna().sum()),
                            "above_1": int((v > 1).sum()),
                            "median": None if v.dropna().empty else round(float(v.median()), 3),
@@ -755,7 +755,7 @@ def _core(df, df_b, reports, gaz_path, label_a, label_b, min_n, min_cov, synthet
     if df_b is not None:
         d = G.compare_editions(df, df_b, out["label_a"], out["label_b"])
         a = G.linkage_audit(df, df_b); r = G.linkage_recall(df, df_b)
-        tr = d.przejscia
+        tr = d.transitions
         cmp_ = {"delta": _clean(d.as_dict()), "audit": _clean(a.as_dict()), "recall": _clean(r.as_dict()),
                 "transitions": _clean(tr.reset_index().rename(columns={tr.index.name or "index": "from"}).to_dict("records")) if tr is not None else []}
         _STATE["cmp"] = (d, a, r)
@@ -770,7 +770,7 @@ def _core(df, df_b, reports, gaz_path, label_a, label_b, min_n, min_cov, synthet
     if len(km) and cov >= min_cov:
         figs["processing_time"] = P.plot_processing_time(df, min_n=min_n)
     elif len(km):
-        skipped.append(f"processing time: both dates populated in {cov*100:.1f} % of applications, below the {min_cov*100:.0f} % criterion")
+        skipped.append(f"processing time: both dates populated in {cov*100:.1f}% of applications, below the {min_cov*100:.0f}% criterion")
     else:
         skipped.append(f"processing time: no group of {min_n} applications carrying both dates")
     figs.update(nl_figs)
@@ -791,7 +791,7 @@ def _core(df, df_b, reports, gaz_path, label_a, label_b, min_n, min_cov, synthet
     _STATE["report"] = json.dumps(rep, ensure_ascii=False, indent=1, default=str)
     return json.dumps(out, ensure_ascii=False, default=str)
 
-def analyse(paths_a, paths_b, adapter, gaz_path, label_a, label_b, synthetic, min_n, min_cov):
+def analyse(paths_a, paths_b, adapter, gazetteer_path, label_a, label_b, synthetic, min_n, min_cov):
     """Full view: every input and option chosen by the user."""
     reports, df_b = [], None
     if synthetic == "panel":
@@ -809,7 +809,7 @@ def analyse(paths_a, paths_b, adapter, gaz_path, label_a, label_b, synthetic, mi
             for r in rb:
                 r["edition"] = "later"
             reports += rb
-    return _core(df, df_b, reports, gaz_path, label_a, label_b, min_n, min_cov, synthetic)
+    return _core(df, df_b, reports, gazetteer_path, label_a, label_b, min_n, min_cov, synthetic)
 
 def analyse_simple(paths, synthetic):
     """Simple view: documents only. Editions of one register are recognised by their dates."""
@@ -867,7 +867,7 @@ def chart(name, fmt, path):
 </script>
 <script src="https://cdn.jsdelivr.net/pyodide/v0.28.3/full/pyodide.js"></script>
 <script>
-const WHEEL = "gridqueue-1.6.0-py3-none-any.whl";
+const WHEEL = "gridqueue-1.7.0-py3-none-any.whl";
 const $ = (id) => document.getElementById(id);
 let py = null, ready = false, busy = false;
 const files = { A: [], B: [], G: [], S: [] };
@@ -1096,18 +1096,18 @@ function render(d){
   if (d.comparison){
     const x = d.comparison.delta, a = d.comparison.audit, r = d.comparison.recall;
     stats($("cmpstats"), [
-      ["Linked rows", x.wspolnych, "num"], ["New", x.nowych, "num"], ["Absent", x.ubylych, "num"],
-      ["Status changes", x.zmian_statusu, "num"],
-      ["Forward share", pct(x.udzial_przejsc_w_przod), "text"],
-      ["Linkage precision", `${pct(a.precyzja_dolna)} to ${pct(a.precyzja_gorna)}`, "text"],
-      ["Key sensitivity", r.czulosc_klucza === null ? "n/a" : Number(r.czulosc_klucza).toFixed(4), "text"],
+      ["Linked rows", x.shared, "num"], ["New", x.new, "num"], ["Absent", x.gone, "num"],
+      ["Status changes", x.status_changes, "num"],
+      ["Forward share", pct(x.forward_share), "text"],
+      ["Linkage precision", `${pct(a.precision_lower)} to ${pct(a.precision_upper)}`, "text"],
+      ["Key sensitivity", r.key_sensitivity === null ? "n/a" : Number(r.key_sensitivity).toFixed(4), "text"],
     ]);
     const tr = d.comparison.transitions; const cols = tr.length ? Object.keys(tr[0]) : [];
     table($("ttab"), cols, tr, new Set(cols.slice(1)), "0");
     $("secCmp").hidden = false;
   } else { $("secCmp").hidden = true; }
 
-  const kmc = ["grupa","n","zdarzen","cenzurowanych","udzial_cenzurowanych","mediana","mediana_dolna","mediana_gorna"];
+  const kmc = ["group","n","events","censored","censored_share","median","median_lower","median_upper"];
   if (d.km.length) table($("kmtab"), kmc, d.km, new Set(kmc.slice(1)), "not reached");
   else $("kmtab").innerHTML = `<tbody><tr><td class="nil">No group of the minimum size carries both dates.</td></tr></tbody>`;
   if (d.node_loading.length) table($("nltab"), ["direction","queue","nodes","defined","above_1","median"], d.node_loading,
@@ -1118,11 +1118,11 @@ function render(d){
   table($("tab"), d.preview_cols, d.preview, numeric);
   $("tabnote").textContent = `First ${fmt(Math.min(200, d.rows))} of ${fmt(d.rows)} rows, and the `
     + `${d.preview_cols.length} schema fields populated. The full table is in the downloads.`;
-  const q = d.quality.reguly || [];
+  const q = d.quality.rules || [];
   const qcols = Object.keys(q[0] || {}).filter(k => typeof q[0][k] !== "object");
-  table($("qtab"), qcols, q, new Set(["naruszenia","udzial"]));
+  table($("qtab"), qcols, q, new Set(["violations","share"]));
   kv($("vtab"), d.validation);
-  const s = Object.assign({}, d.column_shift); delete s.przyklady; kv($("stab"), s);
+  const s = Object.assign({}, d.column_shift); delete s.examples; kv($("stab"), s);
   table($("rtab"), ["adapter","edition","files","rows","report"],
         d.parse_reports.map(r => ({ adapter: r.adapter, edition: r.edition || "panel", files: (r.files || []).join(", "),
                                     rows: r.rows, report: r.report })), new Set(["rows"]), "-");

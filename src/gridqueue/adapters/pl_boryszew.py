@@ -23,7 +23,7 @@ from typing import Any, Optional
 
 from ..layout import detect_banded_columns, assign_words_to_columns, merge_continuation_rows
 from ..schema import canonical_date, canonical_power_kw
-from .base import Adapter, ParseResult, harmonize_klasa, harmonize_status, norm_text
+from .base import Adapter, ParseResult, harmonize_class, harmonize_status, norm_text
 
 _RE_LP = re.compile(r"^\d+\.$")
 _SECTIONS = (
@@ -35,12 +35,12 @@ _SECTIONS = (
 )
 
 LAYOUTS = {
-    1: ("lp", "rodzaj_podmiotu", "lokalizacja", "moc_mw", "rodzaj_instalacji",
+    1: ("item_no", "entity_kind", "location", "capacity_mw", "installation_kind",
         "data_warunkow", "data_umowy", "data_energizacji"),
-    3: ("lp", "rodzaj_podmiotu", "lokalizacja", "moc_mw", "rodzaj_instalacji",
-        "data_zlozenia", "data_zaliczki", "status_wniosku"),
-    4: ("lp", "lokalizacja", "moc_mw", "rodzaj_instalacji", "data_zlozenia",
-        "data_zaliczki", "powod_odmowy"),
+    3: ("item_no", "entity_kind", "location", "capacity_mw", "installation_kind",
+        "date_submission", "date_advance_payment", "application_status"),
+    4: ("item_no", "location", "capacity_mw", "installation_kind", "date_submission",
+        "date_advance_payment", "powod_odmowy"),
 }
 
 
@@ -62,8 +62,8 @@ class BoryszewAdapter(Adapter):
     }
     detect_patterns = (r"boryszew", r"elana")
 
-    def __init__(self, data_publikacji: Optional[str] = None):
-        self.data_publikacji = data_publikacji
+    def __init__(self, publication_date: Optional[str] = None):
+        self.publication_date = publication_date
 
     # ------------------------------------------------------------------
     def parse(self, source) -> ParseResult:
@@ -71,7 +71,7 @@ class BoryszewAdapter(Adapter):
         import pdfplumber
 
         sec_lines: dict[int, list[list[dict]]] = {k: [] for k, _ in _SECTIONS}
-        wezly_lines: list[list[dict]] = []
+        nodes_lines: list[list[dict]] = []
         full_text_parts: list[str] = []
         current = 0
         n_pages = 0
@@ -91,28 +91,28 @@ class BoryszewAdapter(Adapter):
                             sec_lines[current].append(ln)
                         continue
         full_text = "\n".join(full_text_parts)
-        if self.data_publikacji is None:
-            self.data_publikacji = _data_aktualizacji(full_text)
+        if self.publication_date is None:
+            self.publication_date = _update_date(full_text)
 
         frames = []
         per_section = {}
         for sec in (1, 3, 4):
             f, n_raw = self._section_frame(sec, sec_lines[sec])
-            per_section[sec] = {"wierszy_surowych": n_raw, "wierszy_wynikowych": int(len(f))}
+            per_section[sec] = {"raw_rows": n_raw, "result_rows": int(len(f))}
             if len(f):
                 frames.append(f)
         df = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
 
-        wezly = _parse_wezly(sec_lines[2])
+        nodes = _parse_nodes(sec_lines[2])
 
         report = {
-            "publikujacy": self.publisher,
-            "strategia_wydobycia": "banded (white-space corridors; no line grid)",
-            "strony": n_pages,
-            "sekcje": per_section,
-            "n_wierszy": int(len(df)),
-            "wezly_pkt2": wezly,
-            "data_publikacji": self.data_publikacji,
+            "publisher": self.publisher,
+            "extraction_strategy": "banded (white-space corridors; no line grid)",
+            "pages": n_pages,
+            "sections": per_section,
+            "n_rows": int(len(df)),
+            "nodes_pt2": nodes,
+            "publication_date": self.publication_date,
         }
         return ParseResult(self.finalize(df, document=str(source)), report)
 
@@ -139,7 +139,7 @@ class BoryszewAdapter(Adapter):
         raw = pd.DataFrame([(r + [""] * len(cols))[: len(cols)] for r in rows], columns=cols)
         raw = raw.map(lambda v: re.sub(r"\s+", " ", str(v)).strip())
         # discard placeholder rows ("brak" in all fields except Lp.)
-        body = raw.drop(columns=["lp"])
+        body = raw.drop(columns=["item_no"])
         keep = ~body.map(lambda v: norm_text(v) in {"", "brak", "-"}).all(axis=1)
         raw = raw[keep].reset_index(drop=True)
         if raw.empty:
@@ -147,14 +147,14 @@ class BoryszewAdapter(Adapter):
 
         out = pd.DataFrame(index=raw.index)
         out["id_wniosku"] = [f"boryszew:pkt{sec}:{i + 1}" for i in range(len(raw))]
-        out["lokalizacja_tekst"] = raw["lokalizacja"].replace("", None)
-        out["klasa_zasobu"] = raw["rodzaj_instalacji"].map(harmonize_klasa)
-        out["moc_pobierana"] = raw["moc_mw"].map(lambda v: canonical_power_kw(v, "MW"))
-        out["data_publikacji"] = self.data_publikacji
-        out["_sekcja"] = f"art. 7 ust. 8l pkt {sec}"
-        out["_rodzaj_instalacji_raw"] = raw["rodzaj_instalacji"].replace("", None)
-        if "rodzaj_podmiotu" in raw:
-            out["_rodzaj_podmiotu"] = raw["rodzaj_podmiotu"].replace("", None)
+        out["lokalizacja_tekst"] = raw["location"].replace("", None)
+        out["klasa_zasobu"] = raw["installation_kind"].map(harmonize_class)
+        out["moc_pobierana"] = raw["capacity_mw"].map(lambda v: canonical_power_kw(v, "MW"))
+        out["data_publikacji"] = self.publication_date
+        out["_sekcja"] = f"Art. 7(8l), item {sec}"
+        out["_rodzaj_instalacji_raw"] = raw["installation_kind"].replace("", None)
+        if "entity_kind" in raw:
+            out["_rodzaj_podmiotu"] = raw["entity_kind"].replace("", None)
         if sec == 1:
             out["data_warunkow"] = raw["data_warunkow"].map(canonical_date)
             out["data_umowy"] = raw["data_umowy"].map(canonical_date)
@@ -168,15 +168,15 @@ class BoryszewAdapter(Adapter):
                                    out["data_warunkow"])
             ]
         elif sec == 3:
-            out["data_wniosku"] = raw["data_zlozenia"].map(canonical_date)
-            out["_data_zaliczki"] = raw["data_zaliczki"].map(canonical_date)
-            out["status_procesu"] = raw["status_wniosku"].map(harmonize_status)
-            out["_status_raw"] = raw["status_wniosku"].replace("", None)
+            out["data_wniosku"] = raw["date_submission"].map(canonical_date)
+            out["_data_zaliczki"] = raw["date_advance_payment"].map(canonical_date)
+            out["status_procesu"] = raw["application_status"].map(harmonize_status)
+            out["_status_raw"] = raw["application_status"].replace("", None)
         else:
-            out["data_wniosku"] = raw["data_zlozenia"].map(canonical_date)
+            out["data_wniosku"] = raw["date_submission"].map(canonical_date)
             out["powod_odmowy"] = raw["powod_odmowy"].replace("", None)
             out["status_procesu"] = "ODMOWA"
-        out["_lp_dokumentu"] = raw["lp"]
+        out["_lp_dokumentu"] = raw["item_no"]
         return out, n_raw
 
 
@@ -197,7 +197,7 @@ def _group_lines(words, tol: float = 2.5) -> list[list[dict]]:
     return [sorted(ln, key=lambda w: w["x0"]) for ln in out]
 
 
-def _data_aktualizacji(text: str) -> Optional[str]:
+def _update_date(text: str) -> Optional[str]:
     m = re.search(r"Data aktualizacji publikacji:\s*(\d{1,2})\s+(\w+)\s+(\d{4})", text)
     months = {"stycznia": 1, "lutego": 2, "marca": 3, "kwietnia": 4, "maja": 5,
               "czerwca": 6, "lipca": 7, "sierpnia": 8, "września": 9, "wrzesnia": 9,
@@ -207,7 +207,7 @@ def _data_aktualizacji(text: str) -> Optional[str]:
     return None
 
 
-def _parse_wezly(lines: list[list[dict]]) -> list[dict]:
+def _parse_nodes(lines: list[list[dict]]) -> list[dict]:
     """Section 2 (item 2): available connection capacity per station for 6 years."""
     out: list[dict] = []
     years: list[str] = []
@@ -224,9 +224,9 @@ def _parse_wezly(lines: list[list[dict]]) -> list[dict]:
                 else:
                     name_toks.append(w["text"])
             rec = {"nazwa_wezla": " ".join(name_toks),
-                   "moc_dostepna_kw": {}}
+                   "available_capacity_kw": {}}
             for i, v in enumerate(vals):
                 y = years[i] if i < len(years) else f"kol{i}"
-                rec["moc_dostepna_kw"][y] = canonical_power_kw(v, "MW")
+                rec["available_capacity_kw"][y] = canonical_power_kw(v, "MW")
             out.append(rec)
     return out

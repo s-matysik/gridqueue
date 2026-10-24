@@ -1,4 +1,4 @@
-"""Shared PTPiREE/PSE template for statutory disclosures under art. 7 ust. 8l pkt 1), 3) i 4).
+"""Shared PTPiREE/PSE template for statutory disclosures under Art. 7(8l)(1), (3) and (4).
 
 The discovery that justifies this: the PSE spreadsheet ``Informacje_publikowane_zgodnie_z_Art_7_
 ust_8l_ustawy_PE`` has a tab "Listy rozwijane", and on it a list of values for the field
@@ -15,8 +15,8 @@ between publishers stays where it really is: in the document layout.
 
 Measured physical layouts (read from headers, not assumed):
 
-  PSE  (XLSX, 27 kolumn):  id_obiektu, nazwa_obiektu, osd_osp, podmiot, ...
-  ENERGA (PDF, 28 kolumn): lp, id_obiektu, osd_osp, podmiot, ...,  uwagi
+  PSE  (XLSX, 27 kolumn):  object_id, object_name, osd_osp, podmiot, ...
+  ENERGA (PDF, 28 kolumn): lp, object_id, osd_osp, podmiot, ...,  uwagi
 
 From the "osd_osp" column onward both numberings coincide: PSE has two identity
 columns at the front (ID + object name), Energa one (ID) preceded by a sequence
@@ -29,14 +29,14 @@ import re
 from typing import Any, Optional
 
 from ..schema import canonical_date, canonical_power_kw
-from .base import harmonize_klasa, harmonize_status
+from .base import harmonize_class, harmonize_status
 
 
 #: Separators for multiple connection points within a single capacity cell.
-_ROZDZ_MOC = re.compile(r"[\n\r;]+")
+_CAPACITY_SPLIT = re.compile(r"[\n\r;]+")
 
 
-def _rozbij_moc(value: Any) -> list[str]:
+def _split_capacity(value: Any) -> list[str]:
     """Split a capacity cell into components for multiple connection points.
 
     A plain number is returned as a single component. A string is split on
@@ -47,68 +47,68 @@ def _rozbij_moc(value: Any) -> list[str]:
         return []
     if isinstance(value, (int, float)):
         return [] if (isinstance(value, float) and value != value) else [str(value)]
-    czesci = [c.strip() for c in _ROZDZ_MOC.split(str(value))]
-    return [c for c in czesci if c and c not in {"-", "--", "---"}]
+    parts = [c.strip() for c in _CAPACITY_SPLIT.split(str(value))]
+    return [c for c in parts if c and c not in {"-", "--", "---"}]
 
-__all__ = ["LOGICAL", "PSE_XLSX_LAYOUT", "ENERGA_PDF_LAYOUT", "to_schema", "stan_na"]
+__all__ = ["LOGICAL", "PSE_XLSX_LAYOUT", "ENERGA_PDF_LAYOUT", "to_schema", "parse_as_at"]
 
 #: logical columns of the PTPiREE/PSE template
 LOGICAL: tuple[str, ...] = (
-    "lp",
-    "id_obiektu",
-    "nazwa_obiektu",
+    "item_no",
+    "object_id",
+    "object_name",
     "osd_osp",
-    "podmiot",
-    "lokalizacja",
+    "applicant",
+    "location",
     "poziom_napiecia",
-    "wiele_miejsc",
-    "rodzaj",
+    "multiple_places",
+    "kind",
     "moc_wprowadzana",
     "moc_pobierana",
     "mz_pv",
     "mz_fw",
-    "mz_mee_rozladowania",
-    "mz_mee_ladowania",
+    "mz_mee_discharging",
+    "mz_mee_charging",
     "mz_odb",
-    "mz_inne",
+    "mz_other",
     "status",
-    "data_zlozenia",
-    "data_zaliczki",
+    "date_submission",
+    "date_advance_payment",
     "data_warunkow",
     "data_odmowy",
-    "uzasadnienie_odmowy",
-    "data_utraty_waznosci",
+    "refusal_justification",
+    "date_expiry",
     "data_umowy",
     "data_energizacji",
-    "data_rozwiazania_umowy",
-    "data_wygasniecia_umowy",
-    "uwagi",
+    "date_contract_termination",
+    "date_contract_expiration",
+    "notes",
 )
 
 #: physical column index -> logical column.  PSE spreadsheet, 27 columns.
 PSE_XLSX_LAYOUT: dict[int, str] = {
-    0: "id_obiektu", 1: "nazwa_obiektu", 2: "osd_osp", 3: "podmiot",
-    4: "lokalizacja", 5: "poziom_napiecia", 6: "wiele_miejsc", 7: "rodzaj",
+    0: "object_id", 1: "object_name", 2: "osd_osp", 3: "applicant",
+    4: "location", 5: "poziom_napiecia", 6: "multiple_places", 7: "kind",
     8: "moc_wprowadzana", 9: "moc_pobierana",
-    10: "mz_pv", 11: "mz_fw", 12: "mz_mee_rozladowania", 13: "mz_mee_ladowania",
-    14: "mz_odb", 15: "mz_inne",
-    16: "status", 17: "data_zlozenia", 18: "data_zaliczki", 19: "data_warunkow",
-    20: "data_odmowy", 21: "uzasadnienie_odmowy", 22: "data_utraty_waznosci",
-    23: "data_umowy", 24: "data_energizacji", 25: "data_rozwiazania_umowy",
-    26: "data_wygasniecia_umowy",
+    10: "mz_pv", 11: "mz_fw", 12: "mz_mee_discharging", 13: "mz_mee_charging",
+    14: "mz_odb", 15: "mz_other",
+    16: "status", 17: "date_submission", 18: "date_advance_payment", 19: "data_warunkow",
+    20: "data_odmowy", 21: "refusal_justification", 22: "date_expiry",
+    23: "data_umowy", 24: "data_energizacji", 25: "date_contract_termination",
+    26: "date_contract_expiration",
 }
 
 #: physical column index -> logical column.  Energa-Operator PDF, 28 columns.
 ENERGA_PDF_LAYOUT: dict[int, str] = {
-    0: "lp", 1: "id_obiektu", 2: "osd_osp", 3: "podmiot",
-    4: "lokalizacja", 5: "poziom_napiecia", 6: "wiele_miejsc", 7: "rodzaj",
+    0: "item_no", 1: "object_id", 2: "osd_osp", 3: "applicant",
+    4: "location", 5: "poziom_napiecia", 6: "multiple_places", 7: "kind",
     8: "moc_wprowadzana", 9: "moc_pobierana",
-    10: "mz_pv", 11: "mz_fw", 12: "mz_mee_rozladowania", 13: "mz_mee_ladowania",
-    14: "mz_odb", 15: "mz_inne",
-    16: "status", 17: "data_zlozenia", 18: "data_zaliczki", 19: "data_warunkow",
-    20: "data_odmowy", 21: "uzasadnienie_odmowy", 22: "data_utraty_waznosci",
-    23: "data_umowy", 24: "data_energizacji", 25: "data_rozwiazania_umowy",
-    26: "data_wygasniecia_umowy", 27: "uwagi",
+    10: "mz_pv", 11: "mz_fw", 12: "mz_mee_discharging", 13: "mz_mee_charging",
+    14: "mz_odb", 15: "mz_other",
+    16: "status", 17: "date_submission", 18: "date_advance_payment", 19: "data_warunkow",
+    20: "data_odmowy", 21: "refusal_justification", 22: "date_expiry",
+    23: "data_umowy", 24: "data_energizacji", 25: "date_contract_termination",
+    26: "date_contract_expiration", 27: "notes",
 }
 
 #: optional schema fields that the template populates for EVERY publisher
@@ -195,7 +195,7 @@ def _volt(v: Any) -> Optional[str]:
     return f"{s} kV"
 
 
-def stan_na(text: str) -> Optional[str]:
+def parse_as_at(text: str) -> Optional[str]:
     """The date as of which the publisher prepared the disclosure.
 
     The form varies even within a single publisher: "Stan na 30.06.2026 r."
@@ -207,7 +207,7 @@ def stan_na(text: str) -> Optional[str]:
     return canonical_date(m.group(1)) if m else None
 
 
-def to_schema(raw, *, publisher_key: str, data_publikacji: Optional[str]):
+def to_schema(raw, *, publisher_key: str, publication_date: Optional[str]):
     """Map a frame in the template's logical columns onto the 21-field schema.
 
     ``raw`` has columns from ``LOGICAL`` (missing ones may not be present).  The
@@ -229,7 +229,7 @@ def to_schema(raw, *, publisher_key: str, data_publikacji: Optional[str]):
         values separated by a LINE BREAK, sometimes additionally by a semicolon.
         ``_clean`` turned the line break into a space, and ``canonical_power_kw``
         treats a space as the thousands separator, so "129⏎240" (129 MW + 240 MW)
-        became 129 240 MW.  In the edition where the publisher added semicolons,
+        became 129,240 MW.  In the edition where the publisher added semicolons,
         the same cell did not convert at all and the field stayed blank, meaning
         the same defect produced an absurdity in one case, and a silent gap in the
         other.
@@ -242,22 +242,22 @@ def to_schema(raw, *, publisher_key: str, data_publikacji: Optional[str]):
         if name not in raw.columns:
             return (pd.Series([None] * len(raw), index=raw.index, dtype="object"),
                     pd.Series([None] * len(raw), index=raw.index, dtype="object"))
-        sumy, skladowe = [], []
+        totals, components = [], []
         for v in raw[name]:
-            czesci = _rozbij_moc(v)
-            vals = [canonical_power_kw(c, "MW") for c in czesci]
+            parts = _split_capacity(v)
+            vals = [canonical_power_kw(c, "MW") for c in parts]
             vals = [x for x in vals if x is not None]
             if not vals:
-                sumy.append(None)
-                skladowe.append(None)
+                totals.append(None)
+                components.append(None)
             elif len(vals) == 1:
-                sumy.append(vals[0])
-                skladowe.append(None)
+                totals.append(vals[0])
+                components.append(None)
             else:
-                sumy.append(float(sum(vals)))
-                skladowe.append("; ".join(f"{x / 1000.0:g}" for x in vals))
-        return (pd.Series(sumy, index=raw.index, dtype="object"),
-                pd.Series(skladowe, index=raw.index, dtype="object"))
+                totals.append(float(sum(vals)))
+                components.append("; ".join(f"{x / 1000.0:g}" for x in vals))
+        return (pd.Series(totals, index=raw.index, dtype="object"),
+                pd.Series(components, index=raw.index, dtype="object"))
 
     def dcol(name: str):
         """Date from the RAW column, without going through ``_clean``.
@@ -277,8 +277,8 @@ def to_schema(raw, *, publisher_key: str, data_publikacji: Optional[str]):
         return raw[name].map(lambda v: None if _blank(v) else canonical_date(v))
 
     out = pd.DataFrame(index=raw.index)
-    ident = col("id_obiektu")
-    lp = col("lp")
+    ident = col("object_id")
+    item_no = col("item_no")
     # Watch out for the trap: ``Series.map`` turns a returned ``None`` into ``nan``,
     # and ``nan`` is TRUTHY in Python.  The emptiness test must be explicit, otherwise
     # the identifier fallback never runs, and 866 of 876 PSE rows
@@ -286,18 +286,18 @@ def to_schema(raw, *, publisher_key: str, data_publikacji: Optional[str]):
     out["id_wniosku"] = [
         i if not _blank(i)
         else f"{publisher_key}:poz:{(str(l).rstrip('.') if not _blank(l) else str(k + 1))}"
-        for k, (i, l) in enumerate(zip(ident, lp))
+        for k, (i, l) in enumerate(zip(ident, item_no))
     ]
-    out["lokalizacja_tekst"] = col("lokalizacja")
+    out["lokalizacja_tekst"] = col("location")
     out["poziom_napiecia"] = col("poziom_napiecia").map(_volt)
-    out["klasa_zasobu"] = col("rodzaj").map(harmonize_klasa)
-    out["moc_wprowadzana"], _skl_wpr = mw("moc_wprowadzana")
-    out["moc_pobierana"], _skl_pob = mw("moc_pobierana")
+    out["klasa_zasobu"] = col("kind").map(harmonize_class)
+    out["moc_wprowadzana"], _injection_component = mw("moc_wprowadzana")
+    out["moc_pobierana"], _withdrawal_component = mw("moc_pobierana")
     out["status_procesu"] = col("status").map(harmonize_status)
-    out["data_wniosku"] = dcol("data_zlozenia")
+    out["data_wniosku"] = dcol("date_submission")
     out["data_warunkow"] = dcol("data_warunkow")
     out["data_odmowy"] = dcol("data_odmowy")
-    out["powod_odmowy"] = col("uzasadnienie_odmowy")
+    out["powod_odmowy"] = col("refusal_justification")
     out["data_umowy"] = dcol("data_umowy")
     # Energa records the planned energization as an INEQUALITY ("po 30.06.2026"),
     # not a date.  ``canonical_date`` is anchored at the start of the string, so it
@@ -309,26 +309,26 @@ def to_schema(raw, *, publisher_key: str, data_publikacji: Optional[str]):
     out["_energizacja_tekst"] = [
         t if (not _blank(t) and canonical_date(t) is None) else None for t in _energ
     ]
-    out["data_publikacji"] = data_publikacji
+    out["data_publikacji"] = publication_date
 
     out["_encja"] = "WNIOSEK"
-    out["_podmiot"] = col("podmiot")
+    out["_podmiot"] = col("applicant")
     out["_osd_osp"] = col("osd_osp")
-    out["_nazwa_obiektu"] = col("nazwa_obiektu")
-    out["_wiele_miejsc"] = col("wiele_miejsc")
-    out["_rodzaj_raw"] = col("rodzaj")
+    out["_nazwa_obiektu"] = col("object_name")
+    out["_wiele_miejsc"] = col("multiple_places")
+    out["_rodzaj_raw"] = col("kind")
     out["_status_raw"] = col("status")
-    out["_data_zaliczki"] = dcol("data_zaliczki")
-    out["_data_utraty_waznosci"] = dcol("data_utraty_waznosci")
-    out["_data_rozwiazania_umowy"] = dcol("data_rozwiazania_umowy")
-    out["_data_wygasniecia_umowy"] = dcol("data_wygasniecia_umowy")
+    out["_data_zaliczki"] = dcol("date_advance_payment")
+    out["_data_utraty_waznosci"] = dcol("date_expiry")
+    out["_data_rozwiazania_umowy"] = dcol("date_contract_termination")
+    out["_data_wygasniecia_umowy"] = dcol("date_contract_expiration")
     for src, dst in (("mz_pv", "_mz_pv"), ("mz_fw", "_mz_fw"),
-                     ("mz_mee_rozladowania", "_mz_mee_rozladowania"),
-                     ("mz_mee_ladowania", "_mz_mee_ladowania"),
-                     ("mz_odb", "_mz_odb"), ("mz_inne", "_mz_inne")):
+                     ("mz_mee_discharging", "_mz_mee_rozladowania"),
+                     ("mz_mee_charging", "_mz_mee_ladowania"),
+                     ("mz_odb", "_mz_odb"), ("mz_other", "_mz_inne")):
         out[dst], _ = mw(src)
-    out["_uwagi"] = col("uwagi")
-    out["_moc_wprowadzana_skladowe_mw"] = _skl_wpr
-    out["_moc_pobierana_skladowe_mw"] = _skl_pob
-    out["_lp_dokumentu"] = lp
+    out["_uwagi"] = col("notes")
+    out["_moc_wprowadzana_skladowe_mw"] = _injection_component
+    out["_moc_pobierana_skladowe_mw"] = _withdrawal_component
+    out["_lp_dokumentu"] = item_no
     return out

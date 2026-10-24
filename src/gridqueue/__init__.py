@@ -20,11 +20,11 @@ from .layout import (  # noqa: F401
     audit_column_shift, ShiftAudit,
 )
 from .geoloc import (LocationResolver, MultiLocalityResolver, Resolution,  # noqa: F401
-                     geocode_frame, resolver_from_gazeter_json, resolver_from_osm_json)
+                     geocode_frame, resolver_from_gazetteer_json, resolver_from_osm_json)
 from .analysis import (  # noqa: F401
-    PRZEDROSTKI_STACJI, KMResult, assign_to_nodes, kaplan_meier, kaplan_meier_by_group,
+    STATION_PREFIXES, KMResult, assign_to_nodes, kaplan_meier, kaplan_meier_by_group,
     node_loading,
-    normalizuj_nazwe, processing_time, station_node_map,
+    normalize_name, processing_time, station_node_map,
 )
 from .quality import RULES, run_quality, QualityReport  # noqa: F401
 from .longitudinal import (  # noqa: F401
@@ -42,19 +42,34 @@ from .registry import (REGISTRY, get_adapter, detect_publisher, declarations,  #
 _LAZY_SUBMODULES = ("plots", "examples")
 
 
+# Names used up to version 1.6.0, before the code was written in English throughout. They still
+# work, with a DeprecationWarning, and will be removed in version 2.0.
+_RENAMED = {
+    "PRZEDROSTKI_STACJI": "STATION_PREFIXES",
+    "normalizuj_nazwe": "normalize_name",
+    "resolver_from_gazeter_json": "resolver_from_gazetteer_json",
+}
+
+
 def __getattr__(name):
     if name in _LAZY_SUBMODULES:
         import importlib
 
         return importlib.import_module(f".{name}", __name__)
+    if name in _RENAMED:
+        import warnings
+
+        warnings.warn(f"gridqueue.{name} was renamed to gridqueue.{_RENAMED[name]} in 1.7.0",
+                      DeprecationWarning, stacklevel=2)
+        return globals()[_RENAMED[name]]
     raise AttributeError(f"module 'gridqueue' has no attribute {name!r}")
 
-__version__ = "1.6.0"
+__version__ = "1.7.0"
 __all__ = [
     "NODE_KEY_FIELDS",
     "RECALL_FIELDS", "LinkageRecall", "linkage_recall",
-    "PRZEDROSTKI_STACJI", "KMResult", "assign_to_nodes", "kaplan_meier", "kaplan_meier_by_group",
-    "node_loading", "normalizuj_nazwe", "processing_time", "station_node_map",
+    "STATION_PREFIXES", "KMResult", "assign_to_nodes", "kaplan_meier", "kaplan_meier_by_group",
+    "node_loading", "normalize_name", "processing_time", "station_node_map",
     "SCHEMA", "SCHEMA_VERSION", "FIELDS", "CORE_FIELDS", "OPTIONAL_FIELDS", "GROUPS",
     "CORE_ALTERNATIVES", "CORE_BY_ENTITY", "ENTITY_COLUMN", "DEFAULT_ENTITY",
     "META_COLUMNS", "ANNOTATION_PREFIX", "core_complete_mask",
@@ -62,7 +77,7 @@ __all__ = [
     "empty_frame", "schema_table", "ColumnGeometry", "detect_ruled_columns",
     "detect_banded_columns", "extract_ruled_page", "assign_words_to_columns",
     "merge_continuation_rows", "audit_column_shift", "ShiftAudit",
-    "LocationResolver", "Resolution", "resolver_from_osm_json", "resolver_from_gazeter_json", "geocode_frame",
+    "LocationResolver", "Resolution", "resolver_from_osm_json", "resolver_from_gazetteer_json", "geocode_frame",
     "MultiLocalityResolver",
     "RULES", "run_quality", "QualityReport",
     "DEFAULT_KEY_FIELDS", "STATUS_ORDER", "TERMINAL_NEGATIVE",

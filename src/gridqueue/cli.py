@@ -49,16 +49,16 @@ def cmd_parse(args) -> int:
     audit = audit_column_shift(res.frame)
     report = {
         "adapter": key,
-        "deklaracja": adapter.declaration(),
-        "raport_wydobycia": res.report,
-        "audyt_przesuniecia_kolumn": audit.as_dict(),
-        "wyjscie": args.out,
-        "n_wierszy": int(len(res.frame)),
+        "declaration": adapter.declaration(),
+        "extraction_report": res.report,
+        "column_shift_audit": audit.as_dict(),
+        "output": args.out,
+        "n_rows": int(len(res.frame)),
     }
     if args.report:
         Path(args.report).write_text(
             json.dumps(report, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
-    print(json.dumps({k: v for k, v in report.items() if k != "raport_wydobycia"},
+    print(json.dumps({k: v for k, v in report.items() if k != "extraction_report"},
                      ensure_ascii=False, indent=2, default=str))
     return 0
 
@@ -68,7 +68,7 @@ def cmd_validate(args) -> int:
     schema_rep = validate_frame(df)
     qual = run_quality(df).as_dict()
     audit = audit_column_shift(df).as_dict()
-    out = {"schemat": schema_rep, "jakosc": qual, "przesuniecie_kolumn": audit}
+    out = {"schema": schema_rep, "quality": qual, "column_shift": audit}
     text = json.dumps(out, ensure_ascii=False, indent=2, default=str)
     if args.out:
         Path(args.out).write_text(text, encoding="utf-8")
@@ -86,8 +86,8 @@ def cmd_export(args) -> int:
                [c for c in ("publikujacy", "jurysdykcja", "dokument_zrodlowy") if c in df.columns]
         df = df[keep]
     _write_table(df, args.out)
-    print(json.dumps({"wierszy": int(len(df)), "kolumn": int(df.shape[1]),
-                      "wyjscie": args.out}, ensure_ascii=False, indent=2))
+    print(json.dumps({"rows": int(len(df)), "columns": int(df.shape[1]),
+                      "output": args.out}, ensure_ascii=False, indent=2))
     return 0
 
 
@@ -98,14 +98,14 @@ def cmd_compare(args) -> int:
     a, b = _read_table(args.edition_a), _read_table(args.edition_b)
     fields = NODE_KEY_FIELDS if args.node_key else DEFAULT_KEY_FIELDS
     delta = compare_editions(a, b, args.label_a, args.label_b, fields=fields)
-    out = {"klucz": list(fields), "porownanie": delta.as_dict(),
-           "audyt_dopasowania": linkage_audit(a, b, fields=fields).as_dict(),
-           "czulosc_dopasowania": linkage_recall(a, b, fields=fields).as_dict()}
+    out = {"key": list(fields), "comparison": delta.as_dict(),
+           "linkage_audit": linkage_audit(a, b, fields=fields).as_dict(),
+           "linkage_recall": linkage_recall(a, b, fields=fields).as_dict()}
     text = json.dumps(out, ensure_ascii=False, indent=2, default=str)
     if args.out:
         Path(args.out).write_text(text, encoding="utf-8")
     if args.transitions:
-        delta.przejscia.to_csv(args.transitions)
+        delta.transitions.to_csv(args.transitions)
     print(text)
     return 0
 
@@ -122,8 +122,8 @@ def cmd_plot(args) -> int:
                      formats=[f.strip() for f in args.format.split(",") if f.strip()],
                      dpi=args.dpi, min_n=args.min_n, min_coverage=args.min_coverage)
     skipped = saved.pop("_skipped", [])
-    print(json.dumps({"zapisane": {k: [str(p) for p in v] for k, v in saved.items()},
-                      "pominiete": skipped}, ensure_ascii=False, indent=2))
+    print(json.dumps({"saved": {k: [str(p) for p in v] for k, v in saved.items()},
+                      "skipped": skipped}, ensure_ascii=False, indent=2))
     return 0
 
 

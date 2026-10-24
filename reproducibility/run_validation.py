@@ -38,30 +38,30 @@ from gridqueue import (FIELDS, SCHEMA_VERSION, __version__, core_complete_mask,
 KOREN = Path(__file__).resolve().parent
 
 
-def sprawdz_sumy(katalog: Path) -> dict:
+def check_sums(catalog: Path) -> dict:
     """Compare the SHA-256 of the documents in the given directory with the manifest."""
     man = pd.read_csv(KOREN / "manifest.csv")
-    wynik = {"zgodne": [], "rozne": [], "brakujace": []}
+    result = {"matching": [], "different": [], "missing": []}
     for _, r in man.iterrows():
-        p = katalog / r["plik"]
+        p = catalog / r["file_name"]
         if not p.exists():
-            wynik["brakujace"].append(r["plik"])
+            result["missing"].append(r["file_name"])
             continue
         h = hashlib.sha256(p.read_bytes()).hexdigest()
-        (wynik["zgodne"] if h == r["sha256"] else wynik["rozne"]).append(r["plik"])
-    return wynik
+        (result["matching"] if h == r["sha256"] else result["different"]).append(r["file_name"])
+    return result
 
 
-def pokrycie_pol(panel: pd.DataFrame) -> pd.DataFrame:
+def field_coverage(panel: pd.DataFrame) -> pd.DataFrame:
     rows = []
     for pub, sub in panel.groupby("publikujacy"):
-        d = {"publikujacy": pub, "n_wierszy": int(len(sub))}
+        d = {"publikujacy": pub, "n_rows": int(len(sub))}
         for f in FIELDS:
             s = sub[f] if f in sub.columns else pd.Series([None] * len(sub))
             nn = s.notna() & s.astype(str).str.strip().ne("") & s.astype(str).ne("nan")
             d[f] = round(float(nn.mean()), 4)
         rows.append(d)
-    d = {"publikujacy": "PANEL RAZEM", "n_wierszy": int(len(panel))}
+    d = {"publikujacy": "PANEL TOTAL", "n_rows": int(len(panel))}
     for f in FIELDS:
         s = panel[f] if f in panel.columns else pd.Series([None] * len(panel))
         nn = s.notna() & s.astype(str).str.strip().ne("") & s.astype(str).ne("nan")
@@ -75,78 +75,78 @@ def main(argv: list[str]) -> int:
         print(__doc__.strip().splitlines()[-1], file=sys.stderr)
         return 2
     panel_path = Path(argv[1])
-    outdir = Path(argv[2]) if len(argv) > 2 else KOREN / "wynik"
+    outdir = Path(argv[2]) if len(argv) > 2 else KOREN / "result"
     outdir.mkdir(parents=True, exist_ok=True)
 
     panel = (pd.read_parquet(panel_path) if panel_path.suffix == ".parquet"
              else pd.read_csv(panel_path, low_memory=False))
 
-    cov = pokrycie_pol(panel)
-    cov.to_csv(outdir / "pokrycie_pol.csv", index=False)
+    cov = field_coverage(panel)
+    cov.to_csv(outdir / "field_coverage.csv", index=False)
 
-    reguly = []
+    rules = []
     for pub, sub in panel.groupby("publikujacy"):
-        for x in run_quality(sub.reset_index(drop=True)).as_dict()["reguly"]:
-            reguly.append({"publikujacy": pub, "kod": x["kod"], "nazwa": x["nazwa"],
-                           "naruszenia": x["naruszenia"], "udzial": x["udzial"]})
+        for x in run_quality(sub.reset_index(drop=True)).as_dict()["rules"]:
+            rules.append({"publikujacy": pub, "code": x["code"], "name": x["name"],
+                           "violations": x["violations"], "share": x["share"]})
     rep_panel = run_quality(panel).as_dict()
-    for x in rep_panel["reguly"]:
-        reguly.append({"publikujacy": "PANEL RAZEM", "kod": x["kod"], "nazwa": x["nazwa"],
-                       "naruszenia": x["naruszenia"], "udzial": x["udzial"]})
-    jak = pd.DataFrame(reguly)
-    jak.to_csv(outdir / "reguly_jakosci.csv", index=False)
+    for x in rep_panel["rules"]:
+        rules.append({"publikujacy": "PANEL TOTAL", "code": x["code"], "name": x["name"],
+                       "violations": x["violations"], "share": x["share"]})
+    how = pd.DataFrame(rules)
+    how.to_csv(outdir / "quality_rules.csv", index=False)
 
     # consistency check: the sum over publishers has to equal the panel figure
-    po_publ = (jak[jak["publikujacy"] != "PANEL RAZEM"]
-               .groupby("kod")["naruszenia"].sum())
-    panelowe = (jak[jak["publikujacy"] == "PANEL RAZEM"]
-                .set_index("kod")["naruszenia"])
-    niezgodne = {k: (int(po_publ[k]), int(panelowe[k]))
-                 for k in panelowe.index if int(po_publ[k]) != int(panelowe[k])}
+    after_publication = (how[how["publikujacy"] != "PANEL TOTAL"]
+               .groupby("code")["violations"].sum())
+    panel_values = (how[how["publikujacy"] == "PANEL TOTAL"]
+                .set_index("code")["violations"])
+    inconsistent = {k: (int(after_publication[k]), int(panel_values[k]))
+                 for k in panel_values.index if int(after_publication[k]) != int(panel_values[k])}
 
-    pola_wypelnione = int(sum(
+    filled_fields = int(sum(
         1 for f in FIELDS
-        if float(cov.loc[cov["publikujacy"] == "PANEL RAZEM", f].iloc[0]) > 0))
+        if float(cov.loc[cov["publikujacy"] == "PANEL TOTAL", f].iloc[0]) > 0))
 
-    podsum = {
+    summary = {
         "gridqueue": __version__,
         "schema_version": SCHEMA_VERSION,
-        "wierszy_panelu": int(len(panel)),
-        "kolumn_panelu": int(panel.shape[1]),
-        "publikujacych": int(panel["publikujacy"].nunique()),
-        "pol_schematu_wypelnionych": f"{pola_wypelnione}/{len(FIELDS)}",
-        "wierszy_z_kompletnym_rdzeniem": int(core_complete_mask(panel).sum()),
-        "naruszen_lacznie": int(sum(x["naruszenia"] for x in rep_panel["reguly"])),
-        "niezgodnosc_suma_vs_panel": niezgodne,
+        "panel_rows": int(len(panel)),
+        "panel_columns": int(panel.shape[1]),
+        "publishers": int(panel["publikujacy"].nunique()),
+        "filled_schema_fields": f"{filled_fields}/{len(FIELDS)}",
+        "rows_with_complete_core": int(core_complete_mask(panel).sum()),
+        "violations_total": int(sum(x["violations"] for x in rep_panel["rules"])),
+        "mismatch_sum_vs_panel": inconsistent,
     }
-    (outdir / "podsumowanie.json").write_text(
-        json.dumps(podsum, ensure_ascii=False, indent=1), encoding="utf-8")
+    (outdir / "summary.json").write_text(
+        json.dumps(summary, ensure_ascii=False, indent=1), encoding="utf-8")
 
     # Comparison with the values expected for this release. The package version
     # number is deliberately left out: we check whether the NUMBERS agree, not
     # whether somebody ran exactly the same tag.
-    oczek_plik = Path(__file__).parent / "expected" / "expected_panel_stats.json"
-    rozjazd: dict = {}
-    if oczek_plik.exists():
-        oczek = json.loads(oczek_plik.read_text(encoding="utf-8"))
-        for k, v in oczek.items():
-            if k in {"gridqueue", "niezgodnosc_suma_vs_panel"}:
+    expected_file = Path(__file__).parent / "expected" / "expected_panel_stats.json"
+    mismatch: dict = {}
+    if expected_file.exists():
+        expected = json.loads(expected_file.read_text(encoding="utf-8"))
+        for k, v in expected.items():
+            if k in {"gridqueue", "mismatch_sum_vs_panel"}:
                 continue
-            if podsum.get(k) != v:
-                rozjazd[k] = {"oczekiwano": v, "otrzymano": podsum.get(k)}
+            if summary.get(k) != v:
+                mismatch[k] = {"expected": v, "received": summary.get(k)}
 
-    for k, v in podsum.items():
+    for k, v in summary.items():
         print(f"{k}: {v}")
-    if rozjazd:
+    if mismatch:
         print("\nERROR: the result does not match the values expected for this release.",
               file=sys.stderr)
-        for k, v in rozjazd.items():
-            print(f"  {k}: expected {v['oczekiwano']}, got {v['otrzymano']}",
+        for k, v in mismatch.items():
+            print(f"  {k}: expected {v['expected']}, got {v['received']}",
                   file=sys.stderr)
         return 1
-    if oczek_plik.exists():
+    if expected_file.exists():
         print("\nagreement with expected/expected_panel_stats.json: OK")
-    if niezgodne:
+    if inconsistent:
         print("\nWARNING: the sum of violations over publishers does not close to the panel.",
               file=sys.stderr)
         return 1

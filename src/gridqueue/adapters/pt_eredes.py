@@ -55,20 +55,20 @@ SOURCE_POWER_UNIT = "MVA"
 #: Reception capacity columns broken down by voltage level, from the highest.
 #: They serve solely to determine the voltage level at which the capacity occurs;
 #: their values do not go into the capacity field because of the unit difference.
-_KOLUMNY_NAPIEC = [
+_VOLTAGE_COLUMNS = [
     ("capacidade_de_recepcao_at_mva_ultimo_trimestre", "AT"),
     ("capacidade_de_recepcao_mt_30kv_mva_ultimo_trimestre", "30 kV"),
     ("capacidade_de_recepcao_mt_15kv_mva_ultimo_trimestre", "15 kV"),
     ("capacidade_de_recepcao_mt_10kv_mva_ultimo_trimestre", "10 kV"),
 ]
 
-_TYP_INSTALACJI = {
+_INSTALLATION_TYPE = {
     "SE AT": "substation_HV",
     "PC AT": "cutting_point_HV",
 }
 
 
-def _liczba(v) -> float | None:
+def _count(v) -> float | None:
     """Number from the portal notation; decimal comma allowed."""
     if v is None:
         return None
@@ -82,14 +82,14 @@ def _liczba(v) -> float | None:
         return None
 
 
-def _kwartal_na_date(v) -> str | None:
+def _quarter_to_date(v) -> str | None:
     """'2T2026' -> '2026-06-30'. Quarterly publication, last day of the quarter."""
     s = str(v or "").strip().upper()
     if len(s) == 6 and s[1] == "T" and s[0].isdigit() and s[2:].isdigit():
-        kw, rok = int(s[0]), int(s[2:])
-        koniec = {1: "03-31", 2: "06-30", 3: "09-30", 4: "12-31"}.get(kw)
-        if koniec:
-            return f"{rok}-{koniec}"
+        kw, year = int(s[0]), int(s[2:])
+        end = {1: "03-31", 2: "06-30", 3: "09-30", 4: "12-31"}.get(kw)
+        if end:
+            return f"{year}-{end}"
     return None
 
 
@@ -117,40 +117,40 @@ class EredesAdapter(Adapter):
     def parse(self, source) -> ParseResult:
         path = Path(str(source))
         with path.open(encoding="utf-8-sig", newline="") as f:
-            wiersze = list(csv.DictReader(f, delimiter=";"))
+            rows = list(csv.DictReader(f, delimiter=";"))
 
-        rekordy, bez_kodu, zerowa = [], 0, 0
-        for w in wiersze:
-            kod = (w.get("codigo") or "").strip()
-            if not kod:
-                bez_kodu += 1
-            zdolnosc = _liczba(w.get("capacidade_de_recepcao_mt_at_mva_ultimo_trimestre"))
-            ograniczenie = None
-            if zdolnosc is not None:
-                ograniczenie = zdolnosc == 0.0
-                zerowa += int(ograniczenie)
+        records, without_code, zero_valued = [], 0, 0
+        for w in rows:
+            code = (w.get("codigo") or "").strip()
+            if not code:
+                without_code += 1
+            capability = _count(w.get("capacidade_de_recepcao_mt_at_mva_ultimo_trimestre"))
+            limit = None
+            if capability is not None:
+                limit = capability == 0.0
+                zero_valued += int(limit)
 
-            napiecia = [etykieta for kol, etykieta in _KOLUMNY_NAPIEC
-                        if (_liczba(w.get(kol)) or 0.0) > 0.0]
+            voltages = [label for col, label in _VOLTAGE_COLUMNS
+                        if (_count(w.get(col)) or 0.0) > 0.0]
 
-            rekordy.append({
-                "id_wezla": kod or None,
+            records.append({
+                "id_wezla": code or None,
                 "nazwa_wezla": (w.get("instalacao") or "").strip() or None,
                 # Composition of the substation group, the equivalent of the station list in the
                 # node row of the Polish publisher, so it goes into the same field.
                 "lokalizacja_tekst": (w.get("grupo_de_subestacoes_rari") or "").strip() or None,
-                "poziom_napiecia": ", ".join(napiecia) or None,
+                "poziom_napiecia": ", ".join(voltages) or None,
                 "moc_dostepna": None,       # source unit is MVA, see module header
                 "moc_zarezerwowana": None,  # as above.
-                "ograniczenie_flaga": ograniczenie,
-                "data_publikacji": _kwartal_na_date(w.get("data_ultimo_trimestre")),
+                "ograniczenie_flaga": limit,
+                "data_publikacji": _quarter_to_date(w.get("data_ultimo_trimestre")),
                 "_encja": "WEZEL",
                 "_jednostka_mocy_zrodlowa": SOURCE_POWER_UNIT,
-                "_moc_dostepna_mva": zdolnosc,
-                "_moc_przylaczona_mva": _liczba(w.get("potencia_de_ligacao_ligado_mva_ultimo_trimestre")),
-                "_moc_zakontraktowana_mva": _liczba(w.get("potencia_de_ligacao_comprometido_mva_ultimo_trimestre")),
-                "_moc_w_potwierdzaniu_mva": _liczba(w.get("potencia_de_ligacao_em_confirmacao_mva_ultimo_trimestre")),
-                "_typ_instalacji": _TYP_INSTALACJI.get(
+                "_moc_dostepna_mva": capability,
+                "_moc_przylaczona_mva": _count(w.get("potencia_de_ligacao_ligado_mva_ultimo_trimestre")),
+                "_moc_zakontraktowana_mva": _count(w.get("potencia_de_ligacao_comprometido_mva_ultimo_trimestre")),
+                "_moc_w_potwierdzaniu_mva": _count(w.get("potencia_de_ligacao_em_confirmacao_mva_ultimo_trimestre")),
+                "_typ_instalacji": _INSTALLATION_TYPE.get(
                     (w.get("tipo_de_instalacao") or "").strip(),
                     (w.get("tipo_de_instalacao") or "").strip() or None),
                 "_dystrykt": (w.get("distrito") or "").strip() or None,
@@ -161,17 +161,17 @@ class EredesAdapter(Adapter):
 
         import pandas as pd
 
-        df = self.finalize(pd.DataFrame(rekordy), document=path.name)
+        df = self.finalize(pd.DataFrame(records), document=path.name)
         notes = {
-            "publikujacy": PUBLISHER,
-            "jurysdykcja": JURISDICTION,
-            "tryb_wydania": "open data portal, CSV export from REST interface",
-            "wierszy": int(len(df)),
-            "wierszy_bez_kodu_instalacji": bez_kodu,
-            "wezlow_o_zerowej_zdolnosci_przyjecia": zerowa,
-            "jednostka_mocy_zrodlowa": SOURCE_POWER_UNIT,
-            "moc_dostepna_pusta_z_powodu_jednostki": True,
-            "uwaga_jednostki": (
+            "publisher": PUBLISHER,
+            "jurisdiction": JURISDICTION,
+            "release_mode": "open data portal, CSV export from REST interface",
+            "rows": int(len(df)),
+            "rows_without_installation_code": without_code,
+            "nodes_with_zero_acceptance_capacity": zero_valued,
+            "source_capacity_unit": SOURCE_POWER_UNIT,
+            "available_capacity_empty_due_to_unit": True,
+            "note_units": (
                 "The publisher provides capacities in MVA (apparent power); the schema's canonical unit "
                 "is kW of active power. Conversion would require an undisclosed power "
                 "factor, so the moc_dostepna field remains empty, and the source values are "

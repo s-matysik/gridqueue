@@ -3,7 +3,7 @@ import json
 import pandas as pd
 import pytest
 
-from gridqueue.adapters.base import Adapter, harmonize_klasa, harmonize_status, norm_text
+from gridqueue.adapters.base import Adapter, harmonize_class, harmonize_status, norm_text
 from gridqueue.adapters.pl_stoen import detect_layout
 from gridqueue.adapters.uk_nationalgrid import NationalGridAdapter, _as_bool
 from gridqueue.cli import build_parser, main
@@ -20,8 +20,8 @@ def test_the_registry_has_nine_adapters_in_five_jurisdictions():
 
 def test_field_declarations_are_a_subset_of_the_schema():
     for d in declarations():
-        assert set(d["pola_deklarowane"]) <= set(FIELDS), d["publikujacy"]
-        assert all(k.startswith("_") for k in d["rozszerzenia"]), d["publikujacy"]
+        assert set(d["declared_fields"]) <= set(FIELDS), d["publikujacy"]
+        assert all(k.startswith("_") for k in d["extensions"]), d["publikujacy"]
 
 
 def test_every_adapter_declares_the_core_of_ITS_OWN_entity():
@@ -33,18 +33,18 @@ def test_every_adapter_declares_the_core_of_ITS_OWN_entity():
     applications, so it has neither an application identifier nor its capacity.
     The Portuguese adapter showed that the test carried an outdated contract.
     """
-    rdzen_wniosku = {"id_wniosku", "lokalizacja_tekst", "klasa_zasobu", "status_procesu"}
-    rdzen_wezla = {"id_wezla"}
+    application_core = {"id_wniosku", "lokalizacja_tekst", "klasa_zasobu", "status_procesu"}
+    node_core = {"id_wezla"}
     for key in REGISTRY:
-        pola = set(get_adapter(key).declared_fields)
-        wniosek = rdzen_wniosku <= pola
-        wezel = rdzen_wezla <= pola and bool({"moc_dostepna", "ograniczenie_flaga"} & pola)
-        assert wniosek or wezel, key
+        fields = set(get_adapter(key).declared_fields)
+        application = application_core <= fields
+        node = node_core <= fields and bool({"moc_dostepna", "ograniczenie_flaga"} & fields)
+        assert application or node, key
 
 
 def test_get_adapter_rejects_an_unknown_key():
     with pytest.raises(KeyError):
-        get_adapter("pl_nieistniejacy")
+        get_adapter("pl_nonexistent")
 
 
 @pytest.mark.parametrize("raw,expected", [
@@ -54,8 +54,8 @@ def test_get_adapter_rejects_an_unknown_key():
     ("Demand", "ODB"), ("OSDn", "SIEC"), ("Stacja transformatorowa", "SIEC"),
     ("", "NIEOKRESLONA"),
 ])
-def test_harmonize_klasa(raw, expected):
-    assert harmonize_klasa(raw) == expected
+def test_harmonize_class(raw, expected):
+    assert harmonize_class(raw) == expected
 
 
 @pytest.mark.parametrize("raw,expected", [
@@ -78,9 +78,9 @@ def test_norm_text_strips_diacritics():
 
 
 def test_detect_layout_stoen():
-    assert detect_layout("Lp. Rodzaj klienta ... Status rozpatrywania wniosku") == "wnioski"
-    assert detect_layout("... Odmowa przyłączenia Data odmowy") == "odmowy"
-    assert detect_layout("... Data zawarcia umowy Data rozpoczęcia dostarczania") == "podmioty"
+    assert detect_layout("Lp. Rodzaj klienta ... Status rozpatrywania wniosku") == "applications"
+    assert detect_layout("... Odmowa przyłączenia Data odmowy") == "refusals"
+    assert detect_layout("... Data zawarcia umowy Data rozpoczęcia dostarczania") == "applicants"
     assert detect_layout("cokolwiek innego") is None
 
 
@@ -144,8 +144,8 @@ def test_cli_validate_and_export(tmp_path, capsys):
     }).to_csv(p, index=False)
     assert main(["validate", str(p), "--out", str(tmp_path / "rep.json")]) == 0
     rep = json.loads((tmp_path / "rep.json").read_text())
-    assert rep["schemat"]["n_wierszy"] == 2
-    assert rep["jakosc"]["n_regul"] == 8
+    assert rep["schema"]["n_rows"] == 2
+    assert rep["quality"]["n_rules"] == 8
     out = tmp_path / "panel.parquet"
     assert main(["export", str(p), str(p), "--out", str(out), "--only-schema"]) == 0
     assert len(pd.read_parquet(out)) == 4

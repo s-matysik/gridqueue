@@ -48,7 +48,7 @@ Two situations are anticipated and both end with a message rather than an except
 
 **Code 404.** Editions move in time, and older ones are sometimes removed once they are replaced.
 Download the current list from the publisher's site, upload it through the file panel and enter the
-name in the `pliki` dictionary.
+name in the `files` dictionary.
 
 **Certificate verification error.** Typical in corporate and institutional networks with an
 intermediary server that substitutes the certificate chain; it does not occur in Colab. The notebook

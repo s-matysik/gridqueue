@@ -26,13 +26,13 @@ def test_the_power_core_is_an_alternative_not_one_specific_field():
     assert "moc_pobierana" not in CORE_FIELDS
     assert "moc_wprowadzana" not in CORE_FIELDS
     assert CORE_ALTERNATIVES == (("moc_pobierana", "moc_wprowadzana"),)
-    wspolny = {"id_wniosku": "X1", "lokalizacja_tekst": "Pozna\u0144", "klasa_zasobu": "PV",
+    shared = {"id_wniosku": "X1", "lokalizacja_tekst": "Pozna\u0144", "klasa_zasobu": "PV",
                "status_procesu": "WNIOSEK_ZLOZONY"}
     df = pd.DataFrame([
-        {**wspolny, "moc_wprowadzana": 1200.0, "moc_pobierana": None},   # generating
-        {**wspolny, "moc_wprowadzana": None, "moc_pobierana": 90.0},     # demand
-        {**wspolny, "moc_wprowadzana": 500.0, "moc_pobierana": 500.0},   # bidirectional
-        {**wspolny, "moc_wprowadzana": None, "moc_pobierana": None},     # no capacity
+        {**shared, "moc_wprowadzana": 1200.0, "moc_pobierana": None},   # generating
+        {**shared, "moc_wprowadzana": None, "moc_pobierana": 90.0},     # demand
+        {**shared, "moc_wprowadzana": 500.0, "moc_pobierana": 500.0},   # bidirectional
+        {**shared, "moc_wprowadzana": None, "moc_pobierana": None},     # no capacity
     ])
     assert core_complete_mask(df).tolist() == [True, True, True, False]
 
@@ -61,8 +61,8 @@ def test_a_missing_entity_annotation_means_an_application():
 
 def test_every_field_has_a_legal_basis_and_a_group():
     for f in SCHEMA:
-        assert f.podstawa, f.name
-        assert f.group in {"tozsamosc", "moc", "proces"}, f.name
+        assert f.basis, f.name
+        assert f.group in {"identity", "capacity", "process"}, f.name
     assert sum(len(v) for v in GROUPS.values()) == 21
 
 
@@ -120,7 +120,7 @@ def test_validate_instance_passes_a_correct_row():
         "id_wniosku": "X1", "lokalizacja_tekst": "Warszawa, Grochowska",
         "klasa_zasobu": "ODB", "moc_pobierana": 12000.0,
         "status_procesu": "WNIOSEK_ZLOZONY", "data_wniosku": "2026-06-29",
-        "wspolrzedne": (52.25, 21.07), "_adnotacja": "dowolna",
+        "wspolrzedne": (52.25, 21.07), "_annotation": "any_value",
     }
     assert validate_instance(row, strict_vocab=True) == []
 
@@ -128,7 +128,7 @@ def test_validate_instance_passes_a_correct_row():
 def test_validate_instance_detects_a_field_outside_the_schema():
     row = {c: "x" for c in CORE_FIELDS}
     row["moc_pobierana"] = 1.0
-    row["nieistniejace_pole"] = 1
+    row["nonexistent_field"] = 1
     assert any("fields outside the schema" in p for p in validate_instance(row))
 
 
@@ -150,10 +150,10 @@ def test_validate_frame_counts_fill_rate_and_core():
         "status_procesu": ["ODMOWA", "ODMOWA"],
     })
     rep = validate_frame(df)
-    assert rep["n_wierszy"] == 2
-    assert rep["wiersze_z_kompletnym_rdzeniem"] == 1
-    assert rep["wypelnienie"]["lokalizacja_tekst"] == 0.5
-    assert rep["wypelnienie"]["data_umowy"] == 0.0
+    assert rep["n_rows"] == 2
+    assert rep["rows_with_complete_core"] == 1
+    assert rep["completion"]["lokalizacja_tekst"] == 0.5
+    assert rep["completion"]["data_umowy"] == 0.0
 
 
 def test_empty_frame_and_schema_table():
@@ -161,4 +161,4 @@ def test_empty_frame_and_schema_table():
     assert list(ef.columns)[:21] == list(FIELDS)
     st = schema_table()
     assert len(st) == 21
-    assert st["rdzen"].sum() == 4
+    assert st["core"].sum() == 4

@@ -5,7 +5,7 @@ the claim:
 PSE is the operator of the TRANSMISSION system, not the distribution system. We are not
 stretching anything here: the document itself declares the basis: the file is named "Informacje
 publikowane zgodnie z Art. 7 ust. 8l ustawy PE", and cell A1 of the worksheet repeats that
-declaration. Art. 7 ust. 8l addresses an "energy undertaking engaged in transmission OR
+declaration. Art. 7(8l) addresses an "energy undertaking engaged in transmission OR
 distribution", so the duty covers the OSP just as much as the OSD.
 
 What this really means for comparability:
@@ -55,8 +55,8 @@ class PSEAdapter(Adapter):
     )
     detect_patterns = (r"pse", r"art_7_ust_8l", r"polskie sieci elektroenergetyczne")
 
-    def __init__(self, data_publikacji: Optional[str] = None):
-        self.data_publikacji = data_publikacji
+    def __init__(self, publication_date: Optional[str] = None):
+        self.publication_date = publication_date
 
     # ------------------------------------------------------------------
     def parse(self, source) -> ParseResult:
@@ -73,33 +73,33 @@ class PSEAdapter(Adapter):
         for src in sources:
             xl = pd.ExcelFile(src)
             if _SHEET_MAIN in xl.sheet_names:
-                f, r = self._parse_wnioski(xl, src)
+                f, r = self._parse_applications(xl, src)
             elif any("rozdzielni" in s.lower() for s in xl.sheet_names):
-                f, r = self._parse_wezly(xl, src)
+                f, r = self._parse_nodes(xl, src)
             else:
                 raise ValueError(f"unrecognized PSE worksheet in {src!r}: {xl.sheet_names}")
             frames.append(f)
             reports.append(r)
         df = pd.concat(frames, ignore_index=True) if frames else self.blank_frame(0)
         report = {
-            "publikujacy": self.publisher,
-            "strategia_wydobycia": "spreadsheet (cell identity by definition)",
-            "wzorzec": "PTPiREE/PSE, art. 7 ust. 8l pkt 1), 3), 4)",
-            "dokumenty": reports,
-            "n_wierszy": int(len(df)),
-            "data_publikacji": self.data_publikacji,
+            "publisher": self.publisher,
+            "extraction_strategy": "spreadsheet (cell identity by definition)",
+            "pattern": "PTPiREE/PSE, Art. 7(8l)(1), (3), (4)",
+            "documents": reports,
+            "n_rows": int(len(df)),
+            "publication_date": self.publication_date,
         }
         return ParseResult(self.finalize(df, document="; ".join(map(str, sources))), report)
 
     # ------------------------------------------------------------------
-    def _parse_wnioski(self, xl, src):
+    def _parse_applications(self, xl, src):
         import pandas as pd
 
-        d, przypisy = _read_sheet_bez_przypisow(src, _SHEET_MAIN)
-        tytul = " ".join(str(v) for v in d.iloc[0].tolist() if isinstance(v, str))
-        stan = T.stan_na(tytul)
-        if stan and self.data_publikacji is None:
-            self.data_publikacji = stan
+        d, footnotes = _read_sheet_without_footnotes(src, _SHEET_MAIN)
+        title = " ".join(str(v) for v in d.iloc[0].tolist() if isinstance(v, str))
+        as_at = T.parse_as_at(title)
+        if as_at and self.publication_date is None:
+            self.publication_date = as_at
 
         hdr_row = self._find_header_row(d)
         body = d.iloc[hdr_row + 1:].reset_index(drop=True)
@@ -112,49 +112,49 @@ class PSEAdapter(Adapter):
         osd_col = 2
         keep = body[osd_col].notna() & body[osd_col].map(
         lambda v: bool(str(v).strip()) if v is not None else False)
-        legenda = int((~keep).sum())
+        legend = int((~keep).sum())
         body = body[keep].reset_index(drop=True)
 
         raw = pd.DataFrame(index=body.index)
         for phys, logical in T.PSE_XLSX_LAYOUT.items():
             if phys < body.shape[1]:
                 raw[logical] = body[phys]
-        out = T.to_schema(raw, publisher_key="pse", data_publikacji=self.data_publikacji)
+        out = T.to_schema(raw, publisher_key="pse", publication_date=self.publication_date)
 
         # Footnote references come back as an extension, so that cutting them off from
         # the content is not a loss of data. The ``marks`` key is (worksheet row,
         # worksheet column), and ``keep`` tells which worksheet rows remained.
-        wiersze_arkusza = [i for i, k in enumerate(keep.tolist(), start=hdr_row + 1) if k]
-        znaczniki = []
-        for ri in wiersze_arkusza:
+        sheet_rows = [i for i, k in enumerate(keep.tolist(), start=hdr_row + 1) if k]
+        markers = []
+        for ri in sheet_rows:
             m = {T.PSE_XLSX_LAYOUT.get(ci, f"kol{ci}"): txt
-                 for (rr, ci), txt in przypisy.items() if rr == ri}
-            znaczniki.append("; ".join(f"{k}={v}" for k, v in sorted(m.items())) or None)
-        out["_przypisy"] = znaczniki
-        n_przypisow = sum(1 for z in znaczniki if z)
+                 for (rr, ci), txt in footnotes.items() if rr == ri}
+            markers.append("; ".join(f"{k}={v}" for k, v in sorted(m.items())) or None)
+        out["_przypisy"] = markers
+        n_footnotes = sum(1 for z in markers if z)
 
         vocab = self._read_vocab(xl)
         return out, {
-            "plik": str(src),
-            "arkusz": _SHEET_MAIN,
-            "encja": "WNIOSEK",
-            "n_kolumn_zrodlowych": int(body.shape[1]),
-            "wiersz_naglowka": hdr_row,
-            "wierszy_legendy_odrzuconych": legenda,
-            "n_wierszy": int(len(out)),
-            "stan_na": stan,
-            "wierszy_z_przypisem": n_przypisow,
-            "slownik_zrodlowy": vocab,
+            "file_name": str(src),
+            "sheet": _SHEET_MAIN,
+            "entity": "WNIOSEK",
+            "n_source_columns": int(body.shape[1]),
+            "header_row": hdr_row,
+            "rejected_legend_rows": legend,
+            "n_rows": int(len(out)),
+            "parse_as_at": as_at,
+            "rows_with_footnote": n_footnotes,
+            "source_dictionary": vocab,
         }
 
     # ------------------------------------------------------------------
-    def _parse_wezly(self, xl, src):
+    def _parse_nodes(self, xl, src):
         """List of switching stations without free connection slots (node-level disclosure)."""
         import pandas as pd
 
         sheet = next(s for s in xl.sheet_names if "rozdzielni" in s.lower())
         d = xl.parse(sheet, header=None)
-        stan = T.stan_na(" ".join(str(v) for v in d.values.ravel() if isinstance(v, str)))
+        as_at = T.parse_as_at(" ".join(str(v) for v in d.values.ravel() if isinstance(v, str)))
 
         hdr = None
         for i in range(min(12, len(d))):
@@ -175,41 +175,41 @@ class PSEAdapter(Adapter):
             return pd.Series([None] * len(body))
 
         symbol = c("symbol stacji").map(lambda v: None if v is None or (isinstance(v, float) and v != v) else str(v).strip())
-        nazwa = c("nazwa stacji").map(lambda v: None if v is None or (isinstance(v, float) and v != v) else str(v).strip())
-        rozdz = c("rozdzielnia").map(lambda v: None if v is None or (isinstance(v, float) and v != v) else str(v).strip())
-        miejsc = c("liczba dostępnych")
+        label_name = c("nazwa stacji").map(lambda v: None if v is None or (isinstance(v, float) and v != v) else str(v).strip())
+        switchgear = c("rozdzielnia").map(lambda v: None if v is None or (isinstance(v, float) and v != v) else str(v).strip())
+        places = c("liczba dostępnych")
         zko = c("zko")
 
-        keep = symbol.notna() & nazwa.notna()
+        keep = symbol.notna() & label_name.notna()
         idx = [i for i in range(len(body)) if keep.iloc[i]]
 
         out = pd.DataFrame(index=range(len(idx)))
         out["id_wniosku"] = None
-        out["id_wezla"] = [f"pse:{symbol.iloc[i]}:{_volt_tag(rozdz.iloc[i])}" for i in idx]
-        out["nazwa_wezla"] = [nazwa.iloc[i] for i in idx]
-        out["lokalizacja_tekst"] = [nazwa.iloc[i] for i in idx]
-        out["poziom_napiecia"] = [_volt_of(rozdz.iloc[i]) for i in idx]
+        out["id_wezla"] = [f"pse:{symbol.iloc[i]}:{_volt_tag(switchgear.iloc[i])}" for i in idx]
+        out["nazwa_wezla"] = [label_name.iloc[i] for i in idx]
+        out["lokalizacja_tekst"] = [label_name.iloc[i] for i in idx]
+        out["poziom_napiecia"] = [_volt_of(switchgear.iloc[i]) for i in idx]
         out["klasa_zasobu"] = "NIEOKRESLONA"
         out["status_procesu"] = "NIEOKRESLONY"
         # moc_dostepna is NOT filled in: the source gives the NUMBER OF SLOTS, not capacity.
         out["moc_dostepna"] = None
         out["ograniczenie_flaga"] = [
-            (float(miejsc.iloc[i]) == 0.0) if _num(miejsc.iloc[i]) is not None else None
+            (float(places.iloc[i]) == 0.0) if _num(places.iloc[i]) is not None else None
             for i in idx
         ]
-        out["data_publikacji"] = stan
+        out["data_publikacji"] = as_at
         out["_encja"] = "WEZEL"
-        out["_liczba_dostepnych_miejsc"] = [_num(miejsc.iloc[i]) for i in idx]
+        out["_liczba_dostepnych_miejsc"] = [_num(places.iloc[i]) for i in idx]
         out["_symbol_stacji"] = [symbol.iloc[i] for i in idx]
-        out["_rozdzielnia"] = [rozdz.iloc[i] for i in idx]
+        out["_rozdzielnia"] = [switchgear.iloc[i] for i in idx]
         out["_zko_pse"] = [zko.iloc[i] for i in idx]
         return out, {
-            "plik": str(src),
-            "arkusz": sheet,
-            "encja": "WEZEL",
-            "n_wierszy": int(len(out)),
-            "stan_na": stan,
-            "uwaga": "the source gives the number of free connection slots, not capacity in "
+            "file_name": str(src),
+            "sheet": sheet,
+            "entity": "WEZEL",
+            "n_rows": int(len(out)),
+            "parse_as_at": as_at,
+            "note": "the source gives the number of free connection slots, not capacity in "
                      "MW; moc_dostepna remains empty",
         }
 
@@ -237,7 +237,7 @@ class PSEAdapter(Adapter):
         return out
 
 
-def _read_sheet_bez_przypisow(src, sheet: str):
+def _read_sheet_without_footnotes(src, sheet: str):
     """Read the worksheet, detaching FOOTNOTE REFERENCES from the cell contents.
 
     Why this is not cosmetic. An accuracy measurement against a reference set read
@@ -295,11 +295,11 @@ def _num(v) -> Optional[float]:
         return None
 
 
-def _volt_of(rozdzielnia: Any) -> Optional[str]:
-    m = re.search(r"(\d+)\s*kV", str(rozdzielnia or ""), re.IGNORECASE)
+def _volt_of(switchgear: Any) -> Optional[str]:
+    m = re.search(r"(\d+)\s*kV", str(switchgear or ""), re.IGNORECASE)
     return f"{m.group(1)} kV" if m else None
 
 
-def _volt_tag(rozdzielnia: Any) -> str:
-    m = re.search(r"(\d+)", str(rozdzielnia or ""))
+def _volt_tag(switchgear: Any) -> str:
+    m = re.search(r"(\d+)", str(switchgear or ""))
     return m.group(1) if m else "nn"

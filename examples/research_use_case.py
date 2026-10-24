@@ -27,8 +27,8 @@ Running::
 
 Produces::
 
-    czas_rozpatrywania.csv   the result table (one row per publisher and class)
-    czas_rozpatrywania.png   the figure
+    processing_time.csv   the result table (one row per publisher and class)
+    processing_time.png   the figure
 """
 
 from __future__ import annotations
@@ -44,7 +44,7 @@ from gridqueue import SCHEMA_VERSION, __version__, core_complete_mask
 MIN_N = 30
 
 #: Readable names of the resource classes from the controlled vocabulary of the schema.
-NAZWY_KLAS = {
+CLASS_NAMES = {
     "ODB": "demand",
     "PV": "photovoltaics",
     "FW": "wind",
@@ -57,58 +57,58 @@ NAZWY_KLAS = {
 }
 
 
-def wczytaj_panel(sciezka: Path) -> pd.DataFrame:
-    if sciezka.suffix == ".parquet":
-        return pd.read_parquet(sciezka)
-    return pd.read_csv(sciezka, low_memory=False)
+def load_panel(path: Path) -> pd.DataFrame:
+    if path.suffix == ".parquet":
+        return pd.read_parquet(path)
+    return pd.read_csv(path, low_memory=False)
 
 
-def czas_rozpatrywania(panel: pd.DataFrame) -> pd.DataFrame:
+def processing_time(panel: pd.DataFrame) -> pd.DataFrame:
     """Time from lodging the application to the issue of conditions, in days."""
     df = panel.copy()
-    for kol in ("data_wniosku", "data_warunkow"):
-        df[kol] = pd.to_datetime(df[kol], errors="coerce")
-    df["czas_dni"] = (df["data_warunkow"] - df["data_wniosku"]).dt.days
+    for col in ("data_wniosku", "data_warunkow"):
+        df[col] = pd.to_datetime(df[col], errors="coerce")
+    df["time_days"] = (df["data_warunkow"] - df["data_wniosku"]).dt.days
     return df
 
 
-def zestawienie(df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
+def summary_table(df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
     """Medians and interquartile ranges per publisher and resource class.
 
     Rows with a negative date difference are dropped and counted separately: an
     inconsistency in the order of dates is detected by quality rule R1 and should
     not enter the descriptive statistics as a negative value.
     """
-    policzalne = df["czas_dni"].notna()
-    ujemne = policzalne & (df["czas_dni"] < 0)
-    ok = df.loc[policzalne & ~ujemne]
+    countable = df["time_days"].notna()
+    negative = countable & (df["time_days"] < 0)
+    ok = df.loc[countable & ~negative]
 
-    tab = (ok.groupby(["publikujacy", "klasa_zasobu"])["czas_dni"]
-             .agg(n="size", mediana="median",
-                  kwartyl_1=lambda s: s.quantile(0.25),
-                  kwartyl_3=lambda s: s.quantile(0.75))
+    tab = (ok.groupby(["publikujacy", "klasa_zasobu"])["time_days"]
+             .agg(n="size", median="median",
+                  quartile_1=lambda s: s.quantile(0.25),
+                  quartile_3=lambda s: s.quantile(0.75))
              .reset_index())
     tab = tab.loc[tab["n"] >= MIN_N].copy()
-    tab["rozstep_cwiartkowy"] = tab["kwartyl_3"] - tab["kwartyl_1"]
-    tab["klasa_opis"] = tab["klasa_zasobu"].map(NAZWY_KLAS).fillna(tab["klasa_zasobu"])
-    tab = tab.sort_values(["publikujacy", "mediana"]).reset_index(drop=True)
+    tab["iqr"] = tab["quartile_3"] - tab["quartile_1"]
+    tab["class_description"] = tab["klasa_zasobu"].map(CLASS_NAMES).fillna(tab["klasa_zasobu"])
+    tab = tab.sort_values(["publikujacy", "median"]).reset_index(drop=True)
 
     meta = {
         "gridqueue": __version__,
         "schema_version": SCHEMA_VERSION,
-        "wierszy_panelu": int(len(df)),
-        "wierszy_z_kompletnym_rdzeniem": int(core_complete_mask(df).sum()),
-        "wierszy_z_policzalnym_czasem": int(len(ok)),
-        "odrzucone_ujemne": int(ujemne.sum()),
-        "grup_ponizej_progu_pominieto": int(
+        "panel_rows": int(len(df)),
+        "rows_with_complete_core": int(core_complete_mask(df).sum()),
+        "rows_with_countable_time": int(len(ok)),
+        "rejected_negative": int(negative.sum()),
+        "groups_below_threshold_skipped": int(
             ok.groupby(["publikujacy", "klasa_zasobu"]).size().lt(MIN_N).sum()),
-        "min_n_grupy": MIN_N,
-        "mediana_ogolem_dni": float(ok["czas_dni"].median()),
+        "min_n_group": MIN_N,
+        "median_total_days": float(ok["time_days"].median()),
     }
     return tab, meta
 
 
-def rysunek(tab: pd.DataFrame, plik: Path) -> None:
+def fig(tab: pd.DataFrame, file_name: Path) -> None:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -117,7 +117,7 @@ def rysunek(tab: pd.DataFrame, plik: Path) -> None:
     # sorted list: otherwise adding a publisher would repaint the others and the
     # figure would drift away from the other figures of the project. A regression
     # from release 1.1.0, restored here.
-    BARWY = {
+    COLORS = {
         "TAURON Dystrybucja S.A.": "#1b5e8c",
         "ENERGA-OPERATOR S.A.": "#2e8b78",
         "Stoen Operator Sp. z o.o.": "#c77a1e",
@@ -125,20 +125,20 @@ def rysunek(tab: pd.DataFrame, plik: Path) -> None:
         "National Grid Electricity Distribution": "#6b7280",
         "Boryszew Green Energy&Gas Sp. z o.o.": "#a33b4e",
     }
-    ZAPAS = "#555555"
+    RESERVE = "#555555"
     fig, ax = plt.subplots(figsize=(6.6, 0.30 * len(tab) + 1.7))
     for i, (_, r) in enumerate(tab.iterrows()):
-        ax.plot([r["kwartyl_1"], r["kwartyl_3"]], [i, i], lw=3.2, alpha=0.35,
-                color=BARWY.get(r["publikujacy"], ZAPAS),
+        ax.plot([r["quartile_1"], r["quartile_3"]], [i, i], lw=3.2, alpha=0.35,
+                color=COLORS.get(r["publikujacy"], RESERVE),
                 solid_capstyle="butt")
-        ax.plot([r["mediana"]], [i], "o", ms=5, color=BARWY.get(r["publikujacy"], ZAPAS))
-        ax.text(r["kwartyl_3"] + 8, i, f"{r['mediana']:.0f} d  (n={int(r['n'])})",
+        ax.plot([r["median"]], [i], "o", ms=5, color=COLORS.get(r["publikujacy"], RESERVE))
+        ax.text(r["quartile_3"] + 8, i, f"{r['median']:.0f} d  (n={int(r['n'])})",
                 va="center", fontsize=7)
     ax.set_yticks(list(range(len(tab))))
-    ax.set_yticklabels([f"{r['klasa_opis']}, {r['publikujacy'].split()[0]}"
+    ax.set_yticklabels([f"{r['class_description']}, {r['publikujacy'].split()[0]}"
                         for _, r in tab.iterrows()], fontsize=7)
     ax.invert_yaxis()
-    ax.set_xlim(0, tab["kwartyl_3"].max() * 1.30)
+    ax.set_xlim(0, tab["quartile_3"].max() * 1.30)
     ax.set_xlabel("days: application → conditions\n"
                   "dot = median, band = interquartile range", fontsize=8)
     ax.set_title("Demand connections are processed faster than generation ones",
@@ -146,7 +146,7 @@ def rysunek(tab: pd.DataFrame, plik: Path) -> None:
     for s in ("top", "right"):
         ax.spines[s].set_visible(False)
     fig.tight_layout()
-    fig.savefig(plik, dpi=200)
+    fig.savefig(file_name, dpi=200)
 
 
 def main(argv: list[str]) -> int:
@@ -159,19 +159,19 @@ def main(argv: list[str]) -> int:
         return 2
     outdir.mkdir(parents=True, exist_ok=True)
 
-    df = czas_rozpatrywania(wczytaj_panel(panel_path))
-    tab, meta = zestawienie(df)
+    df = processing_time(load_panel(panel_path))
+    tab, meta = summary_table(df)
 
-    csv_path = outdir / "czas_rozpatrywania.csv"
+    csv_path = outdir / "processing_time.csv"
     tab.to_csv(csv_path, index=False)
-    rysunek(tab, outdir / "czas_rozpatrywania.png")
+    fig(tab, outdir / "processing_time.png")
 
     for k, v in meta.items():
         print(f"{k}: {v}")
     print()
-    kolumny = ["publikujacy", "klasa_opis", "n", "mediana", "kwartyl_1", "kwartyl_3"]
-    print(tab[kolumny].to_string(index=False))
-    print(f"\nsaved: {csv_path} and {outdir / 'czas_rozpatrywania.png'}")
+    columns = ["publikujacy", "class_description", "n", "median", "quartile_1", "quartile_3"]
+    print(tab[columns].to_string(index=False))
+    print(f"\nsaved: {csv_path} and {outdir / 'processing_time.png'}")
     return 0
 
 

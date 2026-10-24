@@ -18,7 +18,7 @@ import re
 from typing import Any, Optional
 
 from ..schema import canonical_date, canonical_power_kw
-from .base import Adapter, ParseResult, harmonize_klasa, harmonize_status
+from .base import Adapter, ParseResult, harmonize_class, harmonize_status
 
 CKAN_BASE = "https://connecteddata.nationalgrid.co.uk/api/3/action"
 USER_AGENT = (
@@ -79,15 +79,15 @@ class NationalGridAdapter(Adapter):
                 frames.append(d)
                 ok.append(res.get("name"))
             except Exception as exc:  # we record it, not hide it
-                failed.append({"zasob": res.get("name"), "blad": f"{type(exc).__name__}: {exc}"})
+                failed.append({"resource": res.get("name"), "error": f"{type(exc).__name__}: {exc}"})
         raw = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
         meta = {
-            "zbior": pkg["name"],
-            "tytul": pkg.get("title"),
-            "n_zasobow_csv": len(resources),
-            "pobrane": len(ok),
-            "nieudane": failed,
-            "ostatnia_modyfikacja": pkg.get("metadata_modified"),
+            "collection": pkg["name"],
+            "title": pkg.get("title"),
+            "n_resources_csv": len(resources),
+            "downloaded": len(ok),
+            "failed": failed,
+            "last_modification": pkg.get("metadata_modified"),
         }
         return raw, meta
 
@@ -99,9 +99,9 @@ class NationalGridAdapter(Adapter):
         if source is None:
             raw, meta = self.fetch()
         elif isinstance(raw_src := source, pd.DataFrame):
-            raw, meta = raw_src.copy(), {"zrodlo": "DataFrame"}
+            raw, meta = raw_src.copy(), {"source": "DataFrame"}
         else:
-            raw, meta = pd.read_csv(raw_src), {"zrodlo": str(raw_src)}
+            raw, meta = pd.read_csv(raw_src), {"source": str(raw_src)}
 
         def col(*names):
             for n in names:
@@ -121,7 +121,7 @@ class NationalGridAdapter(Adapter):
             lambda v: None if pd.isna(v) else str(int(v)) if float(v).is_integer() else str(v))
         out["nazwa_wezla"] = col("Bus Name")
         out["lokalizacja_tekst"] = col("GSP")
-        out["klasa_zasobu"] = col("Fuel type").map(harmonize_klasa)
+        out["klasa_zasobu"] = col("Fuel type").map(harmonize_class)
         out["moc_wprowadzana"] = col("Site Export Capacity (MW)").map(
             lambda v: canonical_power_kw(v, "MW"))
         out["moc_pobierana"] = col("Site Import Capacity (MW)").map(
@@ -142,15 +142,15 @@ class NationalGridAdapter(Adapter):
             lambda v: canonical_power_kw(v, "MW"))
         out["_tanm"] = tanm
         out["_danm"] = danm
-        out["_plik_zrodlowy"] = col("_plik_zrodlowy", "_plik")
+        out["_plik_zrodlowy"] = col("_plik_zrodlowy", "_file_name")
 
         report = {
-            "publikujacy": self.publisher,
-            "strategia_wydobycia": "CSV from the CKAN catalog (data already tabular)",
-            "n_wierszy": int(len(out)),
-            "katalog": meta,
+            "publisher": self.publisher,
+            "extraction_strategy": "CSV from the CKAN catalog (data already tabular)",
+            "n_rows": int(len(out)),
+            "catalog": meta,
         }
-        return ParseResult(self.finalize(out, document=str(meta.get("zbior", source))), report)
+        return ParseResult(self.finalize(out, document=str(meta.get("collection", source))), report)
 
 
 def _as_bool(v) -> Optional[bool]:

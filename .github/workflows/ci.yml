@@ -1,4 +1,4 @@
-name: testy
+name: tests
 
 on:
   push:
@@ -20,75 +20,75 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
-      - name: Instalacja pakietu z ekstrasem testowym
+      - name: Install the package with the test extra
         run: python -m pip install --upgrade pip && python -m pip install -e ".[test]"
-      - name: Testy
+      - name: Tests
         run: python -m pytest -q -rs
-      - name: Zgodnosc deklarowanej wersji
+      - name: Declared version is consistent
         shell: python
         run: |
-          # tomllib jest w bibliotece standardowej od Pythona 3.11, a macierz obejmuje 3.10,
-          # wiec wersje z pyproject.toml czytamy wyrazeniem regularnym zamiast parserem TOML.
+          # tomllib is in the standard library from Python 3.11 and the matrix includes 3.10,
+          # so the version in pyproject.toml is read with a regular expression, not a TOML parser.
           import pathlib
           import re
 
           import gridqueue
 
-          tekst = pathlib.Path("pyproject.toml").read_text(encoding="utf-8")
-          m = re.search(r'(?m)^\s*version\s*=\s*"([^"]+)"', tekst)
-          assert m, "nie znaleziono pola version w pyproject.toml"
+          text = pathlib.Path("pyproject.toml").read_text(encoding="utf-8")
+          m = re.search(r'(?m)^\s*version\s*=\s*"([^"]+)"', text)
+          assert m, "no version field found in pyproject.toml"
           assert m.group(1) == gridqueue.__version__, (m.group(1), gridqueue.__version__)
-          print("wersja zgodna:", gridqueue.__version__)
+          print("version consistent:", gridqueue.__version__)
 
   pandas3:
-    name: pandas 3 (zgodnosc w przod)
+    name: pandas 3 (forward compatibility)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
-      - name: Instalacja z najnowszym pandas
-        # Macierz wyzej testuje wersje Pythona, nie wersje bibliotek. Defekt budowy
-        # klucza wzdluznego ujawnil sie dopiero na pandas 3, gdzie .astype(str)
-        # zachowuje brak jako wartosc brakujaca zamiast zamieniac go na "nan".
-        # To zadanie pilnuje, zeby taka zmiana zachowania nie przeszla niezauwazona.
+      - name: Install with the latest pandas
+        # The matrix above tests Python versions, not library versions. A defect in building
+        # the longitudinal key appeared only on pandas 3, where .astype(str) keeps a missing
+        # value as missing instead of turning it into "nan". This job makes sure that such a
+        # change of behaviour does not pass unnoticed.
         run: |
           python -m pip install --upgrade pip
           python -m pip install -e ".[test]"
           python -m pip install --upgrade "pandas>=3.0"
-      - name: Zadanie faktycznie dziala na pandas 3
+      - name: The job really runs on pandas 3
         shell: python
         run: |
-          # Bez tej asercji zadanie przechodziloby POZORNIE, gdyby pandas 3 nie
-          # zainstalowal sie z jakiegokolwiek powodu, a wtedy nie pilnowaloby niczego.
+          # Without this assertion the job would pass VACUOUSLY if pandas 3 failed to install
+          # for any reason, and it would then guard nothing.
           import sys
 
           import pandas
 
           print("pandas", pandas.__version__, "| Python", sys.version.split()[0])
           major = int(pandas.__version__.split(".")[0])
-          assert major >= 3, f"zadanie ma testowac pandas 3, a zainstalowano {pandas.__version__}"
-      - name: Testy
+          assert major >= 3, f"the job must test pandas 3, but {pandas.__version__} was installed"
+      - name: Tests
         run: python -m pytest -q -rs
 
-  notatnik:
-    name: notatnik Colab, poprawnosc skladni i API
+  notebook:
+    name: Colab notebook, syntax and API
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Instalacja
+      - name: Install
         run: python -m pip install --upgrade pip && python -m pip install -e ".[test]"
-      - name: Komorki kodu sa poprawne skladniowo, a uzyte nazwy istnieja w API
+      - name: Code cells parse, and every name they import exists in the API
         shell: python
         run: |
-          # Nie uruchamiamy notatnika w CI, bo pobiera dokumenty od publikujacego,
-          # a te sa wymieniane kwartalnie. Sprawdzamy to, co sprawdzic mozna bez
-          # siegania do sieci: czy kod sie kompiluje i czy kazda nazwa importowana
-          # z pakietu faktycznie w nim istnieje.
+          # The notebook is not executed in CI, because it downloads documents from the
+          # publisher and those are replaced quarterly. What can be checked without the
+          # network is checked: that the code compiles and that every name imported from
+          # the package actually exists in it.
           import ast
           import json
           import pathlib
@@ -96,18 +96,18 @@ jobs:
           import gridqueue
 
           nb = json.loads(pathlib.Path("notebooks/gridqueue_colab.ipynb").read_text(encoding="utf-8"))
-          brakujace, komorek = [], 0
+          missing, cells = [], 0
           for i, c in enumerate(nb["cells"]):
               if c["cell_type"] != "code":
                   continue
               src = "".join(c["source"])
               src = "\n".join(l for l in src.split("\n") if not l.lstrip().startswith(("%", "!")))
-              drzewo = ast.parse(src)  # rzuci SyntaxError i zatrzyma zadanie
-              komorek += 1
-              for w in ast.walk(drzewo):
+              tree = ast.parse(src)  # raises SyntaxError and stops the job
+              cells += 1
+              for w in ast.walk(tree):
                   if isinstance(w, ast.ImportFrom) and (w.module or "").startswith("gridqueue"):
                       for n in w.names:
                           if not hasattr(gridqueue, n.name):
-                              brakujace.append((i, n.name))
-          assert not brakujace, f"notatnik uzywa nazw nieobecnych w API: {brakujace}"
-          print(f"komorek kodu: {komorek}; wszystkie nazwy z gridqueue istnieja")
+                              missing.append((i, n.name))
+          assert not missing, f"the notebook uses names absent from the API: {missing}"
+          print(f"code cells: {cells}; every name imported from gridqueue exists")

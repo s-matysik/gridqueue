@@ -166,8 +166,8 @@ class Field:
     group: str                 # "tozsamosc" | "moc" | "proces"
     core: bool
     unit: Optional[str]
-    podstawa: str              # which point of Article 7(8l) justifies the field
-    opis: str
+    basis: str              # which point of Article 7(8l) justifies the field
+    description: str
     check: Optional[Callable[[Any], bool]] = field(default=None, repr=False)
 
 
@@ -206,59 +206,59 @@ def _is_bool(v: Any) -> bool:
 
 SCHEMA: tuple[Field, ...] = (
     # ---------------- IDENTITY ----------------
-    Field("id_wniosku", "string", "tozsamosc", True, None, "pkt 1/3/4",
+    Field("id_wniosku", "string", "identity", True, None, "Art. 7(8l), item 1/3/4",
           "Identifier of the entry in the publisher's register; unique within the "
           "publication, not globally."),
-    Field("id_wezla", "string", "tozsamosc", False, None, "pkt 2",
-          "Identifier of the power station or its group, broken down by "
+    Field("id_wezla", "string", "identity", False, None, "Art. 7(8l), item 2",
+          "Identifier of the electricity substation or its group, by "
           "which the statute requires the available capacity to be reported."),
-    Field("nazwa_wezla", "string", "tozsamosc", False, None, "pkt 2",
+    Field("nazwa_wezla", "string", "identity", False, None, "Art. 7(8l), item 2",
           "Proper name of the station/supply point, if the publisher discloses it."),
-    Field("lokalizacja_tekst", "string", "tozsamosc", True, None, "pkt 1/3/4",
+    Field("lokalizacja_tekst", "string", "identity", True, None, "Art. 7(8l), item 1/3/4",
           "Location of the connection point exactly as given by the publisher "
           "(address, locality, station code), without interpretation."),
-    Field("wspolrzedne", "geopoint", "tozsamosc", False, "WGS84", "pkt 1/2",
+    Field("wspolrzedne", "geopoint", "identity", False, "WGS84", "Art. 7(8l), item 1/2",
           "Geographic coordinates (lat, lon); result of location resolution or "
           "source data.", _is_geopoint),
-    Field("poziom_napiecia", "string", "tozsamosc", False, None, "pkt 1 (>1 kV)",
+    Field("poziom_napiecia", "string", "identity", False, None, "Art. 7(8l), item 1 (>1 kV)",
           "Voltage level of the connection; the duty applies to networks above 1 kV, so "
           "the field determines the scope of the disclosure."),
-    Field("klasa_zasobu", "string", "tozsamosc", True, None, "pkt 1/3/4",
+    Field("klasa_zasobu", "string", "identity", True, None, "Art. 7(8l), item 1/3/4",
           "Type of installation, equipment or network, harmonized to the controlled "
           "vocabulary (PV, FW, BESS, ODB, ...)."),
     # ---------------- CAPACITY ----------------
-    Field("moc_wprowadzana", "number", "moc", False, "kW", "pkt 1/3",
+    Field("moc_wprowadzana", "number", "capacity", False, "kW", "Art. 7(8l), item 1/3",
           "Connection capacity fed into the network (generation/export).", _num_nonneg),
-    Field("moc_pobierana", "number", "moc", False, "kW", "pkt 1/3/4",
+    Field("moc_pobierana", "number", "capacity", False, "kW", "Art. 7(8l), item 1/3/4",
           "Connection capacity drawn from the network (consumption/import); for "
           "consumption applications this is the main quantity of the application.  It is "
           "not unconditionally a core field: the core requires AT LEAST ONE "
           "of the pair (moc_pobierana, moc_wprowadzana), see CORE_ALTERNATIVES.", _num_nonneg),
-    Field("moc_dostepna", "number", "moc", False, "kW", "pkt 2",
+    Field("moc_dostepna", "number", "capacity", False, "kW", "Art. 7(8l), item 2",
           "Total available connection capacity at the node.", _num_nonneg),
-    Field("moc_zarezerwowana", "number", "moc", False, "kW", "pkt 2",
+    Field("moc_zarezerwowana", "number", "capacity", False, "kW", "Art. 7(8l), item 2",
           "Capacity taken up by issued and valid connection conditions / reservation.", _num_nonneg),
-    Field("ograniczenie_flaga", "boolean", "moc", False, None, "pkt 2",
+    Field("ograniczenie_flaga", "boolean", "capacity", False, None, "Art. 7(8l), item 2",
           "Whether there is a factor at the node limiting the connection.", _is_bool),
-    Field("pozycja_w_kolejce", "number", "moc", False, None, "pkt 1",
+    Field("pozycja_w_kolejce", "number", "capacity", False, None, "Art. 7(8l), item 1",
           "Position of the application in the connection queue, if the publisher maintains one."),
     # ---------------- PROCESS ----------------
-    Field("status_procesu", "string", "proces", True, None, "pkt 1/3/4",
+    Field("status_procesu", "string", "process", True, None, "Art. 7(8l), item 1/3/4",
           "Stage of the proceedings, harmonized to the controlled vocabulary."),
-    Field("data_wniosku", "date", "proces", False, "ISO-8601", "pkt 3",
+    Field("data_wniosku", "date", "process", False, "ISO-8601", "Art. 7(8l), item 3",
           "Date the application for determination of connection conditions was filed.", _is_iso_date),
-    Field("data_warunkow", "date", "proces", False, "ISO-8601", "pkt 1/3",
+    Field("data_warunkow", "date", "process", False, "ISO-8601", "Art. 7(8l), item 1/3",
           "Date the connection conditions were determined; the start of the two-year "
           "validity period (Article 7(8i)).", _is_iso_date),
-    Field("data_odmowy", "date", "proces", False, "ISO-8601", "pkt 4",
+    Field("data_odmowy", "date", "process", False, "ISO-8601", "Art. 7(8l), item 4",
           "Date the refusal to determine connection conditions was issued.", _is_iso_date),
-    Field("powod_odmowy", "string", "proces", False, None, "pkt 4",
+    Field("powod_odmowy", "string", "process", False, None, "Art. 7(8l), item 4",
           "Justification for the refusal (technical / economic / other reasons)."),
-    Field("data_umowy", "date", "proces", False, "ISO-8601", "pkt 1",
+    Field("data_umowy", "date", "process", False, "ISO-8601", "Art. 7(8l), item 1",
           "Date the connection agreement was concluded.", _is_iso_date),
-    Field("data_energizacji", "date", "proces", False, "ISO-8601", "pkt 1",
+    Field("data_energizacji", "date", "process", False, "ISO-8601", "Art. 7(8l), item 1",
           "Date electricity supply began.", _is_iso_date),
-    Field("data_publikacji", "date", "proces", False, "ISO-8601", "art. 7 ust. 8m",
+    Field("data_publikacji", "date", "process", False, "ISO-8601", "Art. 7(8m)",
           "Status as of the date for which the publisher prepared the disclosure; "
           "the statute requires updates at least once per quarter.", _is_iso_date),
 )
@@ -288,34 +288,34 @@ DEFAULT_ENTITY: str = "WNIOSEK"
 
 CORE_BY_ENTITY: dict[str, dict[str, tuple]] = {
     "WNIOSEK": {
-        "wymagane": CORE_FIELDS,
-        "alternatywy": (("moc_pobierana", "moc_wprowadzana"),),
+        "required": CORE_FIELDS,
+        "alternatives": (("moc_pobierana", "moc_wprowadzana"),),
     },
     "WEZEL": {
-        "wymagane": ("id_wezla",),
-        "alternatywy": (("moc_dostepna", "ograniczenie_flaga"),),
+        "required": ("id_wezla",),
+        "alternatives": (("moc_dostepna", "ograniczenie_flaga"),),
     },
 }
 
 # kept for backward compatibility with 0.3.x; refers to the WNIOSEK entity
 CORE_ALTERNATIVES: tuple[tuple[str, ...], ...] = tuple(
-    CORE_BY_ENTITY["WNIOSEK"]["alternatywy"])
+    CORE_BY_ENTITY["WNIOSEK"]["alternatives"])
 
 
-def _mask_dla_encji(df, sub_idx, spec):
+def _mask_for_entity(df, sub_idx, spec):
     import pandas as _pd
 
     m = _pd.Series(True, index=sub_idx)
-    for c in spec["wymagane"]:
+    for c in spec["required"]:
         if c not in df.columns:
             return _pd.Series(False, index=sub_idx)
         m &= df.loc[sub_idx, c].map(lambda v: not _is_null(v))
-    for grupa in spec["alternatywy"]:
-        obecne = [c for c in grupa if c in df.columns]
-        if not obecne:
+    for group in spec["alternatives"]:
+        current = [c for c in group if c in df.columns]
+        if not current:
             return _pd.Series(False, index=sub_idx)
         alt = _pd.Series(False, index=sub_idx)
-        for c in obecne:
+        for c in current:
             alt |= df.loc[sub_idx, c].map(lambda v: not _is_null(v))
         m &= alt
     return m
@@ -339,15 +339,15 @@ def core_complete_mask(df):
         enc = _pd.Series(DEFAULT_ENTITY, index=df.index)
 
     mask = _pd.Series(False, index=df.index)
-    for nazwa, spec in CORE_BY_ENTITY.items():
-        sub = enc.index[enc == nazwa]
+    for name, spec in CORE_BY_ENTITY.items():
+        sub = enc.index[enc == name]
         if len(sub):
-            mask.loc[sub] = _mask_dla_encji(df, sub, spec).values
+            mask.loc[sub] = _mask_for_entity(df, sub, spec).values
     return mask
 BY_NAME: dict[str, Field] = {f.name: f for f in SCHEMA}
 GROUPS: dict[str, tuple[str, ...]] = {
     g: tuple(f.name for f in SCHEMA if f.group == g)
-    for g in ("tozsamosc", "moc", "proces")
+    for g in ("identity", "capacity", "process")
 }
 
 # accompanying columns, not part of the schema (panel metadata / annotations)
@@ -355,11 +355,11 @@ META_COLUMNS: tuple[str, ...] = ("publikujacy", "jurysdykcja", "dokument_zrodlow
 ANNOTATION_PREFIX = "_"
 
 # controlled vocabularies
-KLASY_ZASOBU = (
+RESOURCE_CLASSES = (
     "PV", "FW", "EW", "BIOGAZ", "GAZ", "WEGIEL", "BESS", "ODB", "MIX", "SIEC",
     "INNE", "NIEOKRESLONA",
 )
-STATUSY = (
+STATUSES = (
     "WNIOSEK_ZLOZONY", "WNIOSEK_NIEKOMPLETNY", "W_TRAKCIE_ANALIZY",
     "WARUNKI_WYDANE", "WARUNKI_WYGASLE", "ODMOWA", "UMOWA_OBOWIAZUJACA",
     "UMOWA_ROZWIAZANA", "PRZYLACZONY", "WNIOSEK_WYCOFANY", "NIEOKRESLONY",
@@ -398,10 +398,10 @@ def validate_instance(row: dict[str, Any], *, strict_vocab: bool = False) -> lis
             problems.append(f"{name}: value does not pass the type check ({value!r})")
     if strict_vocab:
         kz = row.get("klasa_zasobu")
-        if not _is_null(kz) and kz not in KLASY_ZASOBU:
+        if not _is_null(kz) and kz not in RESOURCE_CLASSES:
             problems.append(f"klasa_zasobu outside the vocabulary: {kz!r}")
         st = row.get("status_procesu")
-        if not _is_null(st) and st not in STATUSY:
+        if not _is_null(st) and st not in STATUSES:
             problems.append(f"status_procesu outside the vocabulary: {st!r}")
     return problems
 
@@ -411,16 +411,16 @@ def validate_frame(df, *, strict_vocab: bool = True) -> dict[str, Any]:
     import pandas as pd  # local import: schema.py is meant to be usable without pandas
 
     report: dict[str, Any] = {
-        "n_wierszy": int(len(df)),
-        "kolumny_spoza_schematu": sorted(
+        "n_rows": int(len(df)),
+        "columns_outside_schema": sorted(
             set(df.columns) - set(FIELDS) - set(META_COLUMNS)
             - {c for c in df.columns if c.startswith(ANNOTATION_PREFIX)}
         ),
-        "brakujace_kolumny_rdzenia": [c for c in CORE_FIELDS if c not in df.columns],
-        "wypelnienie": {},
-        "naruszenia_typu": {},
-        "wiersze_z_kompletnym_rdzeniem": 0,
-        "slownik": {},
+        "missing_core_columns": [c for c in CORE_FIELDS if c not in df.columns],
+        "completion": {},
+        "violation_type": {},
+        "rows_with_complete_core": 0,
+        "dictionary": {},
     }
     for c in FIELDS:
         if c in df.columns:
@@ -428,9 +428,9 @@ def validate_frame(df, *, strict_vocab: bool = True) -> dict[str, Any]:
             nn = int(s.notna().sum() - sum(
                 1 for v in s.dropna() if isinstance(v, str) and v.strip().lower() in _NULLISH
             ))
-            report["wypelnienie"][c] = round(nn / len(df), 6) if len(df) else 0.0
+            report["completion"][c] = round(nn / len(df), 6) if len(df) else 0.0
         else:
-            report["wypelnienie"][c] = 0.0
+            report["completion"][c] = 0.0
     for c in FIELDS:
         if c not in df.columns:
             continue
@@ -444,14 +444,14 @@ def validate_frame(df, *, strict_vocab: bool = True) -> dict[str, Any]:
             elif f.check is not None and not f.check(v):
                 bad += 1
         if bad:
-            report["naruszenia_typu"][c] = bad
-    report["wiersze_z_kompletnym_rdzeniem"] = int(core_complete_mask(df).sum())
+            report["violation_type"][c] = bad
+    report["rows_with_complete_core"] = int(core_complete_mask(df).sum())
     report["schema_version"] = SCHEMA_VERSION
     if strict_vocab:
-        for c, vocab in (("klasa_zasobu", KLASY_ZASOBU), ("status_procesu", STATUSY)):
+        for c, vocab in (("klasa_zasobu", RESOURCE_CLASSES), ("status_procesu", STATUSES)):
             if c in df.columns:
                 bad = sorted({v for v in df[c].dropna().unique() if v not in vocab and not _is_null(v)})
-                report["slownik"][c] = bad
+                report["dictionary"][c] = bad
     return report
 
 
@@ -462,36 +462,36 @@ def empty_frame():
     return pd.DataFrame({c: pd.Series(dtype="object") for c in FIELDS + META_COLUMNS})
 
 
-def _encja_pola(nazwa: str) -> str:
+def _entity_fields(name: str) -> str:
     """Entity in which the field occurs: WNIOSEK, WEZEL, or obie.
 
     Derived from CORE_BY_ENTITY and from the field's membership in a point of the duty:
     point 2 describes the node, points 1, 3 and 4 describe the application.
     """
-    wezlowe = {"id_wezla", "nazwa_wezla", "moc_dostepna", "moc_zarezerwowana",
+    nodal = {"id_wezla", "nazwa_wezla", "moc_dostepna", "moc_zarezerwowana",
                "ograniczenie_flaga"}
-    obie = {"wspolrzedne", "data_publikacji"}
-    if nazwa in obie:
-        return "obie"
-    return "WEZEL" if nazwa in wezlowe else "WNIOSEK"
+    both = {"wspolrzedne", "data_publikacji"}
+    if name in both:
+        return "both"
+    return "WEZEL" if name in nodal else "WNIOSEK"
 
 
-def _status_rdzenia(nazwa: str) -> str:
+def _core_status(name: str) -> str:
     """Three-valued status: unconditional core, core alternative, extension.
 
     The core is CONDITIONAL: a field unconditional for one entity need not be required
     for the other, and alternative pairs require at least one member to be filled in.
-    The two-valued column `rdzen` does not capture this, and that is why this second
+    The two-valued column `core` does not capture this, and that is why this second
     one exists.
     """
-    for encja, spec in CORE_BY_ENTITY.items():
-        if nazwa in spec["wymagane"]:
-            return f"rdzeń bezwarunkowy ({encja})"
-    for encja, spec in CORE_BY_ENTITY.items():
-        for para in spec["alternatywy"]:
-            if nazwa in para:
-                return f"alternatywa rdzenia ({encja}: {' albo '.join(para)})"
-    return "rozszerzenie"
+    for entity, spec in CORE_BY_ENTITY.items():
+        if name in spec["required"]:
+            return f"unconditional core ({entity})"
+    for entity, spec in CORE_BY_ENTITY.items():
+        for pair in spec["alternatives"]:
+            if name in pair:
+                return f"core alternative ({entity}: {' or '.join(pair)})"
+    return "extension"
 
 
 def schema_table():
@@ -501,15 +501,15 @@ def schema_table():
     return pd.DataFrame(
         [
             {
-                "pole": f.name,
-                "typ": f.dtype,
-                "grupa": f.group,
-                "encja": _encja_pola(f.name),
-                "rdzen": f.core,
-                "status_rdzenia": _status_rdzenia(f.name),
-                "jednostka_kanoniczna": f.unit or "",
-                "podstawa_prawna": f.podstawa,
-                "opis": f.opis,
+                "field": f.name,
+                "kind": f.dtype,
+                "group": f.group,
+                "entity": _entity_fields(f.name),
+                "core": f.core,
+                "core_status": _core_status(f.name),
+                "canonical_unit": f.unit or "",
+                "legal_basis": f.basis,
+                "description": f.description,
             }
             for f in SCHEMA
         ]

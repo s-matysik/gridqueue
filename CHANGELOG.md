@@ -1,15 +1,36 @@
 # Change history
 
-Format based on [Keep a Changelog](https://keepachangelog.com/pl/1.1.0/);
+Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 semantic versioning. The version of the data schema is separate from the version of the package
 and is reported as `SCHEMA_VERSION`.
+
+## 1.7.0 (2026-10-24)
+
+### Changed
+- **The whole package is in English.** Function arguments, the keys of result objects and the
+  columns of result tables, local names, comments, docstrings, error messages, the CI workflow,
+  the Colab notebook and the documentation file names (`schemat.md` is now `schema.md`, and so on).
+  The full list of renamed public names is in [docs/renamed.md](docs/renamed.md).
+- The three renamed top-level names (`PRZEDROSTKI_STACJI`, `normalizuj_nazwe`,
+  `resolver_from_gazeter_json`) keep working with a `DeprecationWarning` until 2.0. Renamed keyword
+  arguments and result keys have no aliases.
+- Legal citations follow the style of the article: `Art. 7(8l), item 1/3/4` instead of
+  `pkt 1/3/4`. Numbers in the documentation use English formatting (`1,838`, `98.88%`).
+- Chart and report text: percentages without a space before `%`, readable labels for every code.
+
+### Not changed
+- Schema field names, extension columns, controlled vocabularies and geolocation codes are the
+  data format of the panel and stay as they are; their English meaning is in the new glossary of
+  `docs/schema.md`.
+- Every number reported in the article and in the Supplement is reproduced unchanged; the
+  expected-value files under `reproducibility/expected/` carry the same values under English keys.
 
 ## 1.6.0 (2026-10-24)
 
 ### Added
 - **Charts** (`gridqueue.plots`, optional extra `pip install "gridqueue[plot]"`): field coverage,
   quality rules, column-shift audit, stage of the proceeding, requested capacity by class and
-  voltage, Kaplan-Meier processing-time curves with censoring and a 95 % band, node loading,
+  voltage, Kaplan-Meier processing-time curves with censoring and a 95% band, node loading,
   flows / transitions / linkage audit of two editions, location resolution, a four-panel
   overview, and `save_all`, which draws every chart the data supports and lists the skipped ones
   with the reason. A chart is a view of a result, never a second computation of it. Figures are
@@ -81,22 +102,22 @@ and is reported as `SCHEMA_VERSION`.
   stated that the columns "with permission" and "in progress" reconstruct the occupied capacity in 395 of 767
   rows. That was **a description of an incomplete identity**: both groups are COMPONENTS, not
   alternative breakdowns. Eleven subcolumns, nine substation items plus those
-  two, sum to the occupied capacity **in exactly 1 838 of 1 838 rows, in both
+  two, sum to the occupied capacity **in exactly 1,838 of 1,838 rows, in both
   editions checked**. The previous figure was true, but it measured a fragment.
 
 ### Added
-- `suma_skladnikow_mocy_zajetej` and the field `tozsamosc_sumy_mocy_zajetej` in the report of the
+- `total_occupied_capacity_components` and the field `identity_sum_occupied_capacity` in the report of the
   Spanish adapter. For this publisher **there is no reference set** read
   independently of the parser, so the extraction accuracy cannot be measured against a reference set.
   Arithmetic closure is evidence of **consistency of reading**: for the sum of eleven cells
   to agree with the twelfth, all twelve have to be read correctly. Across two
-  editions that gives 3 676 independent checks, all of them closed. This is
+  editions that gives 3,676 independent checks, all of them closed. This is
   evidence weaker than a reference set and it is described as such.
-- `NODE_KEY_FIELDS`, a content key for rows of the WĘZEŁ entity. The default key is
-  built for the WNIOSEK entity and on node rows it **falls apart**, because the application fields
-  are empty there. Measured on a pair of Spanish issues: with the default key 916 of 1 838
+- `NODE_KEY_FIELDS`, a content key for rows of the NODE entity. The default key is
+  built for the APPLICATION entity and on node rows it **falls apart**, because the application fields
+  are empty there. Measured on a pair of Spanish issues: with the default key 916 of 1,838
   rows fall into a collision and 660 are rejected as ambiguous; with the node
-  key the collisions number **zero**, all 1 838 pairs are linked unambiguously,
+  key the collisions number **zero**, all 1,838 pairs are linked unambiguously,
   at a precision and recall of **1,000**. The more general conclusion: a content key has to be
   matched to the entity just as the schema core is, and a mismatch **does not report
   an error**, it quietly produces collisions that look like events in the register.
@@ -106,13 +127,13 @@ and is reported as `SCHEMA_VERSION`.
 ### Added
 - The `es_edistribucion` adapter, **the first foreign source issued as a document
   meant for printing**, which closes the strongest missing test of transferability. A monthly issue,
-  28 pages, 1 838 rows of the WĘZEŁ entity, all declared fields populated
+  28 pages, 1,838 rows of the NODE entity, all declared fields populated
   at 100 %, including the geographic coordinates of every substation. Capacities in MW of active power.
-- The `ie_esbnetworks` adapter, the largest source in the panel, 46 527 rows, the only one
-  going below high voltage substations. Coordinates in 46 525 rows.
-- Reference panel: **68 054 rows, nine publishers, five jurisdictions**
-  (PL, GB, PT, ES, IE). The WĘZEŁ entity grows from 634 to 48 999 rows, and the coverage of the
-  coordinate field from 6,2 % to 72,9 % of the panel.
+- The `ie_esbnetworks` adapter, the largest source in the panel, 46,527 rows, the only one
+  going below high voltage substations. Coordinates in 46,525 rows.
+- Reference panel: **68,054 rows, nine publishers, five jurisdictions**
+  (PL, GB, PT, ES, IE). The NODE entity grows from 634 to 48,999 rows, and the coverage of the
+  coordinate field from 6.2 % to 72.9 % of the panel.
 
 ### Settled
 - **Units, for the second and third time.** The Irish source mixes, in one file, apparent power
@@ -136,13 +157,13 @@ and is reported as `SCHEMA_VERSION`.
 
 ### Added
 - The `pt_eredes` adapter, the reception capability of the national distribution network of Portugal,
-  469 rows of the WĘZEŁ entity, published quarterly. **The third jurisdiction in the panel
+  469 rows of the NODE entity, published quarterly. **The third jurisdiction in the panel
   and the third mode of issue**: not a document meant for printing and not a file on a page, but a dataset
   on an open data portal with a REST interface.
-- The first foreign source of the WĘZEŁ entity. That entity grows in the panel from 165 rows
+- The first foreign source of the NODE entity. That entity grows in the panel from 165 rows
   to 634, and both jurisdictions satisfy its core **through different members of the same
-  alternative**: Poland with available capacity (58 % of the node rows), Portugal with the
-  constraint flag (100 %). The conditional core introduced in version 1.0 for a Polish
+  alternative**: Poland with available capacity (58% of the node rows), Portugal with the
+  constraint flag (100%). The conditional core introduced in version 1.0 for a Polish
   category error turned out to be the condition for absorbing a foreign jurisdiction.
 
 ### Settled
@@ -155,7 +176,7 @@ and is reported as `SCHEMA_VERSION`.
 
 ### Fixed
 - **The adapter declaration test carried an out-of-date core contract.** It required
-  the core of the WNIOSEK entity from every adapter, that is it repeated the category error fixed
+  the core of the APPLICATION entity from every adapter, that is it repeated the category error fixed
   in rule R7 in version 1.0: a publisher discharging only point 2 of the duty
   discloses nodes rather than applications, so it has neither an application identifier nor an application capacity.
   The defect was revealed only by the Portuguese adapter. The test now checks the core **appropriate
@@ -163,7 +184,7 @@ and is reported as `SCHEMA_VERSION`.
 
 ### Changed
 - `reproducibility/manifest.csv` covers the Portuguese export with a checksum.
-- The reference panel counts 19 689 rows from seven publishers in three jurisdictions.
+- The reference panel counts 19,689 rows from seven publishers in three jurisdictions.
 
 
 ## 1.3.0 (2026-10-07)
@@ -176,14 +197,14 @@ and is reported as `SCHEMA_VERSION`.
   describe as unmeasurable because of the absence of the data.
 - `linkage_recall`, the **recall** of the longitudinal linkage, alongside the precision
   measured so far. On a pair of editions of the transmission operator the recall of the key is
-  0,9652: of the 29 missed pairs, 10 are broken by the notation of the location, 15 by a change of capacity,
+  0.9652: of the 29 missed pairs, 10 are broken by the notation of the location, 15 by a change of capacity,
   4 by a change of voltage.
-- `surrogate_key(..., zero_jako_brak=True)`, an option equating zero with a missing
+- `surrogate_key(..., zero_as_missing=True)`, an option equating zero with a missing
   value. It recovers 12 of the 51 pairs lost by the key. **Disabled
   by default**: zero is a disclosed value and a gap is a non-disclosure of it, so
   equating them is a decision of the analyst and is meant to be visible in the code.
-- `schema_table()` returns the columns `encja` and `status_rdzenia`; the core is
-  conditional per entity, which the two-valued `rdzen` column did not convey.
+- `schema_table()` returns the columns `entity` and `core_status`; the core is
+  conditional per entity, which the two-valued `core` column did not convey.
 - `reproducibility/fetch_sources.py`, downloads the source documents from the manifest
   and verifies the SHA-256 checksums. It supports a custom bundle of trusted issuers through
   `GRIDQUEUE_CA_BUNDLE`, without disabling verification.
@@ -204,8 +225,8 @@ and is reported as `SCHEMA_VERSION`.
 - `reproducibility/manifest.csv` covers the July edition of the disclosure of the transmission
   operator, used in the longitudinal analysis.
 - `DATA_LICENSE.md` explains why the documents are not redistributed,
-  and records that the link of one of the publishers stopped leading to the file
-, which the download script recognizes by the signature of the file and reports separately.
+  and records that the link of one of the publishers stopped leading to the file,
+  which the download script recognizes by the signature of the file and reports separately.
 
 
 ## 1.2.1 (2026-10-04)
@@ -240,7 +261,7 @@ and is reported as `SCHEMA_VERSION`.
 - `linkage_audit`, an assessment of the precision of the longitudinal linkage on nine fields
   **excluded from the key** (entity name, object name, application date, six fields of the
   capacity breakdown). The key does not enforce the agreement of these fields, so their agreement is
-  independent evidence. On the pair of PSE editions the precision is 98,88-99,63 %
+  independent evidence. On the pair of PSE editions the precision is 98.88-99.63%
   across all 804 pairs.
 - `EditionDelta` now reports key collisions and the number of rows rejected
   from the linkage as ambiguous.
@@ -263,14 +284,14 @@ and is reported as `SCHEMA_VERSION`.
 - The `longitudinal` module: `compare_editions`, `surrogate_key`, `EditionDelta`.
   The register does not publish a persistent application identifier, so linkage between
   editions goes by a content key.
-- `examples/longitudinal_use_case.py` and `docs/wzdluzna.md`.
+- `examples/longitudinal_use_case.py` and `docs/longitudinal.md`.
 
 ### Fixed
 - **Multiple capacity cells.** When an application concerns several connection points,
   the publisher enters several values into one cell, separated by a line break.
   Whitespace normalization turned the line break into a space, and the capacity conversion
   treats a space as a thousands separator, so "129⏎240" (129 MW + 240 MW) became
-  129 240 MW. In the edition with semicolons the same cell did not convert at all.
+  129,240 MW. In the edition with semicolons the same cell did not convert at all.
   The capacity is now split on the line break and on the semicolon, and deliberately not on the space;
   the components are summed and the split is preserved in the extensions.
 
@@ -279,9 +300,9 @@ and is reported as `SCHEMA_VERSION`.
 ### Changed
 - **The schema core is conditional and separate for each entity.** The core completeness
   rule required the `moc_pobierana` field unconditionally and applied the requirements of the
-  WNIOSEK entity to rows of the WĘZEŁ entity as well. Both decisions turned a property of the schema
-  into an apparent violation of the disclosure. Violations of rule R7 number 771 (4,011 %) instead of
-  5 390 (28,044 %).
+  APPLICATION entity to rows of the NODE entity as well. Both decisions turned a property of the schema
+  into an apparent violation of the disclosure. Violations of rule R7 number 771 (4.011%) instead of
+  5,390 (28.044%).
 - `SCHEMA_VERSION` was introduced, exposed in the validation report and in the public API.
 
 ### Added

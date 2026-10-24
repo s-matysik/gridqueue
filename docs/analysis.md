@@ -19,10 +19,10 @@ of the substations belonging to the node. In the panel, one publisher does so.
 ```python
 from gridqueue import station_node_map, assign_to_nodes, node_loading
 
-mapa = station_node_map(panel)              # station -> group of stations
-panel = assign_to_nodes(panel, mapa)        # assignment of applications to groups
-L = node_loading(panel, pole_mocy="moc_wprowadzana")
-L[["nazwa_wezla", "wnioskow", "moc_wnioskowana", "moc_dostepna", "obciazenie"]]
+mapping = station_node_map(panel)              # station -> group of stations
+panel = assign_to_nodes(panel, mapping)        # assignment of applications to groups
+L = node_loading(panel, capacity_field="moc_wprowadzana")
+L[["nazwa_wezla", "applications", "capacity_requested", "moc_dostepna", "loading"]]
 ```
 
 **The key is the group of stations, not the node row.** The publisher lists the same
@@ -64,9 +64,9 @@ time is, that is most strongly exactly where the result matters to us.
 ```python
 from gridqueue import processing_time, kaplan_meier
 
-d = processing_time(panel)                       # czas_dni + zdarzenie (1/0)
-km = kaplan_meier(d["czas_dni"], d["zdarzenie"])
-km.as_dict()["mediana"], km.as_dict()["udzial_cenzurowanych"]
+d = processing_time(panel)                       # time_days + event (1/0)
+km = kaplan_meier(d["time_days"], d["event"])
+km.as_dict()["median"], km.as_dict()["censored_share"]
 ```
 
 The Kaplan-Meier estimator was implemented directly, with Greenwood variance, so as
@@ -85,13 +85,13 @@ linkage.
 ```python
 from gridqueue import linkage_recall
 
-r = linkage_recall(edycja_a, edycja_b)
-r.as_dict()["czulosc_klucza"]
-r.odzyskane["pola_klucza_rozne"].value_counts()
+r = linkage_recall(edition_a, edition_b)
+r.as_dict()["key_sensitivity"]
+r.recovered_keys["different_key_fields"].value_counts()
 ```
 
 The identity fields used for recovery have to be **disjoint from the key**. A field
 shared with the key will not detect a pair broken by a change in exactly that field,
 because the identity diverges together with the key. Measured on a pair of editions of the
 transmission operator: adding the location to the set of identity fields raises the apparent
-recall from 0,9652 to 0,9757, and in reality hides ten pairs.
+recall from 0.9652 to 0,9757, and in reality hides ten pairs.

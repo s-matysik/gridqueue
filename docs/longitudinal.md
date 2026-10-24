@@ -40,8 +40,8 @@ So that the result can be reproduced and challenged, we state the rules openly.
    The same applies to a change of the voltage level or the resource class.
 3. **Uniqueness is required in both editions.** Rows with a repeating key are rejected
    before linkage, the first being retained, because for them a one-to-many assignment has no
-   unambiguous settlement. The figures are reported: `wierszy_w_kolizji_a` and `_b` give
-   how many rows stand in colliding groups, and `odrzuconych_jako_niejednoznaczne_a` and `_b`, how many
+   unambiguous settlement. The figures are reported: `rows_in_collision_a` and `_b` give
+   how many rows stand in colliding groups, and `rejected_as_ambiguous_a` and `_b`, how many
    actually drop out of the linkage.
 4. **New and departed** are simply differences of the sets of keys, computed after the collisions have
    been rejected.
@@ -49,7 +49,7 @@ So that the result can be reproduced and challenged, we state the rules openly.
    the status is precisely what we are measuring the change of.
 
 On the pair of PSE editions the collisions cover 56 rows in the July edition and 48 in the August one,
-which after rejection leaves 31 and 27 rows dropping out of the linkage, respectively 3,5 % and 3,1 % of
+which after rejection leaves 31 and 27 rows dropping out of the linkage, respectively 3.5% and 3.1% of
 the rows.
 
 ## Linkage precision measured on held-out fields
@@ -71,15 +71,15 @@ The result on the pair of PSE editions, on **all 804 pairs**, not on a sample:
 
 | class of pair | count | share |
 |---|---:|---:|
-| confirmed | 795 | 98,88 % |
-| uncertain | 6 | 0,75 % |
-| false | 3 | 0,37 % |
+| confirmed | 795 | 98.88% |
+| uncertain | 6 | 0.75% |
+| false | 3 | 0.37% |
 
-The linkage precision therefore falls in the range **98,88 % to 99,63 %**, depending on whether
+The linkage precision therefore falls in the range **98.88% to 99.63%**, depending on whether
 the uncertain cases are counted as wrong or as right. The three false pairs are different applications
 sharing location, voltage, class and both capacities, for example two energy storage facilities of the same
 capacity in the same locality. The transition result is robust against them: after removing the nine
-doubtful pairs the share of forward transitions changes from 98,28 % to 98,25 %.
+doubtful pairs the share of forward transitions changes from 98.28% to 98.25%.
 
 A caveat we do not leave out: this is not validation against an external truth, because for this
 register no such truth exists, there is no persistent identifier against which the
@@ -89,7 +89,7 @@ linkage could be checked. It is a test of internal consistency on data the key d
 
 If the key links the right rows, the status transitions should run in the direction of the
 administrative proceeding. If it links at random, they will be distributed without that order.
-On the pair of PSE editions of 31 July and 31 August 2026, **98,28 % of the transitions run forward**
+On the pair of PSE editions of 31 July and 31 August 2026, **98.28% of the transitions run forward**
 (57 of 58), with one backward transition from an agreement in force to conditions issued.
 This is a test independent of the linkage itself, and that is exactly why it has value.
 
@@ -113,17 +113,17 @@ difference between editions as a change in the state of the queue:
 Thirteen rows appear in the newer edition already as a withdrawn application, a refusal or expired
 conditions, which means the register **adds completed cases retrospectively**. Thirty-three rows
 with an active status disappear, which cannot be explained by the proceeding having ended. The
-`migawka_monotoniczna` property returns `False` on this pair and that is meant to be a signal, not a
+`monotone_snapshot` property returns `False` on this pair and that is meant to be a signal, not a
 technical detail.
 
 ```python
 from gridqueue import compare_editions, linkage_audit, get_adapter
 
-a = get_adapter("pl_pse").parse("edycja_2026_07_31.xlsx").frame
-b = get_adapter("pl_pse").parse("edycja_2026_08_31.xlsx").frame
+a = get_adapter("pl_pse").parse("edition_2026_07_31.xlsx").frame
+b = get_adapter("pl_pse").parse("edition_2026_08_31.xlsx").frame
 d = compare_editions(a, b, "2026-07-31", "2026-08-31")
 d.as_dict()
-d.przejscia          # status transition matrix
+d.transitions          # status transition matrix
 
 linkage_audit(a, b).as_dict()   # linkage precision
 ```
@@ -137,21 +137,21 @@ This whole analysis is reproduced by the Colab notebook on the publisher's live 
 
 ## The key has to be matched to the entity
 
-The default content key is built for the WNIOSEK entity. On rows of the WĘZEŁ entity it
+The default content key is built for the APPLICATION entity. On rows of the NODE entity it
 **falls apart**, because the application fields, the resource class and both capacities, are empty there.
 A mismatch **does not report an error**: it quietly produces collisions, which in further analysis look like
 events in the register.
 
-Measured on a pair of issues of the Spanish publisher (1 July and 1 August 2025, 1 838
+Measured on a pair of issues of the Spanish publisher (1 July and 1 August 2025, 1,838
 rows each):
 
 | key | collisions | rejected as ambiguous | linked pairs | precision | recall |
 |---|---:|---:|---:|---:|---:|
-| `DEFAULT_KEY_FIELDS` (application) | 916 | 660 | 1 178 |, |, |
-| `NODE_KEY_FIELDS` (node) | 0 | 0 | **1 838** | **1,000** | **1,000** |
+| `DEFAULT_KEY_FIELDS` (application) | 916 | 660 | 1,178 | not measured | not measured |
+| `NODE_KEY_FIELDS` (node) | 0 | 0 | **1,838** | **1.000** | **1.000** |
 
-For comparison: on the Polish transmission register the same method gives a precision of 98,88-99,63 %
-and a recall of 0,9652. The difference is not a property of the method but of the **disclosure
+For comparison: on the Polish transmission register the same method gives a precision of 98.88-99.63 %
+and a recall of 0.9652. The difference is not a property of the method but of the **disclosure
 practice**: the Spanish publisher issues a stable node identifier, whereas the Polish one does not
 publish a persistent application identifier. The method therefore also measures how far a register
 lends itself to tracking over time.

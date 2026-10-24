@@ -8,7 +8,7 @@ title: Charts
 `plot` extra:
 
 ```bash
-pip install "gridqueue[plot] @ git+https://github.com/s-matysik/gridqueue@v1.6.0"
+pip install "gridqueue[plot] @ git+https://github.com/s-matysik/gridqueue@v1.7.0"
 ```
 
 ## Principles
@@ -21,7 +21,7 @@ pip install "gridqueue[plot] @ git+https://github.com/s-matysik/gridqueue@v1.6.0
   a zero; a node with zero declared free capacity has an undefined loading and is counted in the
   title, not drawn as infinite; a coordinate that cannot be given is shown with its reason.
 * **Inclusion criteria are fixed in advance.** Processing-time curves are drawn only for groups of
-  at least `min_n` applications, and `save_all` skips them, with the reason, when fewer than 80 % of
+  at least `min_n` applications, and `save_all` skips them, with the reason, when fewer than 80% of
   the applications carry both dates.
 * Figures are created without `pyplot`: the same code runs in a script, in Jupyter or Colab (a
   returned figure displays itself) and in the browser page.
@@ -35,7 +35,7 @@ pip install "gridqueue[plot] @ git+https://github.com/s-matysik/gridqueue@v1.6.0
 | `plot_column_shift(df)` | panel | rows with a value in a field it cannot belong to |
 | `plot_status_distribution(df, normalize=True)` | panel | applications by stage of the proceeding |
 | `plot_capacity_by_class(df)` | panel | requested capacity of the active queue by class and voltage |
-| `plot_processing_time(df, by="klasa_zasobu")` | panel | Kaplan-Meier curves, censored at the as-at date, 95 % band |
+| `plot_processing_time(df, by="klasa_zasobu")` | panel | Kaplan-Meier curves, censored at the as-at date, 95% band |
 | `plot_node_loading(L)` | `node_loading(...)` | queue over declared free capacity per node, log scale |
 | `plot_edition_flows(delta)` | `compare_editions(...)` | shared, new and absent rows, with the warning segments |
 | `plot_transitions(delta)` | `compare_editions(...)` | status transition matrix; backward moves outlined |
@@ -52,13 +52,13 @@ pip install "gridqueue[plot] @ git+https://github.com/s-matysik/gridqueue@v1.6.0
 from gridqueue import (parse_sources, compare_editions, linkage_audit, linkage_recall,
                        assign_to_nodes, node_loading, station_node_map, plots)
 
-panel, _ = parse_sources(["wnioski.pdf", "moc_odbiorcza.pdf", "moc_wytworcza.pdf"])
+panel, _ = parse_sources(["applications.pdf", "demand_capacity.pdf", "generation_capacity.pdf"])
 plots.plot_processing_time(panel, by="klasa_zasobu", min_n=30)
 
-L = node_loading(assign_to_nodes(panel, station_node_map(panel)), napiecie="110")
+L = node_loading(assign_to_nodes(panel, station_node_map(panel)), voltage="110")
 plots.save_figure(plots.plot_node_loading(L), "node_loading.pdf")
 
-a, b = parse_sources(["edycja_07.xlsx"])[0], parse_sources(["edycja_08.xlsx"])[0]
+a, b = parse_sources(["edition_07.xlsx"])[0], parse_sources(["edition_08.xlsx"])[0]
 d = compare_editions(a, b, "2026-07-31", "2026-08-31")
 plots.plot_edition_comparison(d, linkage_audit(a, b), linkage_recall(a, b))
 ```

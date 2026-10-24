@@ -69,11 +69,11 @@ class EnergaAdapter(Adapter):
     detect_patterns = (r"energa", r"eop")
 
     #: years of the disclosure horizon for pt. 2
-    HORYZONT = ("2026", "2027", "2028", "2029", "2030", "2031", "2035")
+    HORIZON = ("2026", "2027", "2028", "2029", "2030", "2031", "2035")
 
-    def __init__(self, data_publikacji: Optional[str] = None, rok_bazowy: str = "2026"):
-        self.data_publikacji = data_publikacji
-        self.rok_bazowy = rok_bazowy
+    def __init__(self, publication_date: Optional[str] = None, base_year: str = "2026"):
+        self.publication_date = publication_date
+        self.base_year = base_year
 
     # ------------------------------------------------------------------
     def parse(self, source) -> ParseResult:
@@ -82,21 +82,21 @@ class EnergaAdapter(Adapter):
         sources = [source] if isinstance(source, (str, bytes)) else list(source)
         frames, reports = [], []
         for src in sources:
-            rola = self._detect_role(src)
-            if rola == "wnioski":
-                f, r = self._parse_wnioski(src)
+            role = self._detect_role(src)
+            if role == "applications":
+                f, r = self._parse_applications(src)
             else:
-                f, r = self._parse_wezly(src, kierunek=rola)
+                f, r = self._parse_nodes(src, direction=role)
             frames.append(f)
             reports.append(r)
         df = pd.concat(frames, ignore_index=True) if frames else self.blank_frame(0)
         report = {
-            "publikujacy": self.publisher,
-            "strategia_wydobycia": "ruled (grid of thin rectangles), header read via geometry",
-            "wzorzec": "PTPiREE/PSE for pt. 1/3/4; IEn's own custom layout for pt. 2",
-            "dokumenty": reports,
-            "n_wierszy": int(len(df)),
-            "data_publikacji": self.data_publikacji,
+            "publisher": self.publisher,
+            "extraction_strategy": "ruled (grid of thin rectangles), header read via geometry",
+            "pattern": "PTPiREE/PSE for pt. 1/3/4; IEn's own custom layout for pt. 2",
+            "documents": reports,
+            "n_rows": int(len(df)),
+            "publication_date": self.publication_date,
         }
         return ParseResult(self.finalize(df, document="; ".join(map(str, sources))), report)
 
@@ -111,10 +111,10 @@ class EnergaAdapter(Adapter):
             return "odbiorcza"
         if "dostepnej wytworczej mocy" in t:
             return "wytworcza"
-        return "wnioski"
+        return "applications"
 
     # ------------------------------------------------------------------
-    def _parse_wnioski(self, src):
+    def _parse_applications(self, src):
         """pt. 1/3/4: PTPiREE pattern in a PDF with a vector grid."""
         import pandas as pd
         import pdfplumber
@@ -122,12 +122,12 @@ class EnergaAdapter(Adapter):
         rows: list[list[Optional[str]]] = []
         n_pages = 0
         n_cols_seen: set[int] = set()
-        stan = None
+        as_at = None
         with pdfplumber.open(src) as pdf:
             for page in pdf.pages:
                 n_pages += 1
-                if stan is None:
-                    stan = T.stan_na(page.extract_text() or "")
+                if as_at is None:
+                    as_at = T.parse_as_at(page.extract_text() or "")
                 geom = detect_ruled_columns(page)
                 if geom.n_cols < 10:
                     continue
@@ -136,45 +136,45 @@ class EnergaAdapter(Adapter):
                 for row in tbl or []:
                     if row and _RE_LP.match((row[0] or "").strip()):
                         rows.append(row)
-        if stan and self.data_publikacji is None:
-            self.data_publikacji = stan
+        if as_at and self.publication_date is None:
+            self.publication_date = as_at
 
         width = max(T.ENERGA_PDF_LAYOUT) + 1
         raw = pd.DataFrame(index=range(len(rows)))
         padded = [(list(r) + [None] * width)[:width] for r in rows]
         for phys, logical in T.ENERGA_PDF_LAYOUT.items():
             raw[logical] = [p[phys] for p in padded]
-        out = T.to_schema(raw, publisher_key="energa", data_publikacji=self.data_publikacji)
+        out = T.to_schema(raw, publisher_key="energa", publication_date=self.publication_date)
         return out, {
-            "plik": str(src),
-            "encja": "WNIOSEK",
-            "strony": n_pages,
-            "n_kolumn_zrodlowych": sorted(n_cols_seen),
-            "n_wierszy": int(len(out)),
-            "stan_na": stan,
-            "uwaga_data": "the file name indicates the 31.08.2026 cycle, the document declares "
-                          f"as of {stan}; the document's declaration was adopted",
+            "file_name": str(src),
+            "entity": "WNIOSEK",
+            "pages": n_pages,
+            "n_source_columns": sorted(n_cols_seen),
+            "n_rows": int(len(out)),
+            "parse_as_at": as_at,
+            "note_date": "the file name indicates the 31.08.2026 cycle, the document declares "
+                          f"as of {as_at}; the document's declaration was adopted",
         }
 
     # ------------------------------------------------------------------
-    def _parse_wezly(self, src, *, kierunek: str):
+    def _parse_nodes(self, src, *, direction: str):
         """pt. 2: values of the total available connection capacity per node group."""
         import pandas as pd
         import pdfplumber
 
-        grupy: dict[str, dict] = {}       # group no. -> composition
-        wartosci: dict[str, dict] = {}    # group no. -> {year: MW} from table 2.3
+        groups: dict[str, dict] = {}       # group no. -> composition
+        values: dict[str, dict] = {}    # group no. -> {year: MW} from table 2.3
         analit: dict[str, dict] = {}      # group no. -> {year: MW} from table 2.4
-        oddzial_biezacy = None
-        stan = None
+        current_branch = None
+        as_at = None
         n_pages = 0
 
         with pdfplumber.open(src) as pdf:
             for page in pdf.pages:
                 n_pages += 1
                 txt = page.extract_text() or ""
-                if stan is None:
-                    stan = T.stan_na(txt)
+                if as_at is None:
+                    as_at = T.parse_as_at(txt)
                 if len(page.rects) < 50:
                     continue
                 geom = detect_ruled_columns(page)
@@ -184,69 +184,69 @@ class EnergaAdapter(Adapter):
                 caption = norm_text(" ".join(l for l in txt.split("\n")[:6]
                                              if l.strip().startswith("Tabela")))
                 if caption.startswith("tabela 2.1"):
-                    oddzial_biezacy = self._collect_grupy(tbl, grupy, oddzial_biezacy)
+                    current_branch = self._collect_groups(tbl, groups, current_branch)
                 elif caption.startswith("tabela 2.3"):
-                    self._collect_wartosci(tbl, wartosci)
+                    self._collect_values(tbl, values)
                 elif caption.startswith("tabela 2.4"):
-                    self._collect_wartosci(tbl, analit)
+                    self._collect_values(tbl, analit)
 
-        if kierunek == "odbiorcza" and stan and self.data_publikacji is None:
-            self.data_publikacji = stan
+        if direction == "odbiorcza" and as_at and self.publication_date is None:
+            self.publication_date = as_at
 
-        nry = sorted(wartosci, key=lambda s: int(s))
+        nry = sorted(values, key=lambda s: int(s))
         out = pd.DataFrame(index=range(len(nry)))
-        g = [grupy.get(n, {}) for n in nry]
+        g = [groups.get(n, {}) for n in nry]
         out["id_wniosku"] = None
-        out["id_wezla"] = [f"energa:grupa110:{n}:{kierunek}" for n in nry]
-        out["nazwa_wezla"] = [wartosci[n].get("_nazwa") for n in nry]
+        out["id_wezla"] = [f"energa:grupa110:{n}:{direction}" for n in nry]
+        out["nazwa_wezla"] = [values[n].get("_name") for n in nry]
         out["lokalizacja_tekst"] = [
-            gi.get("stacje") or wartosci[n].get("_nazwa") for n, gi in zip(nry, g)
+            gi.get("stations") or values[n].get("_name") for n, gi in zip(nry, g)
         ]
         out["poziom_napiecia"] = "110 kV"
         # The capacity direction is not a kind of installation: the pt. 2 disclosure
         # concerns the NODE, not the resource.  For off-take capacity the class is
         # unambiguous (ODB); for generation, the document does not indicate the
         # technology, so it remains as is.
-        out["klasa_zasobu"] = "ODB" if kierunek == "odbiorcza" else "NIEOKRESLONA"
+        out["klasa_zasobu"] = "ODB" if direction == "odbiorcza" else "NIEOKRESLONA"
         out["status_procesu"] = "NIEOKRESLONY"
         out["moc_dostepna"] = [
-            canonical_power_kw(wartosci[n].get(self.rok_bazowy), "MW") for n in nry
+            canonical_power_kw(values[n].get(self.base_year), "MW") for n in nry
         ]
-        out["data_publikacji"] = stan
+        out["data_publikacji"] = as_at
         out["_encja"] = "WEZEL"
-        out["_kierunek"] = kierunek
+        out["_kierunek"] = direction
         out["_nr_grupy"] = nry
-        out["_stacje_grupy"] = [gi.get("stacje") for gi in g]
-        out["_zmiany_w_latach"] = [gi.get("zmiany") for gi in g]
-        out["_oddzial"] = [gi.get("oddzial") for gi in g]
-        for rok in self.HORYZONT:
-            out[f"_moc_dostepna_{rok}"] = [
-                canonical_power_kw(wartosci[n].get(rok), "MW") for n in nry
+        out["_stacje_grupy"] = [gi.get("stations") for gi in g]
+        out["_zmiany_w_latach"] = [gi.get("changes") for gi in g]
+        out["_oddzial"] = [gi.get("branch") for gi in g]
+        for year in self.HORIZON:
+            out[f"_moc_dostepna_{year}"] = [
+                canonical_power_kw(values[n].get(year), "MW") for n in nry
             ]
         out["_moc_dostepna_analityczna"] = [
-            canonical_power_kw(analit.get(n, {}).get(self.rok_bazowy), "MW") for n in nry
+            canonical_power_kw(analit.get(n, {}).get(self.base_year), "MW") for n in nry
         ]
-        for rok in self.HORYZONT:
-            self.declared_extensions[f"_moc_dostepna_{rok}"] = (
-                f"available connection capacity in the {rok} horizon [kW]"
+        for year in self.HORIZON:
+            self.declared_extensions[f"_moc_dostepna_{year}"] = (
+                f"available connection capacity in the {year} horizon [kW]"
             )
         return out, {
-            "plik": str(src),
-            "encja": "WEZEL",
-            "kierunek": kierunek,
-            "strony": n_pages,
-            "n_grup_z_wartosciami": len(nry),
-            "n_grup_ze_skladem": len(grupy),
-            "n_grup_analitycznych": len(analit),
-            "horyzont": list(self.HORYZONT),
-            "rok_bazowy": self.rok_bazowy,
-            "n_wierszy": int(len(out)),
-            "stan_na": stan,
+            "file_name": str(src),
+            "entity": "WEZEL",
+            "direction": direction,
+            "pages": n_pages,
+            "n_groups_with_values": len(nry),
+            "n_groups_with_composition": len(groups),
+            "n_analytical_groups": len(analit),
+            "horizon": list(self.HORIZON),
+            "base_year": self.base_year,
+            "n_rows": int(len(out)),
+            "parse_as_at": as_at,
         }
 
     # ------------------------------------------------------------------
     @staticmethod
-    def _collect_grupy(tbl, grupy: dict, oddzial: Optional[str]) -> Optional[str]:
+    def _collect_groups(tbl, groups: dict, branch: Optional[str]) -> Optional[str]:
         for row in tbl:
             cells = [(c or "").replace("\n", " ").strip() for c in row]
             if len(cells) < 3:
@@ -255,33 +255,33 @@ class EnergaAdapter(Adapter):
             if "Oddział" in joined and not re.match(r"^\d+$", cells[0]):
                 m = re.search(r"Oddział\s+([\w\śółęąźżćń-]+)", joined)
                 if m:
-                    oddzial = m.group(1).strip()
+                    branch = m.group(1).strip()
                 continue
             if not re.match(r"^\d+$", cells[0]):
                 continue
-            grupy[cells[0]] = {
-                "nazwa": cells[1] or None,
-                "stacje": re.sub(r"\s+", " ", cells[2]) or None,
-                "zmiany": (re.sub(r"\s+", " ", cells[3]) or None) if len(cells) > 3 else None,
-                "oddzial": oddzial,
+            groups[cells[0]] = {
+                "name": cells[1] or None,
+                "stations": re.sub(r"\s+", " ", cells[2]) or None,
+                "changes": (re.sub(r"\s+", " ", cells[3]) or None) if len(cells) > 3 else None,
+                "branch": branch,
             }
-        return oddzial
+        return branch
 
     @staticmethod
-    def _collect_wartosci(tbl, store: dict) -> None:
-        lata: list[str] = []
+    def _collect_values(tbl, store: dict) -> None:
+        years: list[str] = []
         for row in tbl:
             cells = [(c or "").replace("\n", " ").strip() for c in row]
             if not cells:
                 continue
-            kandydaci = [c for c in cells[2:] if _RE_YEAR.match(c)]
-            if len(kandydaci) >= 3:
-                lata = [c if _RE_YEAR.match(c) else "" for c in cells[2:]]
+            candidates = [c for c in cells[2:] if _RE_YEAR.match(c)]
+            if len(candidates) >= 3:
+                years = [c if _RE_YEAR.match(c) else "" for c in cells[2:]]
                 continue
-            if not lata or not re.match(r"^\d+$", cells[0]):
+            if not years or not re.match(r"^\d+$", cells[0]):
                 continue
-            rec = {"_nazwa": cells[1] or None}
-            for rok, val in zip(lata, cells[2:]):
-                if rok and val not in {"", "-"}:
-                    rec[rok] = val
+            rec = {"_name": cells[1] or None}
+            for year, val in zip(years, cells[2:]):
+                if year and val not in {"", "-"}:
+                    rec[year] = val
             store[cells[0]] = rec

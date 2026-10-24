@@ -12,8 +12,8 @@ reading rendered crops of the pages (230-600 dpi, with the column boundaries dra
 
 | publisher | reference rows | comparisons | fully correct rows |
 |---|---:|---:|---|
-| TAURON Dystrybucja | 100 | 1 200 | **98 of 100**, 100 of 100 once the homoglyph pair is excluded |
-| Stoen Operator | 100 | 1 200 | **99 of 100**, 100 of 100 after adjudication |
+| TAURON Dystrybucja | 100 | 1,200 | **98 of 100**, 100 of 100 once the homoglyph pair is excluded |
+| Stoen Operator | 100 | 1,200 | **99 of 100**, 100 of 100 after adjudication |
 | PSE | 60 | 780 | **60 of 60** |
 | ENERGA-OPERATOR | 60 | 780 | **60 of 60** |
 | Boryszew Green Energy&Gas | 8 | 64 | **8 of 8** |
@@ -35,9 +35,9 @@ annotator's reference set, to the accuracy table, to the validation report or to
 | measure | value |
 |---|---:|
 | field-row comparisons | 400 |
-| raw agreement | **0,9725** |
-| agreement expected by chance | 0,1120 |
-| **Cohen's kappa** | **0,9690** |
+| raw agreement | **0.9725** |
+| agreement expected by chance | 0.1120 |
+| **Cohen's kappa** | **0.9690** |
 | agreement of the parser with the adjudicated reference set | **400 of 400** |
 
 All 11 discrepancies are **a convention of notation, not a difference of reading**: seven concern a
@@ -51,34 +51,34 @@ different set of rows and **does not invalidate** the 98 of 100 measurement.
 ## Geolocation
 
 The coordinate field is not disclosed by any publisher; it arises by derivation from the place name
-against a gazetteer with geometry (13 149 names in 25 localities, 292 address points,
+against a gazetteer with geometry (13,149 names in 25 localities, 292 address points,
 OpenStreetMap, ODbL 1.0).
 
 | publisher | rows | with coordinates | coverage |
 |---|---:|---:|---:|
-| Stoen Operator | 1 236 | 1 217 | **98,463%** |
-| Boryszew Green Energy&Gas | 8 | 8 | **100,000%** |
-| TAURON Dystrybucja | 10 955 | 0 | 0,000% |
-| ENERGA-OPERATOR | 5 382 | 0 | 0,000% |
-| PSE | 945 | 0 | 0,000% |
-| National Grid | 694 | 0 | 0,000% |
-| **panel** | **19 220** | **1 225** | **6,374%** |
+| Stoen Operator | 1,236 | 1,217 | **98.463%** |
+| Boryszew Green Energy&Gas | 8 | 8 | **100.000%** |
+| TAURON Dystrybucja | 10,955 | 0 | 0.000% |
+| ENERGA-OPERATOR | 5,382 | 0 | 0.000% |
+| PSE | 945 | 0 | 0.000% |
+| National Grid | 694 | 0 | 0.000% |
+| **panel** | **19,220** | **1,225** | **6.374%** |
 
 The zeros are **confirmed, not repaired by guessing**, and each one has a recorded reason: at TAURON
 a substation code with no published dictionary, at PSE and ENERGA a preponderance of rows with no
 declared locality, at National Grid the names of grid supply points instead of street addresses.
 
 Verification on a stratified sample of 102 points: agreement of the street name with independent
-geocoding **101 of 102 = 99,02%**; the median distance between two independently chosen
+geocoding **101 of 102 = 99.02%**; the median distance between two independently chosen
 representative points of the same street **259,2 m**, with a Spearman correlation with the length of
-the axis of **0,714**, the sources indicate the same street and differ in which of its points they
+the axis of **0.714**, the sources indicate the same street and differ in which of its points they
 take to be representative.
 
 **A fundamental limitation:** this is verification against a second reading of the same database, not
 against a field measurement. The sources are correlated, so the measurement does not rule out an
 error common to OpenStreetMap.
 
-**A street name does not determine a point.** 431 of 6 057 Warsaw names (7,12%) have disjoint
+**A street name does not determine a point.** 431 of 6,057 Warsaw names (7.12%) have disjoint
 components more than 2 km apart. The register gives the street but not the district, so this
 ambiguity **cannot be removed from the published data**; it is a finding about the scope of the
 disclosure duty, not about the quality of the tool. Every result carries the number of components and
