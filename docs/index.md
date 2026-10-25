@@ -37,17 +37,23 @@ ranking of locations, it contains no model of preferences.
 
 | publisher | rows in panel | fields from disclosure | fields including the derived one |
 |---|---:|---:|---:|
+| ESB Networks DAC | 46527 | 7 | 7 |
 | TAURON Dystrybucja S.A. | 10955 | 15 | 15 |
 | ENERGA-OPERATOR S.A. | 5382 | 17 | 17 |
+| e-Distribución Redes Digitales S.L.U. | 1838 | 9 | 9 |
 | Stoen Operator Sp. z o.o. | 1236 | 13 | 14 |
 | PSE S.A. | 945 | 17 | 17 |
 | National Grid Electricity Distribution | 694 | 10 | 10 |
+| E-REDES S.A. | 469 | 6 | 6 |
 | Boryszew Green Energy&Gas Sp. z o.o. | 8 | 8 | 9 |
 
-**All 21 schema fields are populated in the panel.** The coordinate field is not disclosed by any
-publisher and arises by derivation from the place name, which is why the table separates the fields
+**All 21 schema fields are populated in the panel.** The coordinate field is disclosed directly by
+two publishers, ESB Networks and e-Distribucion, which together account for 48,363 rows. For the
+Polish publishers it is not disclosed and arises by derivation from the place name, which covers
+1,225 further rows; those two origins are kept apart, which is why the table separates the fields
 coming from the disclosure from the derived field, and why the result of every resolution records a
-confidence level and a placement accuracy level.
+confidence level and a placement accuracy level. Coordinates are present in 49,588 of 68,054 rows,
+that is 72.9 per cent.
 
 ## Pages
 

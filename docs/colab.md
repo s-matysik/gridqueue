@@ -7,8 +7,9 @@ title: Google Colab
 [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/s-matysik/gridqueue/blob/main/notebooks/gridqueue_colab.ipynb)
 
 The notebook `notebooks/gridqueue_colab.ipynb` removes the installation barrier: a reviewer or an
-analyst at the regulator runs the full workflow without installing anything, without an account and
-without an accelerator.
+analyst at the regulator runs the full workflow without installing anything and without an
+accelerator. A Google account is needed to execute a notebook in Colab, which is a requirement of
+that service and not of the package; the same notebook runs locally in Jupyter without one.
 
 ## What the notebook does
 

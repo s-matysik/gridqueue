@@ -203,7 +203,9 @@ gridqueue parse <documents...> --out panel.parquet
 python examples/research_use_case.py panel.parquet
 ```
 
-The result on the panel of six publishers (median, days): **consumption** connections 40 at TAURON
+The result on the panel, as the median number of days over RESOLVED applications only, since an
+application still awaiting a decision is a censored observation and not a short one: **consumption**
+connections 40 at TAURON
 and 57 at ENERGA, **photovoltaics** 105 and 127, **energy storage** 119 and 146, **wind** 156 and 158.
 Consumption connections are processed two to four times faster than generating ones, and the difference
 between publishers persists within a class. This is a descriptive result: the register describes
@@ -293,10 +295,14 @@ detected by comparing the output with the reference set read from the document.
 * The location at TAURON is an internal substation code; the operator does not publish a dictionary of
   the codes, so the resolver returns missing with the reason `station_code_without_dictionary`. It does not
   guess.
-* **None of the publishers reports coordinates.** The `coordinates` field is populated by
-  derivation from the place name against a gazetteer with geometry (13,149 names in 25 localities):
-  1,225 of 19,220 panel rows. The evidential value of this field is therefore different from that of
-  the fields transcribed from the document, and it is described as such in the result.
+* **Coordinates come from two different origins and the difference matters.** Two publishers,
+  ESB Networks and e-Distribucion, disclose them directly, which covers 48,363 rows. The Polish
+  publishers do not, so for them the `coordinates` field is populated by derivation from the place
+  name against a gazetteer with geometry (13,149 names in 25 localities), which covers 1,225 further
+  rows. Coordinates are present in 49,588 of 68,054 panel rows, that is 72.9 per cent. The evidential
+  value of a derived point differs from that of a disclosed one, and from that of the fields
+  transcribed from the document, so every resolution records a confidence level and a placement
+  accuracy level and the result states which origin a point has.
 * A street name does not determine a point: 431 of 6,057 Warsaw names (7.12%) have disjoint components
   more than 2 km apart. The register gives the street but not the district, so **this ambiguity cannot
   be removed from the published data**. Every result carries the number of components and their spread,
